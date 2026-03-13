@@ -37,6 +37,15 @@ const options = {
         }
       },
       '/asignacion/{id}': {
+        get: {
+          summary: 'Obtener asignación por ID',
+          tags: ['Asignación'],
+          parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'number' } }],
+          responses: { 
+            200: { description: 'OK' },
+            404: { description: 'No encontrado' }
+          }
+        },
         put: {
           summary: 'Actualizar asignación',
           tags: ['Asignación'],
@@ -91,6 +100,15 @@ const options = {
         }
       },
       '/jornada/{id}': {
+        get: {
+          summary: 'Obtener jornada por ID',
+          tags: ['Jornada'],
+          parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'number' } }],
+          responses: { 
+            200: { description: 'OK' },
+            404: { description: 'No encontrado' }
+          }
+        },
         put: {
           summary: 'Actualizar jornada',
           tags: ['Jornada'],

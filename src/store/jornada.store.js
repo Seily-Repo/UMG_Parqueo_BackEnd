@@ -43,4 +43,22 @@ async function remove(id) {
     }
 }
 
-module.exports = { list, add, update, remove };
+async function getById(id) {
+    let conn = await getConnection();
+    try {
+        // El :id es un placeholder que Oracle entiende
+        const result = await conn.execute(
+            `SELECT * FROM DP_JORNADA WHERE JD_JORNADA = :id`, 
+            [id]
+        );
+        
+        // Retornamos solo la primera fila (si existe)
+        return result.rows[0]; 
+    } catch (err) {
+        throw err;
+    } finally {
+        if (conn) await conn.close();
+    }
+}
+
+module.exports = { list, add, update, remove, getById};

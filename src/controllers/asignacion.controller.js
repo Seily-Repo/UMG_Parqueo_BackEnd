@@ -24,4 +24,10 @@ async function deleteAsignacion(id) {
     return await store.remove(id);
 }
 
-module.exports = { getAsignaciones, addAsignacion, updateAsignacion, deleteAsignacion };
+
+async function getAsignacion(id) {
+    if (!id) throw new Error('El ID es necesario');
+    return await store.getById(id);
+}
+
+module.exports = { getAsignaciones, addAsignacion, updateAsignacion, deleteAsignacion, getAsignacion };

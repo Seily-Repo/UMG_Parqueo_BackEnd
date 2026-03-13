@@ -46,4 +46,21 @@ async function remove(id) {
     }
 }
 
-module.exports = { list, add, update, remove };
+async function getById(id) {
+    let conn = await getConnection();
+    try {
+        // Asegúrate de que ID_ASIGNACION sea el nombre real en tu tabla
+        const result = await conn.execute(
+            `SELECT * FROM DP_ASIGNACION WHERE AS_ASIGNACION = :id`, 
+            [id]
+        );
+        
+        return result.rows[0]; // Retorna la fila encontrada
+    } catch (err) {
+        throw err;
+    } finally {
+        if (conn) await conn.close();
+    }
+}
+
+module.exports = { list, add, update, remove, getById };

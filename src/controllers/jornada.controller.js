@@ -25,4 +25,8 @@ async function deleteJornada(id) {
     return await store.remove(id);
 }
 
-module.exports = { getJornadas, addJornada, updateJornada, deleteJornada };
+async function getJornada(id) {
+    if (!id) throw new Error('ID no proporcionado');
+    return await store.getById(id);
+}
+module.exports = { getJornadas, addJornada, updateJornada, deleteJornada,getJornada};
