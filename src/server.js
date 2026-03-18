@@ -1,16 +1,18 @@
+/* Cargar variables de entorno PRIMERO */
+require('dotenv').config();
+require('dotenv').config();
+
 /* Importaciones */
 const app = require('./app');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 const db = require('./config/db'); 
-require('dotenv').config();
 
 // Documentación Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
 
 const PORT = process.env.PORT || 4000;
-
 
 async function startServer() {
     try {
