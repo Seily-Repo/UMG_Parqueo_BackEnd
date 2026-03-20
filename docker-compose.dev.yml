@@ -16,6 +16,6 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      - DB_USER=SYSTEM
-      - DB_PASSWORD=1234
-      - DB_CONNECTION_STRING=host.docker.internal:1521/Estacionamientos_UMG
+      - DB_USER=root
+      - DB_PASSWORD=123
+      - DB_CONNECTION_STRING=host.docker.internal:1521/orcl

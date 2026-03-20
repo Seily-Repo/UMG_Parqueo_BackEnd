@@ -1,6 +1,5 @@
 /* Cargar variables de entorno PRIMERO */
 require('dotenv').config();
-require('dotenv').config();
 
 /* Importaciones */
 const app = require('./app');
