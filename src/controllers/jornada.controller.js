@@ -1,32 +1,77 @@
-const store = require('../store/jornada.store');
 
-async function getJornadas() {
-    return await store.list();
-}
+const Jornada = require('../model/jornada.model');
 
-async function addJornada(body) {
-    if (!body.tipo) throw new Error('El Tipo de Jornada es obligatorio.');
-    const data = {
-        tipo: body.tipo,
-        descripcion: body.descripcion || 'Sin descripción'
-    };
-    return await store.add(data);
-}
+exports.getAllJornadas = async (req, res) => {
+    try {
+        const jornadas = await Jornada.findAll();
+        res.status(200).json(jornadas);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
 
-async function updateJornada(id, body) {
-    if (!id) throw new Error('ID requerido');
-    return await store.update(id, { 
-        tipo: body.tipo, 
-        descripcion: body.descripcion 
-    });
-}
+exports.getJornadaById = async (req, res) => {
+    try {
+        const jornada = await Jornada.findByPk(req.params.id);
+        if (!jornada) return res.status(404).json({ message: 'No encontrado' });
+        res.status(200).json(jornada);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
 
-async function deleteJornada(id) {
-    return await store.remove(id);
-}
+exports.createJornada = async (req, res) => {
+    try {
+        const { JD_TipoJornada, JD_Descripcion } = req.body;
 
-async function getJornada(id) {
-    if (!id) throw new Error('ID no proporcionado');
-    return await store.getById(id);
-}
-module.exports = { getJornadas, addJornada, updateJornada, deleteJornada,getJornada};
+        const nuevaJornada = await Jornada.create({
+            JD_TipoJornada,
+            JD_Descripcion
+        });
+
+        res.status(201).json({
+            message: "Jornada creada exitosamente",
+            data: nuevaJornada
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Error al crear la jornada',
+            error: error.message 
+        });
+    }
+};
+
+exports.updateJornada = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { JD_TipoJornada, JD_Descripcion } = req.body;
+
+        const datosLimpios = { JD_TipoJornada, JD_Descripcion };
+
+        const [updatedRows] = await Jornada.update(datosLimpios, {
+            where: { JD_Jornada: id }
+        });
+
+        if (updatedRows === 0) {
+            return res.status(404).json({ message: 'No se encontró la jornada para actualizar.' });
+        }
+
+        res.status(200).json({ 
+            message: 'Jornada actualizada exitosamente', 
+            data: datosLimpios 
+        });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.deleteJornada = async (req, res) => {
+    try {
+        await Jornada.destroy({ where: { JD_Jornada: req.params.id } });
+        res.status(200).json({ message: 'Eliminado' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};

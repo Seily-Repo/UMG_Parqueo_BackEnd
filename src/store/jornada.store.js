@@ -1,64 +1,64 @@
-const { getConnection } = require('./test.store');
-const oracledb = require('oracledb');
+const Jornada = require('../model/jornada.model');
 
-async function list() {
-    let conn = await getConnection();
+// Equivale a list()
+exports.getAllJornadas = async (req, res) => {
     try {
-        const result = await conn.execute(`SELECT * FROM DP_JORNADA`, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
-        return result.rows;
-    } finally {
-        if (conn) await conn.close();
+        const jornadas = await Jornada.findAll();
+        res.status(200).json(jornadas);
+    } catch (error) {
+        res.status(500).json({ message: 'Error al listar jornadas', error: error.message });
     }
-}
+};
 
-async function add(data) {
-    let conn = await getConnection();
+// Equivale a getById()
+exports.getJornadaById = async (req, res) => {
     try {
-        const sql = `INSERT INTO DP_JORNADA (JD_TipoJornada, JD_Descripcion) VALUES (:tipo, :descripcion)`;
-        await conn.execute(sql, data, { autoCommit: true });
-        return { message: "Jornada creada exitosamente", data };
-    } finally {
-        if (conn) await conn.close();
+        const { id } = req.params;
+        const jornada = await Jornada.findByPk(id); // findByPk busca por Primary Key
+        if (!jornada) return res.status(404).json({ message: 'Jornada no encontrada' });
+        res.status(200).json(jornada);
+    } catch (error) {
+        res.status(500).json({ message: 'Error al obtener jornada', error: error.message });
     }
-}
+};
 
-async function update(id, data) {
-    let conn = await getConnection();
+// Equivale a add()
+exports.createJornada = async (req, res) => {
     try {
-        const sql = `UPDATE DP_JORNADA SET JD_TipoJornada = :tipo, JD_Descripcion = :descripcion WHERE JD_Jornada = :id`;
-        await conn.execute(sql, { ...data, id }, { autoCommit: true });
-        return { id, ...data };
-    } finally {
-        if (conn) await conn.close();
+        // data: { JD_TipoJornada, JD_Descripcion }
+        const nuevaJornada = await Jornada.create(req.body); 
+        res.status(201).json({ message: "Jornada creada exitosamente", data: nuevaJornada });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al crear jornada', error: error.message });
     }
-}
+};
 
-async function remove(id) {
-    let conn = await getConnection();
+// Equivale a update()
+exports.updateJornada = async (req, res) => {
     try {
-        await conn.execute(`DELETE FROM DP_JORNADA WHERE JD_Jornada = :id`, [id], { autoCommit: true });
-        return { deletedId: id };
-    } finally {
-        if (conn) await conn.close();
-    }
-}
-
-async function getById(id) {
-    let conn = await getConnection();
-    try {
-        // El :id es un placeholder que Oracle entiende
-        const result = await conn.execute(
-            `SELECT * FROM DP_JORNADA WHERE JD_JORNADA = :id`, 
-            [id]
-        );
+        const { id } = req.params;
+        const [updated] = await Jornada.update(req.body, {
+            where: { JD_Jornada: id }
+        });
         
-        // Retornamos solo la primera fila (si existe)
-        return result.rows[0]; 
-    } catch (err) {
-        throw err;
-    } finally {
-        if (conn) await conn.close();
+        if (updated === 0) return res.status(404).json({ message: 'Jornada no encontrada' });
+        res.status(200).json({ message: 'Jornada actualizada', id, data: req.body });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al actualizar jornada', error: error.message });
     }
-}
+};
 
-module.exports = { list, add, update, remove, getById};
+// Equivale a remove()
+exports.deleteJornada = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deleted = await Jornada.destroy({
+            where: { JD_Jornada: id }
+        });
+        
+        if (deleted === 0) return res.status(404).json({ message: 'Jornada no encontrada' });
+        res.status(200).json({ message: 'Jornada eliminada', deletedId: id });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al eliminar jornada', error: error.message });
+    }
+};
