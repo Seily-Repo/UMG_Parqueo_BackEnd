@@ -7,6 +7,10 @@ class EspacioStore {
         });
     }
 
+     static async getById(id) {
+        return await Espacio.findByPk(id); 
+    }
+
     static async getByParqueoId(parqueoId) {
         return await Espacio.findAll({ 
             where: { PQ_Parqueo: parqueoId } 

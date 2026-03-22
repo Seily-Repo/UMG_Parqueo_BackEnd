@@ -82,6 +82,20 @@ const options = {
             VH_Modelo: { type: 'string', example: 'Corolla' },
             US_Identificacion: { type: 'integer', example: 1 }
           }
+        },
+
+        Asignacion: {
+          type: 'object',
+          required: ['US_Identificacion', 'ES_Espacio', 'SM_Semestre', 'JD_Jornada'],
+          properties: {
+            AS_Asignacion: { type: 'integer', readOnly: true },
+            AS_FechaAsignacion: { type: 'string', format: 'date-time', readOnly: true },
+            AS_Estado: { type: 'integer', readOnly: true, example: 1 },
+            US_Identificacion: { type: 'integer', example: 1 },
+            ES_Espacio: { type: 'integer', example: 1 },
+            SM_Semestre: { type: 'integer', example: 1 },
+            JD_Jornada: { type: 'integer', example: 1 }
+          }
         }
       }
     },
@@ -139,6 +153,26 @@ const options = {
           summary: 'Crea un vehículo',
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Vehiculo' } } } },
           responses: { '201': { description: 'Creado' } }
+        }
+      },
+      '/api/asignacion': {
+        get: { tags: ['asignacion'], summary: 'Obtiene todas las asignaciones', responses: { '200': { description: 'Ok' } } },
+        post: {
+          tags: ['asignacion'],
+          summary: 'Asigna un espacio (Valida disponibilidad)',
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Asignacion' } } } },
+          responses: { 
+            '201': { description: 'Asignación exitosa' },
+            '409': { description: 'Espacio ocupado' }
+          }
+        }
+      },
+      '/api/asignacion/anular/{id}': {
+        put: {
+          tags: ['asignacion'],
+          summary: 'Anula una asignación (Cambia estado a 0)',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: { '200': { description: 'Anulado correctamente' } }
         }
       }
     }

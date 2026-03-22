@@ -4,6 +4,7 @@ const semestreRoutes = require('./semestre.routes');
 const usuarioRoutes = require('./usuario.routes');
 const vehiculoRoutes = require('./vehiculo.routes');
 const jornadaRoutes = require('./jornada.routes');
+const asignacionRoutes = require('./asignacion.routes');
 
 /* Función principal de rutas */
 const routes = (app) => {
@@ -14,6 +15,7 @@ const routes = (app) => {
   app.use('/api/usuarios', usuarioRoutes);
   app.use('/api/vehiculos', vehiculoRoutes);
   app.use('/api/jornadas', jornadaRoutes);
+  app.use('/api/asignacion',asignacionRoutes)
 };
 
 module.exports = routes;
