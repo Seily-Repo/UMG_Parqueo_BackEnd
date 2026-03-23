@@ -16,7 +16,6 @@ const options = {
     ],
     components: {
       schemas: {
-        
         Parqueo: {
           type: 'object',
           required: ['PQ_Nombre', 'PQ_Direccion', 'PQ_Capacidad'],
@@ -27,7 +26,6 @@ const options = {
             PQ_Capacidad: { type: 'integer', example: 150 }
           }
         },
-
         Jornada: {
           type: 'object',
           required: ['JD_TipoJornada', 'JD_Descripcion'],
@@ -37,7 +35,6 @@ const options = {
             JD_Descripcion: { type: 'string', example: 'Lunes a Viernes 07:00 - 12:00' }
           }
         },
-
         Espacio: {
           type: 'object',
           required: ['ES_Numero', 'ES_Estado', 'PQ_Parqueo'],
@@ -48,7 +45,6 @@ const options = {
             PQ_Parqueo: { type: 'integer', example: 1 }
           }
         },
-
         Semestre: {
           type: 'object',
           required: ['SM_ANO', 'SM_Periodo'],
@@ -58,7 +54,6 @@ const options = {
             SM_Periodo: { type: 'integer', example: 1 }
           }
         },
-
         Usuario: {
           type: 'object',
           required: ['US_Nombre', 'US_Apellido', 'US_Email', 'US_Pass'],
@@ -71,7 +66,6 @@ const options = {
             US_Pass: { type: 'string', example: 'Password123' }
           }
         },
-
         Vehiculo: {
           type: 'object',
           required: ['VH_Placa', 'VH_Marca', 'VH_Modelo', 'US_Identificacion'],
@@ -83,7 +77,6 @@ const options = {
             US_Identificacion: { type: 'integer', example: 1 }
           }
         },
-
         Asignacion: {
           type: 'object',
           required: ['US_Identificacion', 'ES_Espacio', 'SM_Semestre', 'JD_Jornada'],
@@ -99,7 +92,6 @@ const options = {
         }
       }
     },
-
     paths: {
       '/api/parqueos': {
         get: { tags: ['Parqueos'], summary: 'Obtiene todos los parqueos', responses: { '200': { description: 'Ok' } } },
@@ -110,6 +102,10 @@ const options = {
           responses: { '201': { description: 'Creado' } }
         }
       },
+      '/api/parqueos/{id}': {
+        get: { tags: ['Parqueos'], summary: 'Obtiene un parqueo por ID', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Ok' } } },
+        delete: { tags: ['Parqueos'], summary: 'Elimina un parqueo', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
+      },
       '/api/jornadas': {
         get: { tags: ['Jornadas'], summary: 'Obtiene todas las jornadas', responses: { '200': { description: 'Ok' } } },
         post: {
@@ -118,6 +114,10 @@ const options = {
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Jornada' } } } },
           responses: { '201': { description: 'Creado' } }
         }
+      },
+      '/api/jornadas/{id}': {
+        get: { tags: ['Jornadas'], summary: 'Obtiene una jornada por ID', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Ok' } } },
+        delete: { tags: ['Jornadas'], summary: 'Elimina una jornada', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
       },
       '/api/espacios': {
         get: { tags: ['Espacios'], summary: 'Obtiene los espacios', responses: { '200': { description: 'Ok' } } },
@@ -137,6 +137,10 @@ const options = {
           responses: { '201': { description: 'Creado' } }
         }
       },
+      '/api/semestres/{id}': {
+        get: { tags: ['Semestres'], summary: 'Obtiene un semestre por ID', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Ok' } } },
+        delete: { tags: ['Semestres'], summary: 'Elimina un semestre', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
+      },
       '/api/usuarios': {
         get: { tags: ['Usuarios'], summary: 'Obtiene usuarios', responses: { '200': { description: 'Ok' } } },
         post: {
@@ -146,6 +150,10 @@ const options = {
           responses: { '201': { description: 'Creado' } }
         }
       },
+      '/api/usuarios/{id}': {
+        get: { tags: ['Usuarios'], summary: 'Obtiene un usuario por ID', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Ok' } } },
+        delete: { tags: ['Usuarios'], summary: 'Elimina un usuario', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
+      },
       '/api/vehiculos': {
         get: { tags: ['Vehiculos'], summary: 'Obtiene vehículos', responses: { '200': { description: 'Ok' } } },
         post: {
@@ -154,6 +162,10 @@ const options = {
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Vehiculo' } } } },
           responses: { '201': { description: 'Creado' } }
         }
+      },
+      '/api/vehiculos/{id}': {
+        get: { tags: ['Vehiculos'], summary: 'Obtiene un vehículo por ID', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Ok' } } },
+        delete: { tags: ['Vehiculos'], summary: 'Elimina un vehículo', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
       },
       '/api/asignacion': {
         get: { tags: ['asignacion'], summary: 'Obtiene todas las asignaciones', responses: { '200': { description: 'Ok' } } },
