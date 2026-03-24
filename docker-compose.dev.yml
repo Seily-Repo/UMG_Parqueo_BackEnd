@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: backend-dev
     ports:
-      - "4000:4000"
+      - "3000:3000"
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
@@ -16,6 +16,10 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      - DB_USER=root
-      - DB_PASSWORD=123
+      - NODE_ENV=development
+      - PORT=3000
+      - DB_USER=admin
+      - DB_PASSWORD=1234
       - DB_CONNECTION_STRING=host.docker.internal:1521/orcl
+    stdin_open: true
+    tty: true
