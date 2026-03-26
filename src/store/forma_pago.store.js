@@ -1,4 +1,4 @@
-const FormaPago = require('../model/formaPago.model');
+const FormaPago = require('../model/forma_pago.model');
 
 class FormaPagoStore {
     
