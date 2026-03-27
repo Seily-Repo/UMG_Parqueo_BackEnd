@@ -112,6 +112,58 @@ const options = {
           }
         },
 
+        EstudianteMulta: {
+          type: 'object',
+          required: ['MUL_id_multa', 'EST_ID_ESTUDIANTE'],
+          properties: {
+            MUL_id_multa: {
+              type: 'integer',
+              format: 'int64',
+              description: 'ID de la multa'
+            },
+            EST_ID_ESTUDIANTE: {
+              type: 'integer',
+              description: 'ID del estudiante'
+            },
+            EM_monto_pagado: {
+              type: 'number',
+              format: 'decimal',
+              description: 'Monto pagado del total de la multa'
+            },
+            EM_monto_restante: {
+              type: 'number',
+              format: 'decimal',
+              description: 'Monto restante a pagar'
+            },
+            EM_fecha_pago: {
+              type: 'string',
+              format: 'date',
+              description: 'Fecha del pago'
+            },
+            EM_estado: {
+              type: 'string',
+              enum: ['pendiente', 'parcial', 'pagada'],
+              description: 'Estado de la multa para el estudiante'
+            },
+            EM_fecha_creacion: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Fecha de creación del registro'
+            },
+            EM_fecha_modificacion: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Fecha de última modificación'
+            }
+          },
+          example: {
+            MUL_id_multa: 1,
+            EST_ID_ESTUDIANTE: 1001,
+            EM_monto_pagado: 50.00,
+            EM_monto_restante: 100.00,
+            EM_fecha_pago: '2023-10-05',
+            EM_estado: 'parcial',
+            EM_fecha_creacion: '2023-10-01T10:00:00Z'
         FormaPago: {
           type: 'object',
           required: ['FPG_id_forma_pago', 'FPG_nombre_forma', 'FPG_estado'],
@@ -463,12 +515,132 @@ const options = {
             '500': { description: 'Error al actualizar la forma de pago' }
           }
         }
+      },
+
+      '/api/estudiante_multa': {
+        get: {
+          tags: ['Estudiante-Multa'],
+          summary: 'Obtiene todas las relaciones estudiante-multa',
+          responses: {
+            '200': {
+              description: 'Lista de relaciones estudiante-multa obtenida correctamente',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/EstudianteMulta' }
+                  }
+                }
+              }
+            },
+            '500': { description: 'Error al obtener los registros' }
+          }
+        },
+        post: {
+          tags: ['Estudiante-Multa'],
+          summary: 'Crea una nueva relación estudiante-multa',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/EstudianteMulta' }
+              }
+            }
+          },
+          responses: {
+            '201': {
+              description: 'Relación estudiante-multa creada exitosamente',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/EstudianteMulta' }
+                }
+              }
+            },
+            '500': { description: 'Error al crear el registro' }
+          }
+        }
+      },
+
+      '/api/estudiante_multa/estudiante/{estudiante_id}': {
+        get: {
+          tags: ['Estudiante-Multa'],
+          summary: 'Obtiene todas las multas de un estudiante',
+          parameters: [
+            {
+              name: 'estudiante_id',
+              in: 'path',
+              required: true,
+              description: 'ID del estudiante',
+              schema: { type: 'integer' }
+            }
+          ],
+          responses: {
+            '200': {
+              description: 'Lista de multas del estudiante obtenida correctamente',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/EstudianteMulta' }
+                  }
+                }
+              }
+            },
+            '500': { description: 'Error al obtener por estudiante' }
+          }
+        }
+      },
+
+      '/api/estudiante_multa/{EMU_ID_EST_MULTA}': {
+        put: {
+          tags: ['Estudiante-Multa'],
+          summary: 'Actualiza un registro estudiante-multa por ID',
+          parameters: [
+            {
+              name: 'EMU_ID_EST_MULTA',
+              in: 'path',
+              required: true,
+              description: 'ID del registro de estudiante-multa',
+              schema: { type: 'integer' }
+            }
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/EstudianteMulta' }
+              }
+            }
+          },
+          responses: {
+            '200': { description: 'Registro actualizado correctamente' },
+            '404': { description: 'Registro no encontrado' },
+            '500': { description: 'Error al actualizar el registro' }
+          }
+        },
+        delete: {
+          tags: ['Estudiante-Multa'],
+          summary: 'Elimina un registro estudiante-multa por ID',
+          parameters: [
+            {
+              name: 'EMU_ID_EST_MULTA',
+              in: 'path',
+              required: true,
+              description: 'ID del registro de estudiante-multa',
+              schema: { type: 'integer' }
+            }
+          ],
+          responses: {
+            '200': { description: 'Registro eliminado correctamente' },
+            '404': { description: 'Registro no encontrado' },
+            '500': { description: 'Error al eliminar el registro' }
+          }
+        }
       }
 
     },
 
   },
-
   apis: []
 };
 
