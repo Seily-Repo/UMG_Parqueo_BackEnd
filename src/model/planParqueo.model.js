@@ -39,9 +39,6 @@ class PlanParqueo {
         await connection.close();
         return result.rows;
     }
-    
-    
-
 
 //  // METODO: ACTUALIZAR PLAN PARQUEO UPDATE
     static async actualizar(id, data) {
@@ -59,6 +56,21 @@ class PlanParqueo {
                 estado: data.PLA_ESTADO,
                 id: id
             },
+            { autoCommit: true }
+        );
+
+        await connection.close();
+        return result;
+    }
+
+//  METODO: ELIMINAR PLAN PARQUEO DELETE
+    static async eliminar(id) {
+        const connection = await getConnection();
+
+        const result = await connection.execute(
+            `DELETE FROM PLAN_PARQUEO
+            WHERE PLA_ID_PLAN = :id`,
+            { id: id },
             { autoCommit: true }
         );
 
