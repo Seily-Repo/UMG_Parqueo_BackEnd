@@ -10,7 +10,3 @@ docker-compose -f docker-compose.dev.yml up
 DOCKER_BUILDKIT=1 docker-compose -f docker-compose.prod.yml up --build -d
 ### Windows PowerShell
 $env:DOCKER_BUILDKIT=1; docker-compose -f docker-compose.prod.yml up --build -d
-
-
-
-#ESTE ES UN COMENTARIO
