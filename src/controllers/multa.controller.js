@@ -75,22 +75,3 @@ exports.updateMulta = async (req, res) => {
         });
     }
 };
-
-exports.deleteMulta = async (req, res) => {
-    try {
-        const rowsDeleted = await MultaStore.delete(req.params.id);
-        if (rowsDeleted === 0) {
-            return res.status(404).json({
-                message: 'Multa no encontrada para eliminar'
-            });
-        }
-        res.status(200).json({
-            message: 'Multa eliminada exitosamente'
-        });
-    } catch (error) {
-        res.status(500).json({
-            message: 'Error al eliminar la multa',
-            error: error.message
-        });
-    }
-};

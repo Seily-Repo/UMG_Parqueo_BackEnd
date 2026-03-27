@@ -164,6 +164,29 @@ const options = {
             EM_fecha_pago: '2023-10-05',
             EM_estado: 'parcial',
             EM_fecha_creacion: '2023-10-01T10:00:00Z'
+        FormaPago: {
+          type: 'object',
+          required: ['FPG_id_forma_pago', 'FPG_nombre_forma', 'FPG_estado'],
+          properties: {
+            FPG_id_forma_pago: {
+              type: 'integer',
+              description: 'ID único de la forma de pago'
+            },
+            FPG_nombre_forma: {
+              type: 'string',
+              maxLength: 50,
+              description: 'Nombre de la forma de pago'
+            },
+            FPG_estado: {
+              type: 'string',
+              maxLength: 1,
+              description: 'Estado de la forma de pago (A=Activo, I=Inactivo)'
+            }
+          },
+          example: {
+            FPG_id_forma_pago: 1,
+            FPG_nombre_forma: 'Efectivo',
+            FPG_estado: 'A'
           }
         }
 
@@ -400,22 +423,96 @@ const options = {
             '500': { description: 'Error al actualizar la multa' }
           }
         },
-        delete: {
-          tags: ['Multas'],
-          summary: 'Elimina una multa',
+      },
+
+      '/api/forma_pago': {
+        get: {
+          tags: ['Formas de Pago'],
+          summary: 'Obtiene todas las formas de pago',
+          responses: {
+            '200': {
+              description: 'Lista de formas de pago obtenida correctamente',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/FormaPago' }
+                  }
+                }
+              }
+            },
+            '500': { description: 'Error al obtener las formas de pago' }
+          }
+        },
+        post: {
+          tags: ['Formas de Pago'],
+          summary: 'Crea una nueva forma de pago',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/FormaPago' }
+              }
+            }
+          },
+          responses: {
+            '201': { description: 'Forma de pago creada exitosamente' },
+            '400': { description: 'El ID de forma de pago ya existe' },
+            '500': { description: 'Error al crear la forma de pago' }
+          }
+        }
+      },
+
+      '/api/forma_pago/{id}': {
+        get: {
+          tags: ['Formas de Pago'],
+          summary: 'Obtiene una forma de pago por ID',
           parameters: [
             {
               name: 'id',
               in: 'path',
               required: true,
-              description: 'ID de la multa',
-              schema: { type: 'integer', format: 'int64' }
+              description: 'ID de la forma de pago',
+              schema: { type: 'integer' }
             }
           ],
           responses: {
-            '200': { description: 'Multa eliminada exitosamente' },
-            '404': { description: 'Multa no encontrada para eliminar' },
-            '500': { description: 'Error al eliminar la multa' }
+            '200': {
+              description: 'Forma de pago obtenida correctamente',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/FormaPago' }
+                }
+              }
+            },
+            '404': { description: 'Forma de pago no encontrada' },
+            '500': { description: 'Error al obtener la forma de pago' }
+          }
+        },
+        put: {
+          tags: ['Formas de Pago'],
+          summary: 'Actualiza una forma de pago',
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              description: 'ID de la forma de pago',
+              schema: { type: 'integer' }
+            }
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/FormaPago' }
+              }
+            }
+          },
+          responses: {
+            '200': { description: 'Forma de pago actualizada exitosamente' },
+            '404': { description: 'Forma de pago no encontrada para actualizar' },
+            '500': { description: 'Error al actualizar la forma de pago' }
           }
         }
       },
