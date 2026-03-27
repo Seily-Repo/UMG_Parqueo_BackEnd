@@ -2,7 +2,9 @@
 // IMPORTAR CONEXIÓN A LA BASE DE DATOS
 const getConnection = require("../db");
 
-// CLASE PLAN PARQUEO MODELO
+
+
+// CLASE PLAN PARQUEO
 class PlanParqueo {
 
 // METODO: CREAR PLAN PARQUEO INSERT
@@ -25,4 +27,18 @@ class PlanParqueo {
         await connection.close();
         return result;
     }
-      }
+
+// METODO: OBTENER TODOS LOS PLANES SELECT
+    static async obtenerTodos() {
+        const connection = await getConnection();
+
+        const result = await connection.execute(
+            `SELECT * FROM PLAN_PARQUEO`
+        );
+
+        await connection.close();
+        return result.rows;
+    }
+    
+}    
+
