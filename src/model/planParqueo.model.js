@@ -79,3 +79,6 @@ class PlanParqueo {
     }
 
 }
+
+// EXPORTAR
+module.exports = PlanParqueo;
