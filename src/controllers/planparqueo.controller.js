@@ -36,3 +36,30 @@ async function crearPlan(req, res) {
 
     }
 }
+
+async function obtenerPlanes(req, res) {
+
+    let connection;
+
+    try {
+
+        connection = await getConnection();
+
+        const result = await connection.execute(
+            `
+            SELECT *
+            FROM PLAN_PARQUEO
+            `
+        );
+
+        res.json(result.rows);
+
+    } catch (error) {
+
+        res.status(500).json({
+            error: error.message
+        });
+
+    }
+}
+
