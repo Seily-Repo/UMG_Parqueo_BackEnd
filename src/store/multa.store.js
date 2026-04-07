@@ -12,6 +12,12 @@ class MultaStore {
         return await Multa.findByPk(id);
     }
 
+    static async getByDescripcion(descripcion) {
+        return await Multa.findOne({
+            where: { MUL_descripcion: descripcion }
+        });
+    }
+
     static async create(data) {
         return await Multa.create({
             MUL_id_multa: data.MUL_id_multa,
