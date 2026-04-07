@@ -192,7 +192,34 @@ const options = {
           }
         }
 
-      }
+      },
+    
+        Pago: {
+          type: 'object',
+          required: ['id_pago', 'id_estudiante', 'id_plan', 'fecha_pago', 'monto_pagado'],
+          properties: {
+            id_pago: { type: 'integer' },
+            id_estudiante: { type: 'integer' },
+            id_plan: { type: 'integer' },
+            fecha_pago: { type: 'string', format: 'date-time' },
+            monto_pagado: { type: 'number' },
+            referencia_banco: { type: 'string' },
+            tarjeta_mask: { type: 'string' },
+            id_multa: { type: 'integer' },
+            id_vehiculo_estudiante: { type: 'integer' }
+          },
+          example: {
+            id_pago: 1,
+            id_estudiante: 1001,
+            id_plan: 2,
+            fecha_pago: '2024-03-01T10:00:00Z',
+            monto_pagado: 250.00,
+            referencia_banco: 'REF123456',
+            tarjeta_mask: '1234',
+            id_multa: null,
+            id_vehiculo_estudiante: 10
+          }
+        }
     },
 
     paths: {
@@ -479,6 +506,25 @@ const options = {
             }
           ],
           responses: {
+            '200': { description: 'Multa eliminada exitosamente' },
+            '404': { description: 'Multa no encontrada para eliminar' },
+            '500': { description: 'Error al eliminar la multa' }  
+    }
+  }
+      },
+      '/api/pago': {
+  get: {
+    tags: ['Pagos'],
+    summary: 'Obtiene todos los pagos',
+    responses: {
+      '200': {
+        description: 'Lista de pagos',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/Pago' }
+            }
             '200': {
               description: 'Forma de pago obtenida correctamente',
               content: {
@@ -638,9 +684,101 @@ const options = {
             '500': { description: 'Error al eliminar el registro' }
           }
         }
+      },
+      '500': { description: 'Error al obtener los pagos' }
+    }
+  },
+  post: {
+    tags: ['Pagos'],
+    summary: 'Crea un pago',
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/Pago' }
+        }
       }
-
     },
+    responses: {
+      '201': { description: 'Pago creado exitosamente' },
+      '500': { description: 'Error al crear el pago' }
+    }
+  }
+},
+
+'/api/pago/{id}': {
+  get: {
+    tags: ['Pagos'],
+    summary: 'Obtiene un pago por ID',
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        description: 'ID del pago',
+        schema: { type: 'integer' }
+      }
+    ],
+    responses: {
+      '200': {
+        description: 'Pago obtenido correctamente',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/Pago' }
+          }
+        }
+      },
+      '404': { description: 'Pago no encontrado' },
+      '500': { description: 'Error al obtener el pago' }
+    }
+  },
+  put: {
+    tags: ['Pagos'],
+    summary: 'Actualiza un pago',
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        description: 'ID del pago',
+        schema: { type: 'integer' }
+      }
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/Pago' }
+        }
+      }
+    },
+    responses: {
+      '200': { description: 'Pago actualizado exitosamente' },
+      '404': { description: 'Pago no encontrado para actualizar' },
+      '500': { description: 'Error al actualizar el pago' }
+    }
+  },
+  delete: {
+    tags: ['Pagos'],
+    summary: 'Elimina un pago',
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        description: 'ID del pago',
+        schema: { type: 'integer' }
+      }
+    ],
+    responses: {
+      '200': { description: 'Pago eliminado exitosamente' },
+      '404': { description: 'Pago no encontrado para eliminar' },
+      '500': { description: 'Error al eliminar el pago' }
+    }
+  }
+}
+
+    }
 
   },
   apis: []
