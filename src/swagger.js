@@ -15,6 +15,60 @@ const options = {
     components: {
       schemas: {
 
+        PlanParqueo: {
+  type: 'object',
+  required: [
+    'PLA_id_plan_parqueo',
+    'PLA_nombre',
+    'PLA_precio',
+    'PLA_creado_por'
+  ],
+  properties: {
+
+    PLA_id_plan_parqueo: {
+      type: 'integer',
+      description: 'ID del plan de parqueo'
+    },
+
+    PLA_nombre: {
+      type: 'string',
+      description: 'Nombre del plan'
+    },
+
+    PLA_precio: {
+      type: 'number',
+      format: 'decimal',
+      description: 'Precio del plan'
+    },
+
+    PLA_descripcion: {
+      type: 'string',
+      description: 'Descripción del plan'
+    },
+
+    PLA_creado_por: {
+      type: 'string',
+      description: 'Usuario que creó el plan'
+    },
+
+    PLA_fecha_creacion: {
+      type: 'string',
+      format: 'date-time',
+      description: 'Fecha de creación'
+    }
+
+  },
+
+  example: {
+    PLA_id_plan_parqueo: 1,
+    PLA_nombre: 'Plan Mensual',
+    PLA_precio: 150.00,
+    PLA_descripcion: 'Plan mensual de parqueo',
+    PLA_creado_por: 'admin',
+    PLA_fecha_creacion: '2024-01-01T10:00:00Z'
+  }
+},
+
         Estudiante: {
           type: 'object',
           required: ['EST_ID_ESTUDIANTE', 'EST_CARNE', 'EST_NOMBRE_COMPLETO'],
@@ -223,6 +277,131 @@ const options = {
     },
 
     paths: {
+
+      '/api/plan-parqueo': {
+
+  get: {
+    tags: ['Plan Parqueo'],
+    summary: 'Obtiene todos los planes de parqueo',
+    responses: {
+      '200': {
+        description: 'Lista obtenida correctamente',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'array',
+              items: {
+                $ref: '#/components/schemas/PlanParqueo'
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  post: {
+    tags: ['Plan Parqueo'],
+    summary: 'Crea un nuevo plan de parqueo',
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            $ref: '#/components/schemas/PlanParqueo'
+          }
+        }
+      }
+    },
+    responses: {
+      '201': {
+        description: 'Plan creado correctamente'
+      }
+    }
+  }
+
+},
+
+'/api/plan-parqueo/{id}': {
+
+  get: {
+    tags: ['Plan Parqueo'],
+    summary: 'Obtiene un plan por ID',
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: {
+          type: 'integer'
+        }
+      }
+    ],
+    responses: {
+      '200': {
+        description: 'Plan encontrado',
+        content: {
+          'application/json': {
+            schema: {
+              $ref: '#/components/schemas/PlanParqueo'
+            }
+          }
+        }
+      }
+    }
+  },
+
+  put: {
+    tags: ['Plan Parqueo'],
+    summary: 'Actualiza un plan',
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: {
+          type: 'integer'
+        }
+      }
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            $ref: '#/components/schemas/PlanParqueo'
+          }
+        }
+      }
+    },
+    responses: {
+      '200': {
+        description: 'Plan actualizado'
+      }
+    }
+  },
+
+  delete: {
+    tags: ['Plan Parqueo'],
+    summary: 'Elimina un plan',
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: {
+          type: 'integer'
+        }
+      }
+    ],
+    responses: {
+      '200': {
+        description: 'Plan eliminado'
+      }
+    }
+  }
+
+},
 
       '/api/estudiantes': {
         get: {
