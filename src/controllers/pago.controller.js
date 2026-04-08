@@ -36,6 +36,22 @@ exports.getPagoById = async (req, res) => {
 // Crear pago
 exports.createPago = async (req, res) => {
     try {
+        // VALIDACIONES 👇
+const { id_estudiante, id_plan, fecha_pago, monto_pagado } = req.body;
+
+// Validación 1: campos obligatorios
+if (!id_estudiante || !id_plan || !fecha_pago || !monto_pagado) {
+    return res.status(400).json({
+        message: 'Faltan campos obligatorios'
+    });
+}
+
+// Validación 2: monto mayor a 0
+if (monto_pagado <= 0) {
+    return res.status(400).json({
+        message: 'El monto pagado debe ser mayor a 0'
+    });
+}
         const pago = await PagoStore.create(req.body);
 
         res.status(201).json({
@@ -54,6 +70,14 @@ exports.createPago = async (req, res) => {
 // Actualizar pago
 exports.updatePago = async (req, res) => {
     try {
+        // VALIDACIÓN 👇
+const { monto_pagado } = req.body;
+
+if (monto_pagado !== undefined && monto_pagado <= 0) {
+    return res.status(400).json({
+        message: 'El monto pagado debe ser mayor a 0'
+    });
+}
         const rowsAffected = await PagoStore.update(req.params.id, req.body);
 
         if (rowsAffected[0] === 0) {
