@@ -193,6 +193,8 @@ const options = {
     }
   },
 
+  /* PLAN PARQUEO */
+
   post: {
     tags: ['Plan Parqueo'],
     summary: 'Crea un nuevo plan de parqueo',
