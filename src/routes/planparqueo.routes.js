@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/Plan_Parqueo.controller');
 
+/* RUTAS */
+
 router.get('/', controller.obtenerPlanes);
 router.get('/:id', controller.obtenerPlanPorId);
 router.post('/', controller.crearPlan);
