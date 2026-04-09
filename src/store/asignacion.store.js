@@ -22,10 +22,24 @@ class AsignacionStore {
         });
     }
 
-    static async getAll() {
-        return await Asignacion.findAll();
-    }
+ // Asegúrate de importar los operadores de tu ORM al inicio de tu archivo
+// const { Op } = require('sequelize'); 
 
+static async getAll(semestre, estado, limite = 50, pagina = 1) {
+    const queryOptions = {
+        where: {},
+        limit: parseInt(limite),
+        offset: (parseInt(pagina) - 1) * parseInt(limite),
+        order: [['AS_FechaAsignacion', 'DESC']]
+    };
+    if (semestre) {
+        queryOptions.where.SM_Semestre = semestre;
+    }
+        if (estado !== undefined) {
+        queryOptions.where.AS_Estado = estado;
+    }
+    return await Asignacion.findAll(queryOptions);
+}
     static async anular(id) {
         return await Asignacion.update(
             { AS_Estado: 0 },

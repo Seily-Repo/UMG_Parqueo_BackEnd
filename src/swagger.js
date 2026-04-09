@@ -1,16 +1,16 @@
 const swaggerJSDoc = require('swagger-jsdoc');
-
+const { PORT } = require('./config/config');
 const options = {
   definition: {
     openapi: '3.0.0',
     info: { 
-      title: 'UMG Parqueos API', 
+      title: 'UMG Parqueos API - Módulo de Asignaciones', 
       version: '1.0.0', 
-      description: 'Backend para control de Disponibilidad de Parqueos.\n\n**Nota sobre Tiempo Real:**\nEste servidor utiliza `socket.io`. El frontend puede conectarse a la raíz del servidor para escuchar actualizaciones del mapa en tiempo real.' 
+      description: 'Backend para control de Disponibilidad y Asignación de Parqueos.\n\n**Nota sobre Tiempo Real:**\nEste servidor utiliza `socket.io`. El frontend puede conectarse a la raíz del servidor para escuchar actualizaciones del mapa en tiempo real.' 
     },
     servers: [
       { 
-        url: 'http://localhost:3000', 
+        url: `http://localhost:${PORT}`, 
         description: 'Servidor local' 
       },
     ],
@@ -26,15 +26,6 @@ const options = {
             PQ_Capacidad: { type: 'integer', example: 150 }
           }
         },
-        Jornada: {
-          type: 'object',
-          required: ['JD_TipoJornada', 'JD_Descripcion'],
-          properties: {
-            JD_Jornada: { type: 'integer', readOnly: true },
-            JD_TipoJornada: { type: 'string', example: 'Matutina' },
-            JD_Descripcion: { type: 'string', example: 'Lunes a Viernes 07:00 - 12:00' }
-          }
-        },
         Espacio: {
           type: 'object',
           required: ['ES_Numero', 'ES_Estado', 'PQ_Parqueo'],
@@ -43,38 +34,6 @@ const options = {
             ES_Numero: { type: 'integer', example: 101 },
             ES_Estado: { type: 'integer', example: 1 },
             PQ_Parqueo: { type: 'integer', example: 1 }
-          }
-        },
-        Semestre: {
-          type: 'object',
-          required: ['SM_ANO', 'SM_Periodo'],
-          properties: {
-            SM_Semestre: { type: 'integer', readOnly: true },
-            SM_ANO: { type: 'integer', example: 2026 },
-            SM_Periodo: { type: 'integer', example: 1 }
-          }
-        },
-        Usuario: {
-          type: 'object',
-          required: ['US_Nombre', 'US_Apellido', 'US_Email', 'US_Pass'],
-          properties: {
-            US_Identificacion: { type: 'integer', readOnly: true },
-            US_Nombre: { type: 'string', example: 'Juan' },
-            US_Apellido: { type: 'string', example: 'Pérez' },
-            US_Email: { type: 'string', example: 'jperez@miumg.edu.gt' },
-            US_Telefono: { type: 'integer', example: 55551234 },
-            US_Pass: { type: 'string', example: 'Password123' }
-          }
-        },
-        Vehiculo: {
-          type: 'object',
-          required: ['VH_Placa', 'VH_Marca', 'VH_Modelo', 'US_Identificacion'],
-          properties: {
-            VH_Vehiculo: { type: 'integer', readOnly: true },
-            VH_Placa: { type: 'string', example: 'P-123ABC' },
-            VH_Marca: { type: 'string', example: 'Toyota' },
-            VH_Modelo: { type: 'string', example: 'Corolla' },
-            US_Identificacion: { type: 'integer', example: 1 }
           }
         },
         Asignacion: {
@@ -93,7 +52,6 @@ const options = {
       }
     },
     paths: {
-      // --- PARQUEOS ---
       '/api/parqueos': {
         get: { tags: ['Parqueos'], summary: 'Obtiene todos los parqueos', responses: { '200': { description: 'Ok' } } },
         post: {
@@ -108,7 +66,6 @@ const options = {
         delete: { tags: ['Parqueos'], summary: 'Elimina un parqueo', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
       },
 
-      // --- ESPACIOS (RUTAS SOLICITADAS) ---
       '/api/espacios': {
         get: { 
           tags: ['Espacios'], 
@@ -146,71 +103,10 @@ const options = {
         }
       },
 
-      // --- JORNADAS ---
-      '/api/jornadas': {
-        get: { tags: ['Jornadas'], summary: 'Obtiene todas las jornadas', responses: { '200': { description: 'Ok' } } },
-        post: {
-          tags: ['Jornadas'],
-          summary: 'Crea una jornada',
-          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Jornada' } } } },
-          responses: { '201': { description: 'Creado' } }
-        }
-      },
-      '/api/jornadas/{id}': {
-        get: { tags: ['Jornadas'], summary: 'Obtiene una jornada por ID', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Ok' } } },
-        delete: { tags: ['Jornadas'], summary: 'Elimina una jornada', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
-      },
-
-      // --- SEMESTRES ---
-      '/api/semestres': {
-        get: { tags: ['Semestres'], summary: 'Obtiene semestres', responses: { '200': { description: 'Ok' } } },
-        post: {
-          tags: ['Semestres'],
-          summary: 'Crea un semestre',
-          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Semestre' } } } },
-          responses: { '201': { description: 'Creado' } }
-        }
-      },
-      '/api/semestres/{id}': {
-        get: { tags: ['Semestres'], summary: 'Obtiene un semestre por ID', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Ok' } } },
-        delete: { tags: ['Semestres'], summary: 'Elimina un semestre', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
-      },
-
-      // --- USUARIOS ---
-      '/api/usuarios': {
-        get: { tags: ['Usuarios'], summary: 'Obtiene usuarios', responses: { '200': { description: 'Ok' } } },
-        post: {
-          tags: ['Usuarios'],
-          summary: 'Crea un usuario',
-          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Usuario' } } } },
-          responses: { '201': { description: 'Creado' } }
-        }
-      },
-      '/api/usuarios/{id}': {
-        get: { tags: ['Usuarios'], summary: 'Obtiene un usuario por ID', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Ok' } } },
-        delete: { tags: ['Usuarios'], summary: 'Elimina un usuario', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
-      },
-
-      // --- VEHICULOS ---
-      '/api/vehiculos': {
-        get: { tags: ['Vehiculos'], summary: 'Obtiene vehículos', responses: { '200': { description: 'Ok' } } },
-        post: {
-          tags: ['Vehiculos'],
-          summary: 'Crea un vehículo',
-          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Vehiculo' } } } },
-          responses: { '201': { description: 'Creado' } }
-        }
-      },
-      '/api/vehiculos/{id}': {
-        get: { tags: ['Vehiculos'], summary: 'Obtiene un vehículo por ID', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Ok' } } },
-        delete: { tags: ['Vehiculos'], summary: 'Elimina un vehículo', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
-      },
-
-      // --- ASIGNACIONES ---
       '/api/asignacion': {
-        get: { tags: ['asignacion'], summary: 'Obtiene todas las asignaciones', responses: { '200': { description: 'Ok' } } },
+        get: { tags: ['Asignaciones'], summary: 'Obtiene todas las asignaciones', responses: { '200': { description: 'Ok' } } },
         post: {
-          tags: ['asignacion'],
+          tags: ['Asignaciones'],
           summary: 'Asigna un espacio (Valida disponibilidad)',
           description: 'Si la asignación es exitosa, el servidor emite un evento de Socket.io llamado `espacioOcupado`.',
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Asignacion' } } } },
@@ -222,7 +118,7 @@ const options = {
       },
       '/api/asignacion/anular/{id}': {
         put: {
-          tags: ['asignacion'],
+          tags: ['Asignaciones'],
           summary: 'Anula una asignación (Cambia estado a 0)',
           description: 'Al anular, el servidor emite un evento de Socket.io llamado `espacioLiberado`.',
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],

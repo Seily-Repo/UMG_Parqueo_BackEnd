@@ -8,12 +8,11 @@ const swaggerSpec = require('./swagger');
 const db = require('./config/db'); 
 const http = require('http');
 const { Server } = require('socket.io');
-
+const { PORT } = require('./config/config');
 // Documentación Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
 
-const PORT = process.env.PORT || 4000;
 
 const server = http.createServer(app);
 const io = new Server(server, {

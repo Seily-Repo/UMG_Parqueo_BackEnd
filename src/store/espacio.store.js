@@ -13,7 +13,8 @@ class EspacioStore {
 
     static async getByParqueoId(parqueoId) {
         return await Espacio.findAll({ 
-            where: { PQ_Parqueo: parqueoId } 
+            where: { PQ_Parqueo: parqueoId },
+            order: [['ES_Numero', 'ASC']]
         });
     }
 
@@ -40,6 +41,32 @@ class EspacioStore {
             where: { ES_Espacio: id }
         });
     }
+
+   static async getEspaciosLibres(parqueoId, semestre, jornada) {
+        const asignacionesActivas = await Asignacion.findAll({
+            attributes: ['ES_Espacio'], 
+            where: {
+                SM_Semestre: semestre,
+                JD_Jornada: jornada,
+                AS_Estado: 1 
+            }
+        });
+
+        const espaciosOcupadosIds = asignacionesActivas.map(a => a.ES_Espacio);
+
+        return await Espacio.findAll({
+            where: {
+                PQ_Parqueo: parqueoId,
+                ES_Estado: 1, 
+                ES_Espacio: {
+                    [Op.notIn]: espaciosOcupadosIds.length > 0 ? espaciosOcupadosIds : [0] 
+                }
+            },
+            order: [['ES_Numero', 'ASC']]
+        });
+    }
 }
+    
+
 
 module.exports = EspacioStore;

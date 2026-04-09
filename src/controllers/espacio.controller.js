@@ -43,4 +43,23 @@ exports.deleteEspacio = async (req, res) => {
     } catch (error) { 
         res.status(500).json({ message: 'Error al eliminar espacio', error: error.message }); 
     }
+exports.getLibres = async (req, res) => {
+    try {
+        const { parqueoId, semestre, jornada } = req.query;
+        
+        if (!parqueoId || !semestre || !jornada) {
+            return res.status(400).json({ message: 'Faltan parámetros de búsqueda (parqueoId, semestre, jornada)' });
+        }
+
+        const espaciosLibres = await EspacioStore.getEspaciosLibres(parqueoId, semestre, jornada);
+        
+        res.status(200).json({
+            total_libres: espaciosLibres.length,
+            data: espaciosLibres
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al consultar disponibilidad', error: error.message });
+    }
+};
+
 };
