@@ -188,8 +188,7 @@ const options = {
           required: [
             "EMU_ID_EST_MULTA",
             "MUL_ID_MULTA",
-            "EST_CARNE_ESTUDIANTE",
-            "EST_ID_ESTUDIANTE",
+            "EST_CARNE",
             "EMU_CREADO_POR",
           ],
           properties: {
@@ -203,14 +202,10 @@ const options = {
               format: "int64",
               description: "ID de la multa",
             },
-            EST_CARNE_ESTUDIANTE: {
+            EST_CARNE: {
               type: "integer",
               format: "int64",
               description: "Carné del estudiante",
-            },
-            EST_ID_ESTUDIANTE: {
-              type: "integer",
-              description: "ID del estudiante",
             },
             EMU_ESTADO_MULTA: {
               type: "string",
@@ -242,8 +237,7 @@ const options = {
           example: {
             EMU_ID_EST_MULTA: 10,
             MUL_ID_MULTA: 1,
-            EST_CARNE_ESTUDIANTE: 51902321585,
-            EST_ID_ESTUDIANTE: 1001,
+            EST_CARNE: 51902321585,
             EMU_ESTADO_MULTA: "Activa",
             EMU_CREADO_POR: "Daniel",
             EMU_FECHA_CREACION: "2023-10-01T10:00:00Z",
@@ -352,8 +346,8 @@ const options = {
       },
     },
 
-    // Rutas de Plan Parqueo
     paths: {
+      // Rutas de Plan Parqueo
       "/api/plan-parqueo": {
         get: {
           tags: ["Plan Parqueo"],
@@ -396,6 +390,7 @@ const options = {
         },
       },
 
+      // Rutas de Plan Parqueo por ID
       "/api/plan-parqueo/{id}": {
         get: {
           tags: ["Plan Parqueo"],
@@ -473,6 +468,7 @@ const options = {
         },
       },
 
+      // Rutas de Estudiantes
       "/api/estudiantes": {
         get: {
           tags: ["Estudiantes"],
@@ -510,7 +506,7 @@ const options = {
           },
         },
       },
-
+      // Rutas de Estudiantes por Carne
       "/api/estudiantes/carne/{carne}": {
         get: {
           tags: ["Estudiantes"],
@@ -583,6 +579,7 @@ const options = {
         },
       },
 
+      // Rutas de Multas
       "/api/multa": {
         get: {
           tags: ["Multas"],
@@ -621,6 +618,7 @@ const options = {
         },
       },
 
+      // Rutas de Multas por ID
       "/api/multa/{id}": {
         get: {
           tags: ["Multas"],
@@ -674,7 +672,7 @@ const options = {
           },
         },
       },
-
+      // Rutas de Formas de Pago
       "/api/forma_pago": {
         get: {
           tags: ["Formas de Pago"],
@@ -713,6 +711,7 @@ const options = {
         },
       },
 
+      // Rutas de Formas de Pago por ID
       "/api/forma_pago/{id}": {
         get: {
           tags: ["Formas de Pago"],
@@ -734,6 +733,7 @@ const options = {
         },
       },
 
+      // Rutas de Pagos
       "/api/pago": {
         get: {
           tags: ["Pagos"],
@@ -790,163 +790,6 @@ const options = {
                 },
               },
             },
-
-            "/api/estudiante_multa": {
-              get: {
-                tags: ["Estudiante-Multa"],
-                summary: "Obtiene todas las relaciones estudiante-multa",
-                responses: {
-                  200: {
-                    description:
-                      "Lista de relaciones estudiante-multa obtenida correctamente",
-                    content: {
-                      "application/json": {
-                        schema: {
-                          type: "array",
-                          items: {
-                            $ref: "#/components/schemas/EstudianteMulta",
-                          },
-                        },
-                      },
-                    },
-                  },
-                  500: { description: "Error al obtener los registros" },
-                },
-              },
-              post: {
-                tags: ["Estudiante-Multa"],
-                summary: "Crea una nueva relación estudiante-multa",
-                requestBody: {
-                  required: true,
-                  content: {
-                    "application/json": {
-                      schema: {
-                        type: "object",
-                        required: [
-                          "EMU_ID_EST_MULTA",
-                          "MUL_ID_MULTA",
-                          "EST_CARNE_ESTUDIANTE",
-                          "EST_ID_ESTUDIANTE",
-                          "EMU_CREADO_POR",
-                        ],
-                        properties: {
-                          EMU_ID_EST_MULTA: {
-                            type: "integer",
-                            format: "int64",
-                          },
-                          MUL_ID_MULTA: { type: "integer", format: "int64" },
-                          EST_CARNE_ESTUDIANTE: {
-                            type: "integer",
-                            format: "int64",
-                          },
-                          EST_ID_ESTUDIANTE: { type: "integer" },
-                          EMU_CREADO_POR: { type: "string", maxLength: 50 },
-                        },
-                        example: {
-                          EMU_ID_EST_MULTA: 10,
-                          MUL_ID_MULTA: 1,
-                          EST_CARNE_ESTUDIANTE: 51902321585,
-                          EST_ID_ESTUDIANTE: 1001,
-                          EMU_CREADO_POR: "Daniel",
-                        },
-                      },
-                    },
-                  },
-                },
-                responses: {
-                  201: {
-                    description:
-                      "Relación estudiante-multa creada exitosamente. EMU_FECHA_CREACION se asigna automáticamente. El estado se asigna automáticamente como Activa",
-                    content: {
-                      "application/json": {
-                        schema: {
-                          $ref: "#/components/schemas/EstudianteMulta",
-                        },
-                      },
-                    },
-                  },
-                  400: { description: "Faltan campos obligatorios" },
-                  500: { description: "Error al crear el registro" },
-                },
-              },
-            },
-
-            "/api/estudiante_multa/carne/{EST_CARNE_ESTUDIANTE}": {
-              get: {
-                tags: ["Estudiante-Multa"],
-                summary: "Obtiene todas las multas de un estudiante por carné",
-                parameters: [
-                  {
-                    name: "EST_CARNE_ESTUDIANTE",
-                    in: "path",
-                    required: true,
-                    description: "Carné del estudiante",
-                    schema: { type: "string" },
-                  },
-                ],
-                responses: {
-                  200: {
-                    description:
-                      "Lista de multas del estudiante obtenida correctamente",
-                    content: {
-                      "application/json": {
-                        schema: {
-                          type: "array",
-                          items: {
-                            $ref: "#/components/schemas/EstudianteMulta",
-                          },
-                        },
-                      },
-                    },
-                  },
-                  500: { description: "Error al obtener por carné" },
-                },
-              },
-            },
-
-            "/api/estudiante_multa/{EMU_ID_EST_MULTA}": {
-              put: {
-                tags: ["Estudiante-Multa"],
-                summary: "Actualiza el estado de la multa por ID",
-                parameters: [
-                  {
-                    name: "EMU_ID_EST_MULTA",
-                    in: "path",
-                    required: true,
-                    description: "ID del registro de estudiante-multa",
-                    schema: { type: "integer" },
-                  },
-                ],
-                requestBody: {
-                  required: true,
-                  content: {
-                    "application/json": {
-                      schema: {
-                        type: "object",
-                        required: ["EMU_ESTADO_MULTA", "EMU_MODIFICADO_POR"],
-                        properties: {
-                          EMU_ESTADO_MULTA: { type: "string", maxLength: 10 },
-                          EMU_MODIFICADO_POR: { type: "string", maxLength: 50 },
-                        },
-                        example: {
-                          EMU_ESTADO_MULTA: "Cancelada",
-                          EMU_MODIFICADO_POR: "Luis",
-                        },
-                      },
-                    },
-                  },
-                },
-                responses: {
-                  200: {
-                    description:
-                      "Registro actualizado correctamente. La fecha de modificación se actualiza automáticamente",
-                  },
-                  404: { description: "Registro no encontrado" },
-                  400: { description: "Solicitud inválida o faltan campos" },
-                  500: { description: "Error al actualizar el registro" },
-                },
-              },
-            },
             500: { description: "Error al obtener los pagos" },
           },
         },
@@ -968,6 +811,7 @@ const options = {
         },
       },
 
+      // Rutas de Pagos por ID
       "/api/pago/{id}": {
         get: {
           tags: ["Pagos"],
@@ -1036,6 +880,166 @@ const options = {
             200: { description: "Pago eliminado exitosamente" },
             404: { description: "Pago no encontrado para eliminar" },
             500: { description: "Error al eliminar el pago" },
+          },
+        },
+      },
+
+      // Rutas de Estudiante-Multa
+      "/api/estudiante_multa": {
+        get: {
+          tags: ["Estudiante-Multa"],
+          summary: "Obtiene todas las relaciones estudiante-multa",
+          responses: {
+            200: {
+              description:
+                "Lista de relaciones estudiante-multa obtenida correctamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      $ref: "#/components/schemas/EstudianteMulta",
+                    },
+                  },
+                },
+              },
+            },
+            500: { description: "Error al obtener los registros" },
+          },
+        },
+        post: {
+          tags: ["Estudiante-Multa"],
+          summary: "Crea una nueva relación estudiante-multa",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: [
+                    "EMU_ID_EST_MULTA",
+                    "MUL_ID_MULTA",
+                    "EST_CARNE_ESTUDIANTE",
+                    "EST_ID_ESTUDIANTE",
+                    "EMU_CREADO_POR",
+                  ],
+                  properties: {
+                    EMU_ID_EST_MULTA: {
+                      type: "integer",
+                      format: "int64",
+                    },
+                    MUL_ID_MULTA: { type: "integer", format: "int64" },
+                    EST_CARNE_ESTUDIANTE: {
+                      type: "integer",
+                      format: "int64",
+                    },
+                    EST_ID_ESTUDIANTE: { type: "integer" },
+                    EMU_CREADO_POR: { type: "string", maxLength: 50 },
+                  },
+                  example: {
+                    EMU_ID_EST_MULTA: 10,
+                    MUL_ID_MULTA: 1,
+                    EST_CARNE_ESTUDIANTE: 51902321585,
+                    EST_ID_ESTUDIANTE: 1001,
+                    EMU_CREADO_POR: "Daniel",
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description:
+                "Relación estudiante-multa creada exitosamente. EMU_FECHA_CREACION se asigna automáticamente. El estado se asigna automáticamente como Activa",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/EstudianteMulta",
+                  },
+                },
+              },
+            },
+            400: { description: "Faltan campos obligatorios" },
+            500: { description: "Error al crear el registro" },
+          },
+        },
+      },
+
+      // Rutas de Estudiante-Multa por Carne
+      "/api/estudiante_multa/carne/{EST_CARNE_ESTUDIANTE}": {
+        get: {
+          tags: ["Estudiante-Multa"],
+          summary: "Obtiene todas las multas de un estudiante por carné",
+          parameters: [
+            {
+              name: "EST_CARNE_ESTUDIANTE",
+              in: "path",
+              required: true,
+              description: "Carné del estudiante",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            200: {
+              description:
+                "Lista de multas del estudiante obtenida correctamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      $ref: "#/components/schemas/EstudianteMulta",
+                    },
+                  },
+                },
+              },
+            },
+            500: { description: "Error al obtener por carné" },
+          },
+        },
+      },
+
+      // Rutas de Estudiante-Multa por ID
+      "/api/estudiante_multa/{EMU_ID_EST_MULTA}": {
+        put: {
+          tags: ["Estudiante-Multa"],
+          summary: "Actualiza el estado de la multa por ID",
+          parameters: [
+            {
+              name: "EMU_ID_EST_MULTA",
+              in: "path",
+              required: true,
+              description: "ID del registro de estudiante-multa",
+              schema: { type: "integer" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["EMU_ESTADO_MULTA", "EMU_MODIFICADO_POR"],
+                  properties: {
+                    EMU_ESTADO_MULTA: { type: "string", maxLength: 10 },
+                    EMU_MODIFICADO_POR: { type: "string", maxLength: 50 },
+                  },
+                  example: {
+                    EMU_ESTADO_MULTA: "Cancelada",
+                    EMU_MODIFICADO_POR: "Luis",
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description:
+                "Registro actualizado correctamente. La fecha de modificación se actualiza automáticamente",
+            },
+            404: { description: "Registro no encontrado" },
+            400: { description: "Solicitud inválida o faltan campos" },
+            500: { description: "Error al actualizar el registro" },
           },
         },
       },
