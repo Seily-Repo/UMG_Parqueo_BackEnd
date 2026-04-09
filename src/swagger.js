@@ -248,27 +248,27 @@ const options = {
         // FormaPago
         FormaPago: {
           type: "object",
-          required: ["FPG_id_forma_pago", "FPG_nombre_forma", "FPG_estado"],
+          required: ["FPG_FORMA_PAGO", "FPG_NOMBRE_FORMA", "FPG_ESTADO"],
           properties: {
-            FPG_id_forma_pago: {
+            FPG_FORMA_PAGO: {
               type: "integer",
               description: "ID único de la forma de pago",
             },
-            FPG_nombre_forma: {
+            FPG_NOMBRE_FORMA: {
               type: "string",
               maxLength: 50,
               description: "Nombre de la forma de pago",
             },
-            FPG_estado: {
+            FPG_ESTADO: {
               type: "string",
               maxLength: 1,
               description: "Estado de la forma de pago (A=Activo, I=Inactivo)",
             },
           },
           example: {
-            FPG_id_forma_pago: 1,
-            FPG_nombre_forma: "Efectivo",
-            FPG_estado: "A",
+            FPG_FORMA_PAGO: 1,
+            FPG_NOMBRE_FORMA: "Efectivo",
+            FPG_ESTADO: "A",
           },
         },
         // Pago
@@ -726,9 +726,53 @@ const options = {
             },
           ],
           responses: {
-            200: { description: "Multa eliminada exitosamente" },
-            404: { description: "Multa no encontrada para eliminar" },
-            500: { description: "Error al eliminar la multa" },
+            200: { description: "Forma de pago obtenida correctamente" },
+            404: { description: "Forma de pago no encontrada" },
+            500: { description: "Error al obtener la forma de pago" },
+          },
+        },
+        put: {
+          tags: ["Formas de Pago"],
+          summary: "Actualiza una forma de pago",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              description: "ID de la forma de pago",
+              schema: { type: "integer" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/FormaPago" },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Forma de pago actualizada exitosamente" },
+            404: { description: "Forma de pago no encontrada para actualizar" },
+            500: { description: "Error al actualizar la forma de pago" },
+          },
+        },
+        delete: {
+          tags: ["Formas de Pago"],
+          summary: "Elimina una forma de pago",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              description: "ID de la forma de pago",
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: { description: "Forma de pago eliminada exitosamente" },
+            404: { description: "Forma de pago no encontrada para eliminar" },
+            500: { description: "Error al eliminar la forma de pago" },
           },
         },
       },
@@ -1003,6 +1047,34 @@ const options = {
 
       // Rutas de Estudiante-Multa por ID
       "/api/estudiante_multa/{EMU_ESTUDIANTE_MULTA}": {
+        get: {
+          tags: ["Estudiante-Multa"],
+          summary: "Obtiene el registro de estudiante-multa por ID",
+          parameters: [
+            {
+              name: "EMU_ESTUDIANTE_MULTA",
+              in: "path",
+              required: true,
+              description: "ID del registro de estudiante-multa",
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: {
+              description:
+                "Registro de estudiante-multa obtenido correctamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/EstudianteMulta",
+                  },
+                },
+              },
+            },
+            404: { description: "Registro no encontrado" },
+            500: { description: "Error al obtener el registro" },
+          },
+        },
         put: {
           tags: ["Estudiante-Multa"],
           summary: "Actualiza el estado de la multa por ID",
@@ -1042,6 +1114,24 @@ const options = {
             404: { description: "Registro no encontrado" },
             400: { description: "Solicitud inválida o faltan campos" },
             500: { description: "Error al actualizar el registro" },
+          },
+        },
+        delete: {
+          tags: ["Estudiante-Multa"],
+          summary: "Elimina el registro de estudiante-multa",
+          parameters: [
+            {
+              name: "EMU_ESTUDIANTE_MULTA",
+              in: "path",
+              required: true,
+              description: "ID del registro de estudiante-multa",
+              schema: { type: "integer" },
+            },
+          ],
+          responses: {
+            200: { description: "Registro eliminado correctamente" },
+            404: { description: "Registro no encontrado" },
+            500: { description: "Error al eliminar el registro" },
           },
         },
       },
