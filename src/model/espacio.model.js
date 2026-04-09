@@ -1,32 +1,52 @@
 const { DataTypes } = require('sequelize');
-const {sequelize} = require('../config/db');
-const Parqueo = require('./parqueo.model');
+const { sequelize } = require('../config/db');
+const TipoEspacio = require('./tipo_espacio.model'); // Cambiado
 
 const Espacio = sequelize.define('Espacio', {
     ES_Espacio: {
         type: DataTypes.BIGINT,
         primaryKey: true,
-        autoIncrement: true
+        autoIncrement: true,
+        field: 'ES_ESPACIO'
     },
     ES_Numero: {
-        type: DataTypes.INTEGER
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        unique: 'compositeIndex', 
+        field: 'ES_NUMERO'
     },
     ES_Estado: {
-        type: DataTypes.INTEGER 
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0, // 0: Disponible, 1: Ocupado
+        validate: {
+            isIn: [[0, 1]]
+        },
+        field: 'ES_ESTADO'
     },
-    PQ_Parqueo: {
-        type: DataTypes.BIGINT, 
+    TES_ESPACIO: { // Cambiado: Ahora referencia al Tipo
+        type: DataTypes.BIGINT,
+        allowNull: false,
+        unique: 'compositeIndex',
         references: {
-            model: Parqueo,
-            key: 'PQ_Parqueo'
-        }
+            model: TipoEspacio,
+            key: 'TES_ESPACIO'
+        },
+        field: 'TES_ESPACIO'
     }
 }, {
     tableName: 'DP_ESPACIO',
-    timestamps: false
+    timestamps: false,
+    indexes: [
+        {
+            unique: true,
+            fields: ['ES_NUMERO', 'TES_ESPACIO'] // Unicidad por Tipo
+        }
+    ]
 });
 
-Parqueo.hasMany(Espacio, { foreignKey: 'PQ_Parqueo' });
-Espacio.belongsTo(Parqueo, { foreignKey: 'PQ_Parqueo' });
+// Relación TipoEspacio -> Espacio
+TipoEspacio.hasMany(Espacio, { foreignKey: 'TES_ESPACIO' });
+Espacio.belongsTo(TipoEspacio, { foreignKey: 'TES_ESPACIO' });
 
 module.exports = Espacio;
