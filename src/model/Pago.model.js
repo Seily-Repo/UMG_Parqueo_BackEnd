@@ -1,47 +1,55 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/db');
+const { DataTypes } = require("sequelize");
+const { sequelize } = require("../config/db");
 
-const Pago = sequelize.define('Pago', {
-    id_pago: {
-        type: DataTypes.BIGINT,
-        primaryKey: true,
-        allowNull: false
+const Pago = sequelize.define(
+  "Pago",
+  {
+    PAG_PAGO: {
+      type: DataTypes.BIGINT,
+      primaryKey: true,
+      allowNull: false,
     },
-    id_estudiante: {
-        type: DataTypes.BIGINT,
-        allowNull: false
+    EST_CARNE: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
-    id_plan: {
-        type: DataTypes.BIGINT,
-        allowNull: false
+    PLN_PLAN: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
-    fecha_pago: {
-        type: DataTypes.DATE,
-        allowNull: false
+    FPG_FORMA_PAGO: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
-    monto_pagado: {
-        type: DataTypes.DECIMAL(12, 2),
-        allowNull: false
+    MUL_MULTA: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
     },
-    referencia_banco: {
-        type: DataTypes.STRING(100),
-        allowNull: true
+    PAG_FECHA_PAGO: {
+      type: DataTypes.DATE,
+      allowNull: false,
     },
-    tarjeta_mask: {
-        type: DataTypes.STRING(4),
-        allowNull: true
+    PAG_MONTO_TOTAL: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
     },
-    id_multa: {
-        type: DataTypes.BIGINT,
-        allowNull: true
+    PAG_ESTADO: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
-    id_vehiculo_estudiante: {
-        type: DataTypes.BIGINT,
-        allowNull: true
-    }
-}, {
-    tableName: 'PAR_PAGO',
-    timestamps: false
-});
+    PAG_FECHA_CREACION: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    STRIPE_PAYMENT_INTENT_ID: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+  },
+  {
+    tableName: "PAR_PAGO",
+    timestamps: false,
+  },
+);
 
-});
+module.exports = Pago;
