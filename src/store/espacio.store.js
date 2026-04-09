@@ -57,7 +57,7 @@ class EspacioStore {
     }
 
     /**
-     * Lógica de disponibilidad corregida:
+     * Lógica de disponibilidad:
      * Filtra espacios que NO estén en la lista de asignaciones ocupadas 
      * para una jornada y semestre específicos.
      */

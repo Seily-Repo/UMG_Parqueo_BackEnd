@@ -1,8 +1,7 @@
 const EspacioStore = require('../store/espacio.store');
-const TipoEspacio = require('../model/tipo_espacio.model'); // Importar el modelo para validación
+const TipoEspacio = require('../model/tipo_espacio.model'); 
 const Asignacion = require('../model/asignacion.model'); 
 
-// Helper para respuestas estandarizadas (opcional, podrías tenerlo en otro archivo)
 const sendResponse = (res, status, success, message, details = null) => {
     return res.status(status).json({ success, status, message, details });
 };
@@ -95,7 +94,6 @@ exports.getLibres = async (req, res) => {
         return sendResponse(res, 500, false, 'Error al consultar disponibilidad', error.message);
     }
 };
-// Asegúrate de que el nombre sea "getEspaciosByTipo"
 exports.getEspaciosByTipo = async (req, res) => { 
     try {
         const { tipoId } = req.params;
@@ -111,7 +109,6 @@ exports.getEspaciosByTipo = async (req, res) => {
     }
 };
 
-// Asegúrate de que el nombre sea "getLibres" (Línea 12 de tus rutas)
 exports.getLibres = async (req, res) => {
     try {
         const { tipoEspacioId, semestre, jornada } = req.query;

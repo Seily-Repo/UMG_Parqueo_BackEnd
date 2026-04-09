@@ -23,7 +23,6 @@ class TipoEspacioStore {
     }
 
     // 4. SUMATORIA: Obtener la capacidad total ya repartida en un parqueo
-    // Este método es vital para que el Controller no permita exceder PQ_Capacidad
     static async getSumCapacidadByParqueo(parqueoId) {
         return await TipoEspacio.sum('TES_CAPACIDAD_MAX_TIPO', {
             where: { PQ_Parqueo: parqueoId }
@@ -39,7 +38,7 @@ class TipoEspacioStore {
         });
     }
 
-    // 6. Actualizar (Ojo: Si se actualiza, el Controller debería re-validar porcentajes)
+    // 6. Actualizar
     static async update(id, data) {
         return await TipoEspacio.update({
             TES_NOMBRE: data.TES_NOMBRE,

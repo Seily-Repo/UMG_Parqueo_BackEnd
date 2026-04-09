@@ -1,6 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
-const TipoEspacio = require('./tipo_espacio.model'); // Cambiado
+const TipoEspacio = require('./tipo_espacio.model');
 
 const Espacio = sequelize.define('Espacio', {
     ES_Espacio: {
@@ -24,7 +24,7 @@ const Espacio = sequelize.define('Espacio', {
         },
         field: 'ES_ESTADO'
     },
-    TES_ESPACIO: { // Cambiado: Ahora referencia al Tipo
+    TES_ESPACIO: {
         type: DataTypes.BIGINT,
         allowNull: false,
         unique: 'compositeIndex',
