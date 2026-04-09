@@ -186,32 +186,32 @@ const options = {
         EstudianteMulta: {
           type: "object",
           required: [
-            "EMU_ID_EST_MULTA",
-            "MUL_ID_MULTA",
+            "EMU_ESTUDIANTE_MULTA",
+            "MUL_MULTA",
             "EST_CARNE",
             "EMU_CREADO_POR",
           ],
           properties: {
-            EMU_ID_EST_MULTA: {
+            EMU_ESTUDIANTE_MULTA: {
               type: "integer",
               format: "int64",
               description: "ID único del registro de estudiante-multa",
             },
-            MUL_ID_MULTA: {
+            MUL_MULTA: {
               type: "integer",
               format: "int64",
               description: "ID de la multa",
             },
             EST_CARNE: {
-              type: "integer",
-              format: "int64",
+              type: "string",
+              maxLength: 20,
               description: "Carné del estudiante",
             },
             EMU_ESTADO_MULTA: {
-              type: "string",
-              maxLength: 10,
+              type: "char",
+              maxLength: 1,
               description:
-                "Estado de la multa para el estudiante (Ej: Activa, Anulada, Pagada)",
+                'Estado de la multa para el estudiante (Ej: "A"=Activa, "C"=Cancelada, "P"=Pagada)',
             },
             EMU_CREADO_POR: {
               type: "string",
@@ -235,10 +235,10 @@ const options = {
             },
           },
           example: {
-            EMU_ID_EST_MULTA: 10,
-            MUL_ID_MULTA: 1,
-            EST_CARNE: 51902321585,
-            EMU_ESTADO_MULTA: "Activa",
+            EMU_ESTUDIANTE_MULTA: 1,
+            MUL_MULTA: 1,
+            EST_CARNE: "51902321585",
+            EMU_ESTADO_MULTA: "A",
             EMU_CREADO_POR: "Daniel",
             EMU_FECHA_CREACION: "2023-10-01T10:00:00Z",
             EMU_MODIFICADO_POR: "Luis",
@@ -917,31 +917,33 @@ const options = {
                 schema: {
                   type: "object",
                   required: [
-                    "EMU_ID_EST_MULTA",
-                    "MUL_ID_MULTA",
-                    "EST_CARNE_ESTUDIANTE",
-                    "EST_ID_ESTUDIANTE",
+                    "EMU_ESTUDIANTE_MULTA",
+                    "MUL_MULTA",
+                    "EST_CARNE",
                     "EMU_CREADO_POR",
                   ],
                   properties: {
-                    EMU_ID_EST_MULTA: {
-                      type: "integer",
-                      format: "int64",
-                    },
-                    MUL_ID_MULTA: { type: "integer", format: "int64" },
-                    EST_CARNE_ESTUDIANTE: {
-                      type: "integer",
-                      format: "int64",
-                    },
-                    EST_ID_ESTUDIANTE: { type: "integer" },
+                    EMU_ESTUDIANTE_MULTA: { type: "integer", format: "int64" },
+                    MUL_MULTA: { type: "integer", format: "int64" },
+                    EST_CARNE: { type: "string", maxLength: 20 },
                     EMU_CREADO_POR: { type: "string", maxLength: 50 },
+                    EMU_ESTADO_MULTA: { type: "char", maxLength: 1 },
+                    EMU_FECHA_CREACION: { type: "string", format: "date-time" },
+                    EMU_MODIFICADO_POR: { type: "string", maxLength: 50 },
+                    EMU_FECHA_MODIFICACION: {
+                      type: "string",
+                      format: "date-time",
+                    },
                   },
                   example: {
-                    EMU_ID_EST_MULTA: 10,
-                    MUL_ID_MULTA: 1,
-                    EST_CARNE_ESTUDIANTE: 51902321585,
-                    EST_ID_ESTUDIANTE: 1001,
+                    EMU_ESTUDIANTE_MULTA: 10,
+                    MUL_MULTA: 1,
+                    EST_CARNE: "51902321585",
                     EMU_CREADO_POR: "Daniel",
+                    EMU_ESTADO_MULTA: "P",
+                    EMU_FECHA_CREACION: "2022-01-01T00:00:00.000Z",
+                    EMU_MODIFICADO_POR: "Daniel",
+                    EMU_FECHA_MODIFICACION: "2022-01-01T00:00:00.000Z",
                   },
                 },
               },
@@ -966,13 +968,13 @@ const options = {
       },
 
       // Rutas de Estudiante-Multa por Carne
-      "/api/estudiante_multa/carne/{EST_CARNE_ESTUDIANTE}": {
+      "/api/estudiante_multa/carne/{EST_CARNE}": {
         get: {
           tags: ["Estudiante-Multa"],
           summary: "Obtiene todas las multas de un estudiante por carné",
           parameters: [
             {
-              name: "EST_CARNE_ESTUDIANTE",
+              name: "EST_CARNE",
               in: "path",
               required: true,
               description: "Carné del estudiante",
@@ -1000,13 +1002,13 @@ const options = {
       },
 
       // Rutas de Estudiante-Multa por ID
-      "/api/estudiante_multa/{EMU_ID_EST_MULTA}": {
+      "/api/estudiante_multa/{EMU_ESTUDIANTE_MULTA}": {
         put: {
           tags: ["Estudiante-Multa"],
           summary: "Actualiza el estado de la multa por ID",
           parameters: [
             {
-              name: "EMU_ID_EST_MULTA",
+              name: "EMU_ESTUDIANTE_MULTA",
               in: "path",
               required: true,
               description: "ID del registro de estudiante-multa",
@@ -1021,11 +1023,11 @@ const options = {
                   type: "object",
                   required: ["EMU_ESTADO_MULTA", "EMU_MODIFICADO_POR"],
                   properties: {
-                    EMU_ESTADO_MULTA: { type: "string", maxLength: 10 },
+                    EMU_ESTADO_MULTA: { type: "char", maxLength: 1 },
                     EMU_MODIFICADO_POR: { type: "string", maxLength: 50 },
                   },
                   example: {
-                    EMU_ESTADO_MULTA: "Cancelada",
+                    EMU_ESTADO_MULTA: "C",
                     EMU_MODIFICADO_POR: "Luis",
                   },
                 },

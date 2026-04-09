@@ -3,22 +3,21 @@ const EstudianteMulta = require("../model/estudiante_multa.model");
 class EstudianteMultaStore {
   static async getAll() {
     return await EstudianteMulta.findAll({
-      order: [["EMU_ID_EST_MULTA", "ASC"]],
+      order: [["EMU_ESTUDIANTE_MULTA", "ASC"]],
     });
   }
 
-  static async getByEstudianteCarne(EST_CARNE_ESTUDIANTE) {
+  static async getByEstudianteCarne(EST_CARNE) {
     return await EstudianteMulta.findAll({
-      where: { EST_CARNE_ESTUDIANTE: EST_CARNE_ESTUDIANTE },
+      where: { EST_CARNE: EST_CARNE },
     });
   }
 
   static async create(data) {
     return await EstudianteMulta.create({
-      EMU_ID_EST_MULTA: data.EMU_ID_EST_MULTA,
-      MUL_ID_MULTA: data.MUL_ID_MULTA,
-      EST_CARNE_ESTUDIANTE: data.EST_CARNE_ESTUDIANTE,
-      EST_ID_ESTUDIANTE: data.EST_ID_ESTUDIANTE,
+      EMU_ESTUDIANTE_MULTA: data.EMU_ESTUDIANTE_MULTA,
+      MUL_MULTA: data.MUL_MULTA,
+      EST_CARNE: data.EST_CARNE,
       EMU_ESTADO_MULTA: data.EMU_ESTADO_MULTA,
       EMU_CREADO_POR: data.EMU_CREADO_POR,
       EMU_MODIFICADO_POR: null,
@@ -26,7 +25,7 @@ class EstudianteMultaStore {
     });
   }
 
-  static async update(EMU_ID_EST_MULTA, data) {
+  static async update(EMU_ESTUDIANTE_MULTA, data) {
     return await EstudianteMulta.update(
       {
         EMU_ESTADO_MULTA: data.EMU_ESTADO_MULTA,
@@ -35,7 +34,7 @@ class EstudianteMultaStore {
       },
       {
         where: {
-          EMU_ID_EST_MULTA: EMU_ID_EST_MULTA,
+          EMU_ESTUDIANTE_MULTA: EMU_ESTUDIANTE_MULTA,
         },
       },
     );

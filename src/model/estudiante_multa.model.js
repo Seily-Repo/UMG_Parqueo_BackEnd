@@ -1,49 +1,49 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/db');
+const { DataTypes } = require("sequelize");
+const { sequelize } = require("../config/db");
 
-const EstudianteMulta = sequelize.define('EstudianteMulta', {
-    EMU_ID_EST_MULTA: {
-        type: DataTypes.BIGINT,
-        primaryKey: true,
-        allowNull: false
+const EstudianteMulta = sequelize.define(
+  "EstudianteMulta",
+  {
+    EMU_ESTUDIANTE_MULTA: {
+      type: DataTypes.NUMBER(15),
+      primaryKey: true,
+      allowNull: false,
     },
-    MUL_ID_MULTA: {
-        type: DataTypes.BIGINT,
-        allowNull: false
+    MUL_MULTA: {
+      type: DataTypes.NUMBER(15),
+      allowNull: false,
     },
-    EST_CARNE_ESTUDIANTE: {
-        type: DataTypes.BIGINT,
-        allowNull: false
-    },
-    EST_ID_ESTUDIANTE: {
-        type: DataTypes.BIGINT,
-        allowNull: false
+    EST_CARNE: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
     EMU_ESTADO_MULTA: {
-        type: DataTypes.STRING(10),
-        allowNull: false
+      type: DataTypes.CHAR(1),
+      allowNull: false,
     },
     EMU_CREADO_POR: {
-        type: DataTypes.STRING(50),
-        allowNull: false
+      type: DataTypes.STRING(50),
+      allowNull: false,
     },
     EMU_FECHA_CREACION: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
     },
     EMU_MODIFICADO_POR: {
-        type: DataTypes.STRING(50),
-        allowNull: true
+      type: DataTypes.STRING(50),
+      allowNull: true,
     },
     EMU_FECHA_MODIFICACION: {
-        type: DataTypes.DATE,
-        allowNull: true,
-        defaultValue: null
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
     },
-}, {
-    tableName: 'PAR_ESTUDIANTE_MULTA',
-    timestamps: false
-});
+  },
+  {
+    tableName: "PAR_ESTUDIANTE_MULTA",
+    timestamps: false,
+  },
+);
 
 module.exports = EstudianteMulta;
