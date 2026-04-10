@@ -249,16 +249,15 @@ const options = {
         EstudianteMoroso: {
           type: "object",
           required: [
-            "MOR_BLACKLIST_LOG",
             "EST_CARNE",
-            "MOR_FECHA_AGREGADO",
+            "MOR_MOTIVO",
             "MOR_ESTADO",
           ],
           properties: {
             MOR_BLACKLIST_LOG: {
               type: "integer",
               format: "int64",
-              description: "ID único del registro de estudiante moroso",
+              description: "ID único del registro de estudiante moroso (autogenerado)",
             },
             EST_CARNE: {
               type: "string",
@@ -267,8 +266,7 @@ const options = {
             },
             MOR_FECHA_AGREGADO: {
               type: "string",
-              format: "date-time",
-              description: "Fecha en que se añadió a la lista de morosos",
+              description: "Fecha y hora en que se añadió a la lista de morosos (DD/MM/YYYY HH:mm:ss)",
             },
             MOR_MOTIVO: {
               type: "string",
@@ -278,13 +276,12 @@ const options = {
             MOR_ESTADO: {
               type: "string",
               maxLength: 1,
-              description: "Estado del registro de morosidad (A=Activo, I=Inactivo)",
+              enum: ["A", "I", "S"],
+              description: "Estado del registro de morosidad (A=Activo, I=Inactivo, S=Suspendido)",
             },
           },
           example: {
-            MOR_BLACKLIST_LOG: 1,
             EST_CARNE: "5190-23-202034",
-            MOR_FECHA_AGREGADO: "2024-03-01T10:00:00Z",
             MOR_MOTIVO: "Pago atrasado",
             MOR_ESTADO: "A",
           },
@@ -649,6 +646,11 @@ const options = {
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/EstudianteMoroso" },
+                example: {
+                  EST_CARNE: "5190-23-202034",
+                  MOR_MOTIVO: "Pago atrasado",
+                  MOR_ESTADO: "A",
+                },
               },
             },
           },
@@ -692,31 +694,6 @@ const options = {
       },
 
       "/api/estudiante_moroso/{MOR_BLACKLIST_LOG}": {
-        get: {
-          tags: ["Estudiante Moroso"],
-          summary: "Obtiene un registro de estudiante moroso por ID",
-          parameters: [
-            {
-              name: "MOR_BLACKLIST_LOG",
-              in: "path",
-              required: true,
-              description: "ID del registro de estudiante moroso",
-              schema: { type: "integer", format: "int64" },
-            },
-          ],
-          responses: {
-            200: {
-              description: "Registro moroso obtenido correctamente",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/EstudianteMoroso" },
-                },
-              },
-            },
-            404: { description: "Registro moroso no encontrado" },
-            500: { description: "Error al buscar el registro moroso" },
-          },
-        },
         put: {
           tags: ["Estudiante Moroso"],
           summary: "Actualiza un registro de estudiante moroso",
@@ -736,17 +713,14 @@ const options = {
                 schema: {
                   type: "object",
                   properties: {
-                    EST_CARNE: { type: "string", maxLength: 20 },
-                    MOR_FECHA_AGREGADO: {
-                      type: "string",
-                      format: "date-time",
-                    },
                     MOR_MOTIVO: { type: "string", maxLength: 100 },
-                    MOR_ESTADO: { type: "string", maxLength: 1 },
+                    MOR_ESTADO: {
+                      type: "string",
+                      maxLength: 1,
+                      enum: ["A", "I", "S"],
+                    },
                   },
                   example: {
-                    EST_CARNE: "5190-23-202034",
-                    MOR_FECHA_AGREGADO: "2024-03-15T10:00:00Z",
                     MOR_MOTIVO: "Pago parcial recibido",
                     MOR_ESTADO: "A",
                   },
