@@ -1,4 +1,4 @@
-﻿const EstudianteMoroso = require("../model/estudiante_moroso");
+﻿const EstudianteMoroso = require("../model/estudiante_moroso.model");
 
 class EstudianteMorosoStore {
   static async getAll() {
