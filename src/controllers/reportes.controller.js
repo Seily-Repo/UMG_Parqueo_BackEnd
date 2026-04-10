@@ -1,6 +1,6 @@
 const db = require("../config/db");
 
-exports.getReporteFinanciero = async (req, res) => {
+exports.getReporteGerencial = async (req, res) => {
   try {
     const query = `
       SELECT U.US_Nombre, U.US_Apellido, V.VH_Placa, P.PQ_Nombre AS Parqueo,
@@ -19,12 +19,12 @@ exports.getReporteFinanciero = async (req, res) => {
 
     res.json(results);
   } catch (error) {
-    console.error("Error en getReporteFinanciero:", error);
+    console.error("Error en getReporteGerencial:", error);
     res.status(500).send("Error en el servidor");
   }
 };
 
-exports.getReporteGerencial = async (req, res) => {
+exports.getReporteAdministrativo = async (req, res) => {
   let connection;
 
   try {
@@ -106,7 +106,7 @@ exports.getReporteGerencial = async (req, res) => {
   }
 };
 
-exports.getReporteAdministrativo = async (req, res) => {
+exports.getReporteFinanciero = async (req, res) => {
     try {
     const { tipo, fecha } = req.query;
 
