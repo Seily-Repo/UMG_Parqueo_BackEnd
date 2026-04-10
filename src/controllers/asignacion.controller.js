@@ -3,27 +3,27 @@ const EspacioStore = require('../store/espacio.store');
 
 exports.createAsignacion = async (req, res) => {
     try {
-        const { ES_Espacio, SM_Semestre, JD_Jornada, US_Identificacion } = req.body;
+        const { ES_Espacio, id_ciclo, id_jornada, carne_usuario } = req.body;
 
-        if (!ES_Espacio || !SM_Semestre || !JD_Jornada || !US_Identificacion) {
+        if (!ES_Espacio || !id_ciclo || !id_jornada || !carne_usuario) {
             return res.status(400).json({ 
                 success: false,
                 status: 400,
                 message: 'Faltan datos obligatorios para la asignación.',
-                details: 'Se requiere ES_Espacio, SM_Semestre, JD_Jornada y US_Identificacion.'
+                details: 'Se requiere ES_Espacio, id_ciclo, id_jornada y carne_usuario.'
             });
         }
 
-        if (isNaN(ES_Espacio) || isNaN(SM_Semestre) || isNaN(JD_Jornada) || isNaN(US_Identificacion)) {
+        if (isNaN(ES_Espacio) || isNaN(id_ciclo) || isNaN(id_jornada)) {
             return res.status(400).json({ 
                 success: false,
                 status: 400,
-                message: 'Formato de datos inválido.',
-                details: 'Todos los identificadores deben ser valores numéricos.'
+                message: 'Formato de datos numéricos inválido.',
+                details: 'Los campos de espacio, ciclo y jornada deben ser números.'
             });
         }
 
-        if (ES_Espacio <= 0 || SM_Semestre <= 0 || JD_Jornada <= 0 || US_Identificacion <= 0) {
+        if (ES_Espacio <= 0 || id_ciclo <= 0 || id_jornada <= 0) {
             return res.status(400).json({ 
                 success: false,
                 status: 400,
@@ -31,18 +31,6 @@ exports.createAsignacion = async (req, res) => {
                 details: 'Los IDs no pueden ser menores o iguales a cero.'
             });
         }
-
-        /* habilitar cuanto este la asignacion de usuarios
-        const usuarioExiste = await asignacion.usuario(Identificacion);
-        if (!usuarioExiste) {
-            return res.status(404).json({ 
-                success: false,
-                status: 404,
-                message: 'El usuario indicado no se encuentra registrado.',
-                details: `No se encontró ningún estudiante o catedrático con el ID: ${US_Identificacion}`
-            });
-        } */
-
 
         const espacioFisico = await EspacioStore.getById(ES_Espacio);
         if (!espacioFisico) {
@@ -62,17 +50,17 @@ exports.createAsignacion = async (req, res) => {
             });
         }
 
-        const usuarioOcupado = await AsignacionStore.checkUsuarioOcupado(US_Identificacion, SM_Semestre, JD_Jornada);
+        const usuarioOcupado = await AsignacionStore.checkUsuarioOcupado(carne_usuario, id_ciclo, id_jornada);
         if (usuarioOcupado) {
             return res.status(409).json({ 
                 success: false,
                 status: 409,
-                message: 'El usuario ya cuenta con un espacio asignado para este semestre y jornada.',
+                message: 'El usuario ya cuenta con un espacio asignado para este ciclo y jornada.',
                 details: null
             });
         }
 
-        const espacioOcupado = await AsignacionStore.checkDisponibilidad(ES_Espacio, SM_Semestre, JD_Jornada);
+        const espacioOcupado = await AsignacionStore.checkDisponibilidad(ES_Espacio, id_ciclo, id_jornada);
         if (espacioOcupado) {
             return res.status(409).json({ 
                 success: false,
@@ -81,6 +69,8 @@ exports.createAsignacion = async (req, res) => {
                 data: { disponible: false }
             });
         }
+
+        req.body.AS_Estado = 1;
 
         await AsignacionStore.create(req.body);
         
@@ -111,9 +101,9 @@ exports.createAsignacion = async (req, res) => {
 
 exports.getAllAsignaciones = async (req, res) => {
     try {
-        const {SM_Semestre, estado} = req.query;
+        const { id_ciclo, estado } = req.query;
         
-        const asignaciones = await AsignacionStore.getAll(SM_Semestre,estado);
+        const asignaciones = await AsignacionStore.getAll(id_ciclo, estado);
         res.status(200).json({
             success: true,
             status: 200,
