@@ -105,3 +105,58 @@ exports.getReporteGerencial = async (req, res) => {
     if (connection) await connection.close();
   }
 };
+
+exports.getReporteAdministrativo = async (req, res) => {
+    try {
+    const { tipo, fecha } = req.query;
+
+    let filtro = "";
+
+    if (tipo === "dia") {
+  filtro = `
+    A.AS_FechaAsignacion >= TO_DATE('${fecha}','YYYY-MM-DD')
+    AND A.AS_FechaAsignacion < TO_DATE('${fecha}','YYYY-MM-DD') + 1
+  `;
+}
+
+    if (tipo === "mes") {
+      filtro = `EXTRACT(MONTH FROM A.AS_FechaAsignacion) = ${fecha.split("-")[1]} 
+                AND EXTRACT(YEAR FROM A.AS_FechaAsignacion) = ${fecha.split("-")[0]}`;
+    }
+
+    if (tipo === "anio") {
+      filtro = `EXTRACT(YEAR FROM A.AS_FechaAsignacion) = ${fecha}`;
+    }
+
+    if (tipo === "semana") {
+      filtro = `TRUNC(A.AS_FechaAsignacion, 'IW') = TRUNC(TO_DATE('${fecha}','YYYY-MM-DD'), 'IW')`;
+    }
+
+    const query = `
+      SELECT 
+        U.US_Nombre,
+        U.US_Apellido,
+        V.VH_Placa,
+        P.PQ_Nombre,
+        A.AS_FechaAsignacion
+      FROM DP_ASIGNACION A
+      JOIN DP_USUARIO U ON A.US_Identificacion = U.US_Identificacion
+      LEFT JOIN DP_VEHICULO V ON U.US_Identificacion = V.US_Identificacion
+      JOIN DP_ESPACIO E ON A.ES_Espacio = E.ES_Espacio
+      JOIN DP_PARQUEO P ON E.PQ_Parqueo = P.PQ_Parqueo
+      ${filtro ? "WHERE " + filtro : ""}
+      ORDER BY A.AS_FechaAsignacion DESC
+    `;
+
+    const conn = await conectar();
+    const result = await conn.execute(query, [], {
+      outFormat: require("oracledb").OUT_FORMAT_OBJECT,
+    });
+
+    res.json(result.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error en reporte");
+  }
+}
