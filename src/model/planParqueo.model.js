@@ -3,26 +3,37 @@ const { sequelize } = require('../config/db');
 
 const PlanParqueo = sequelize.define('PlanParqueo', {
 
-    PLA_ID_PLAN: {
+    PLN_PLAN: {
         type: DataTypes.DECIMAL(10, 2),
         primaryKey: true,
         allowNull: false
     },
 
-    PLA_DESCRIPCION: {
+    PLN_NAME: {
+        type: DataTypes.STRING(255),
+        allowNull: false
+    },
+
+    PLN_DESCRIPCION: {
         type: DataTypes.STRING(50),
         allowNull: false
     },
 
-    PLA_PRECIO: {
+    PLN_PRECIO: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
     },
 
-    PLA_ESTADO: {
+    PLN_ESTADO: {
         type: DataTypes.CHAR(1),
         allowNull: false
-    }
+    },
+
+    PLN_MONEDA: {
+        type: DataTypes.STRING(3),
+        allowNull: false
+    },
+
 
 }, {
     tableName: 'PLAN_PARQUEO',

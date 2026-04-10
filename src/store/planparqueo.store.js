@@ -2,43 +2,47 @@ const PlanParqueo = require('../model/planParqueo.model');
 
 class PlanParqueoStore {
 
-    // Obtener todos los planes
+    // Obtener todos los PLANes
     static async getAll() {
         return await PlanParqueo.findAll({
-            order: [['PLA_ID_PLAN', 'ASC']]
+            order: [['PLN_PLAN', 'ASC']]
         });
     }
 
-    // Obtener un plan por ID
+    // Obtener un PLAN por ID
     static async getById(id) {
         return await PlanParqueo.findByPk(id);
     }
 
-    // Crear un nuevo plan
+    // Crear un nuevo PLAN
     static async create(data) {
         return await PlanParqueo.create({
-            PLA_ID_PLAN: data.PLA_ID_PLAN,
-            PLA_DESCRIPCION: data.PLA_DESCRIPCION,
-            PLA_PRECIO: data.PLA_PRECIO,
-            PLA_ESTADO: data.PLA_ESTADO
+            PLN_PLAN: data.PLN_PLAN,
+            PLN_NAME: data.PLN_NAME,
+            PLN_DESCRIPCION: data.PLN_DESCRIPCION,
+            PLN_PRECIO: data.PLN_PRECIO,
+            PLN_ESTADO: data.PLN_ESTADO,
+            PLN_MONEDA: data.PLN_MONEDA
         });
     }
 
-    // Actualizar un plan existente
+    // Actualizar un PLAN existente
     static async update(id, data) {
         return await PlanParqueo.update({
-            PLA_DESCRIPCION: data.PLA_DESCRIPCION,
-            PLA_PRECIO: data.PLA_PRECIO,
-            PLA_ESTADO: data.PLA_ESTADO
+            PLN_NAME: data.PLN_NAME,
+            PLN_DESCRIPCION: data.PLN_DESCRIPCION,
+            PLN_PRECIO: data.PLN_PRECIO,
+            PLN_ESTADO: data.PLN_ESTADO,
+            PLN_MONEDA: data.PLN_MONEDA
         }, {
-            where: { PLA_ID_PLAN: id }
+            where: { PLN_PLAN: id }
         });
     }
 
-    // Eliminar un plan
+    // Eliminar un PLAN
     static async delete(id) {
         return await PlanParqueo.destroy({
-            where: { PLA_ID_PLAN: id }
+            where: { PLN_PLAN: id }
         });
     }
 
