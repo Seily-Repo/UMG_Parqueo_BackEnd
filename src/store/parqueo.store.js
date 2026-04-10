@@ -1,39 +1,126 @@
-const Parqueo = require('../model/parqueo.model');
+const ParqueoStore = require('../store/parqueo.store');
+const ResponseHandler = require('../utils/responseHandler');
 
-class ParqueoStore {
-    static async getAll() {
-        return await Parqueo.findAll({
-            order: [['PQ_Parqueo', 'ASC']]
-        });
+// Obtener todos los parqueos
+exports.getAllParqueos = async (req, res) => { 
+    try {
+        const parqueos = await ParqueoStore.getAll();
+        return ResponseHandler.success(
+            res,
+            parqueos,
+            'Parqueos obtenidos correctamente'
+        );
+    } catch (error) { 
+        return ResponseHandler.error(
+            res,
+            'Error al obtener los parqueos',
+            500,
+            error.message
+        );
     }
+};
 
-    static async getById(id) {
-        return await Parqueo.findByPk(id);
+// Obtener parqueo por ID
+exports.getParqueoById = async (req, res) => {
+    try {
+        const parqueo = await ParqueoStore.getById(req.params.id);
+
+        if (!parqueo) {
+            return ResponseHandler.error(
+                res,
+                'Parqueo no encontrado',
+                404
+            );
+        }
+
+        return ResponseHandler.success(
+            res,
+            parqueo,
+            'Parqueo encontrado'
+        );
+    } catch (error) {
+        return ResponseHandler.error(
+            res,
+            'Error al obtener el parqueo',
+            500,
+            error.message
+        );
     }
+};
 
-    static async create(data) {
-        return await Parqueo.create({
-            PQ_Nombre: data.PQ_Nombre,
-            PQ_Direccion: data.PQ_Direccion,
-            PQ_Capacidad: data.PQ_Capacidad
-        });
+// Crear parqueo
+exports.createParqueo = async (req, res) => { 
+    try {
+        const nuevoParqueo = await ParqueoStore.create(req.body);
+
+        return ResponseHandler.success(
+            res,
+            nuevoParqueo,
+            'Parqueo creado exitosamente',
+            201
+        );
+    } catch (error) { 
+        return ResponseHandler.error(
+            res,
+            'Error al crear el parqueo',
+            500,
+            error.message
+        );
     }
+};
 
-    static async update(id, data) {
-        return await Parqueo.update({
-            PQ_Nombre: data.PQ_Nombre,
-            PQ_Direccion: data.PQ_Direccion,
-            PQ_Capacidad: data.PQ_Capacidad
-        }, {
-            where: { PQ_Parqueo: id }
-        });
+// Actualizar parqueo
+exports.updateParqueo = async (req, res) => { 
+    try {
+        const rowsAffected = await ParqueoStore.update(req.params.id, req.body);
+
+        if (rowsAffected[0] === 0) {
+            return ResponseHandler.error(
+                res,
+                'Parqueo no encontrado para actualizar',
+                404
+            );
+        }
+
+        return ResponseHandler.success(
+            res,
+            null,
+            'Parqueo actualizado exitosamente'
+        );
+    } catch (error) { 
+        return ResponseHandler.error(
+            res,
+            'Error al actualizar el parqueo',
+            500,
+            error.message
+        );
     }
+};
 
-    static async delete(id) {
-        return await Parqueo.destroy({
-            where: { PQ_Parqueo: id }
-        });
+// Eliminar parqueo
+exports.deleteParqueo = async (req, res) => { 
+    try {
+        const rowsDeleted = await ParqueoStore.delete(req.params.id);
+
+        if (rowsDeleted === 0) {
+            return ResponseHandler.error(
+                res,
+                'Parqueo no encontrado para eliminar',
+                404
+            );
+        }
+
+        return ResponseHandler.success(
+            res,
+            null,
+            'Parqueo eliminado exitosamente'
+        );
+    } catch (error) { 
+        return ResponseHandler.error(
+            res,
+            'Error al eliminar el parqueo',
+            500,
+            error.message
+        );
     }
-}
-
-module.exports = ParqueoStore;
+};
