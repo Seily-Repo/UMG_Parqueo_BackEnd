@@ -1,4 +1,4 @@
-const db = require('../config/db');
+const db = require("../config/db");
 
 exports.getReporteFinanciero = async (req, res) => {
   try {
@@ -14,12 +14,94 @@ exports.getReporteFinanciero = async (req, res) => {
     `;
 
     const [results, metadata] = await db.query(query, {
-      type: db.QueryTypes.SELECT 
+      type: db.QueryTypes.SELECT,
     });
 
     res.json(results);
   } catch (error) {
-    console.error('Error en getReporteFinanciero:', error);
+    console.error("Error en getReporteFinanciero:", error);
     res.status(500).send("Error en el servidor");
+  }
+};
+
+exports.getReporteGerencial = async (req, res) => {
+  let connection;
+
+  try {
+    const { fecha_inicio, fecha_fin } = req.query;
+
+    connection = await db.getConnection(dbConfig);
+
+    let filtroFecha = "WHERE 1=1";
+    let params = {};
+
+    if (fecha_inicio && fecha_fin) {
+      filtroFecha += ` AND fecha_hora_entrada BETWEEN 
+        TO_TIMESTAMP(:fecha_inicio, 'YYYY-MM-DD"T"HH24:MI') 
+        AND 
+        TO_TIMESTAMP(:fecha_fin, 'YYYY-MM-DD"T"HH24:MI')`;
+
+      params = { fecha_inicio, fecha_fin };
+    }
+
+    const query = `
+      SELECT
+        -- Usuarios totales (no dependen de fecha)
+        (SELECT COUNT(*) FROM USUARIOS) AS total_usuarios,
+
+        -- Usuarios activos basados en accesos (RESPONDEN AL FILTRO)
+        (SELECT COUNT(DISTINCT carne_usuario)
+         FROM REGISTRO_ACCESOS
+         ${filtroFecha}
+         AND acceso_permitido = 1
+        ) AS usuarios_activos,
+
+        -- Usuarios inactivos (estado del sistema)
+        (SELECT COUNT(*) FROM USUARIOS WHERE activo = 0) AS usuarios_inactivos,
+
+        -- Accesos
+        (SELECT COUNT(*) FROM REGISTRO_ACCESOS ${filtroFecha}) AS total_accesos,
+
+        (SELECT COUNT(*) FROM REGISTRO_ACCESOS 
+         ${filtroFecha}
+         AND acceso_permitido = 1
+        ) AS accesos_permitidos,
+
+        (SELECT COUNT(*) FROM REGISTRO_ACCESOS 
+         ${filtroFecha}
+         AND acceso_permitido = 0
+        ) AS accesos_denegados,
+
+        -- Otros datos
+        (SELECT COUNT(*) FROM VEHICULOS) AS total_vehiculos,
+        (SELECT COUNT(*) FROM TARJETAS_ACCESO) AS total_tarjetas,
+        (SELECT COUNT(*) FROM TARJETAS_ACCESO WHERE activa = 1) AS tarjetas_activas,
+
+        -- Último acceso filtrado
+        (SELECT MAX(fecha_hora_entrada) FROM REGISTRO_ACCESOS ${filtroFecha}) AS ultimo_acceso
+
+      FROM DUAL
+    `;
+
+    const result = await connection.execute(query, params);
+    const data = result.rows[0];
+
+    res.json({
+      total_usuarios: data[0],
+      usuarios_activos: data[1],
+      usuarios_inactivos: data[2],
+      total_accesos: data[3],
+      accesos_permitidos: data[4],
+      accesos_denegados: data[5],
+      total_vehiculos: data[6],
+      total_tarjetas: data[7],
+      tarjetas_activas: data[8],
+      ultimo_acceso: data[9],
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error en el servidor");
+  } finally {
+    if (connection) await connection.close();
   }
 };
