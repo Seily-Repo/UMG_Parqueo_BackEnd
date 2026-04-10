@@ -17,6 +17,7 @@
     "morgan": "^1.10.0",
     "oracledb": "^6.10.0",
     "sequelize": "^6.37.8",
+    "stripe": "^22.0.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },

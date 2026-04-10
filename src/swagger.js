@@ -279,12 +279,8 @@ const options = {
             "EST_CARNE",
             "PLN_PLAN",
             "FPG_FORMA_PAGO",
-            "MUL_MULTA",
             "PAG_FECHA_PAGO",
             "PAG_MONTO_TOTAL",
-            "PAG_ESTADO",
-            "PAG_FECHA_CREACION",
-            "STRIPE_PAYMENT_INTENT_ID",
           ],
           properties: {
             PAG_PAGO: {
@@ -292,7 +288,7 @@ const options = {
               description: "ID único del pago",
             },
             EST_CARNE: {
-              type: "integer",
+              type: "string",
               description: "Carné del estudiante",
             },
             PLN_PLAN: {
@@ -305,7 +301,7 @@ const options = {
             },
             MUL_MULTA: {
               type: "integer",
-              description: "ID de la multa",
+              description: "ID de la multa (opcional)",
             },
             PAG_FECHA_PAGO: {
               type: "string",
@@ -317,17 +313,19 @@ const options = {
               description: "Monto total del pago",
             },
             PAG_ESTADO: {
-              type: "integer",
-              description: "Estado del pago",
+              type: "string",
+              maxLength: 1,
+              description:
+                "Estado del pago (Generado automáticamente: P=Pendiente, A=Aceptado, C=Cancelado)",
             },
             PAG_FECHA_CREACION: {
               type: "string",
               format: "date-time",
-              description: "Fecha de creación del pago",
+              description: "Fecha de creación del pago (Automático)",
             },
             STRIPE_PAYMENT_INTENT_ID: {
               type: "string",
-              description: "ID de la transacción de Stripe",
+              description: "ID de la transacción de Stripe (Automático)",
             },
           },
           example: {
@@ -338,7 +336,7 @@ const options = {
             MUL_MULTA: null,
             PAG_FECHA_PAGO: "2024-03-01T10:00:00Z",
             PAG_MONTO_TOTAL: 250.0,
-            PAG_ESTADO: "Pendiente",
+            PAG_ESTADO: "P",
             PAG_FECHA_CREACION: "2024-03-01T10:00:00Z",
             STRIPE_PAYMENT_INTENT_ID: "pi_123456789",
           },
@@ -791,46 +789,6 @@ const options = {
                     type: "array",
                     items: { $ref: "#/components/schemas/Pago" },
                   },
-                  200: {
-                    description: "Forma de pago obtenida correctamente",
-                    content: {
-                      "application/json": {
-                        schema: { $ref: "#/components/schemas/FormaPago" },
-                      },
-                    },
-                  },
-                  404: { description: "Forma de pago no encontrada" },
-                  500: { description: "Error al obtener la forma de pago" },
-                },
-              },
-              put: {
-                tags: ["Formas de Pago"],
-                summary: "Actualiza una forma de pago",
-                parameters: [
-                  {
-                    name: "id",
-                    in: "path",
-                    required: true,
-                    description: "ID de la forma de pago",
-                    schema: { type: "integer" },
-                  },
-                ],
-                requestBody: {
-                  required: true,
-                  content: {
-                    "application/json": {
-                      schema: { $ref: "#/components/schemas/FormaPago" },
-                    },
-                  },
-                },
-                responses: {
-                  200: {
-                    description: "Forma de pago actualizada exitosamente",
-                  },
-                  404: {
-                    description: "Forma de pago no encontrada para actualizar",
-                  },
-                  500: { description: "Error al actualizar la forma de pago" },
                 },
               },
             },
@@ -839,7 +797,7 @@ const options = {
         },
         post: {
           tags: ["Pagos"],
-          summary: "Crea un pago",
+          summary: "Inicia un pago procesado por Stripe",
           requestBody: {
             required: true,
             content: {
@@ -849,8 +807,57 @@ const options = {
             },
           },
           responses: {
-            201: { description: "Pago creado exitosamente" },
-            500: { description: "Error al crear el pago" },
+            201: {
+              description: "Pago iniciado exitosamente en estado Pendiente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: {
+                        type: "string",
+                        example: "Pago iniciado exitosamente",
+                      },
+                      data: { $ref: "#/components/schemas/Pago" },
+                      clientSecret: {
+                        type: "string",
+                        description:
+                          "Llave cliente de Stripe para procesar el pago visiblemente",
+                        example: "pi_3MtwBwLkdIwHu7ix28a3tqPc_secret_...",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: "Faltan campos obligatorios" },
+            500: { description: "Error al crear el pago local o en Stripe" },
+          },
+        },
+      },
+
+      // Webhook Stripe
+      "/api/webhook": {
+        post: {
+          tags: ["Pagos"],
+          summary: "Recibe eventos de notificación asíncrona de Stripe",
+          description:
+            "No llamar a este endpoint desde la interfaz web, está destinado a uso del Backend de Stripe.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  description: "Firma Raw del evento de Stripe",
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Evento manejado con éxito" },
+            400: { description: "Firma (signature) inválida" },
+            500: { description: "Error procesando webhook" },
           },
         },
       },
