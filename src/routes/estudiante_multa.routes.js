@@ -4,14 +4,8 @@ const estudianteMultaController = require("../controllers/estudiante_multa.contr
 
 // Rutas CRUD básicas
 router.get("/", estudianteMultaController.getAllEstudianteMulta);
-router.get(
-  "/carne/:EST_CARNE",
-  estudianteMultaController.getEstudianteMultaByEstudianteCarne,
-);
+router.get("/carne/:EST_CARNE", estudianteMultaController.getEstudianteMultaByEstudianteCarne,);
 router.post("/", estudianteMultaController.createEstudianteMulta);
-router.put(
-  "/:EMU_ESTUDIANTE_MULTA",
-  estudianteMultaController.updateEstudianteMulta,
-);
+router.put("/:EMU_ESTUDIANTE_MULTA", estudianteMultaController.updateEstudianteMulta,);
 
 module.exports = router;

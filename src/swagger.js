@@ -245,6 +245,50 @@ const options = {
             EMU_FECHA_MODIFICACION: "2023-10-05T15:30:00Z",
           },
         },
+        // EstudianteMoroso
+        EstudianteMoroso: {
+          type: "object",
+          required: [
+            "MOR_BLACKLIST_LOG",
+            "EST_CARNE",
+            "MOR_FECHA_AGREGADO",
+            "MOR_ESTADO",
+          ],
+          properties: {
+            MOR_BLACKLIST_LOG: {
+              type: "integer",
+              format: "int64",
+              description: "ID único del registro de estudiante moroso",
+            },
+            EST_CARNE: {
+              type: "string",
+              maxLength: 20,
+              description: "Carné del estudiante",
+            },
+            MOR_FECHA_AGREGADO: {
+              type: "string",
+              format: "date-time",
+              description: "Fecha en que se añadió a la lista de morosos",
+            },
+            MOR_MOTIVO: {
+              type: "string",
+              maxLength: 100,
+              description: "Motivo por el cual el estudiante fue marcado como moroso",
+            },
+            MOR_ESTADO: {
+              type: "string",
+              maxLength: 1,
+              description: "Estado del registro de morosidad (A=Activo, I=Inactivo)",
+            },
+          },
+          example: {
+            MOR_BLACKLIST_LOG: 1,
+            EST_CARNE: "5190-23-202034",
+            MOR_FECHA_AGREGADO: "2024-03-01T10:00:00Z",
+            MOR_MOTIVO: "Pago atrasado",
+            MOR_ESTADO: "A",
+          },
+        },
         // FormaPago
         FormaPago: {
           type: "object",
@@ -575,6 +619,148 @@ const options = {
             200: { description: "Estudiante eliminado exitosamente" },
             404: { description: "Estudiante no encontrado" },
             500: { description: "Error al eliminar el estudiante" },
+          },
+        },
+      },
+
+      // Rutas de Estudiante Moroso
+      "/api/estudiante_moroso": {
+        get: {
+          tags: ["Estudiante Moroso"],
+          summary: "Obtiene todos los estudiantes morosos",
+          responses: {
+            200: {
+              description: "Lista de estudiantes morosos obtenida correctamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/EstudianteMoroso" },
+                  },
+                },
+              },
+            },
+            500: { description: "Error al obtener los estudiantes morosos" },
+          },
+        },
+        post: {
+          tags: ["Estudiante Moroso"],
+          summary: "Crea un nuevo registro de estudiante moroso",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/EstudianteMoroso" },
+              },
+            },
+          },
+          responses: {
+            201: { description: "Registro de estudiante moroso creado exitosamente" },
+            400: { description: "Faltan campos obligatorios o el formato es incorrecto" },
+            500: { description: "Error al crear el registro de estudiante moroso" },
+          },
+        },
+      },
+
+      "/api/estudiante_moroso/carne/{carne}": {
+        get: {
+          tags: ["Estudiante Moroso"],
+          summary: "Obtiene los registros morosos de un estudiante por carné",
+          parameters: [
+            {
+              name: "carne",
+              in: "path",
+              required: true,
+              description: "Carné del estudiante",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Registros morosos obtenidos correctamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/EstudianteMoroso" },
+                  },
+                },
+              },
+            },
+            400: { description: "Formato de carné inválido" },
+            500: { description: "Error al buscar registros morosos" },
+          },
+        },
+      },
+
+      "/api/estudiante_moroso/{MOR_BLACKLIST_LOG}": {
+        get: {
+          tags: ["Estudiante Moroso"],
+          summary: "Obtiene un registro de estudiante moroso por ID",
+          parameters: [
+            {
+              name: "MOR_BLACKLIST_LOG",
+              in: "path",
+              required: true,
+              description: "ID del registro de estudiante moroso",
+              schema: { type: "integer", format: "int64" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Registro moroso obtenido correctamente",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/EstudianteMoroso" },
+                },
+              },
+            },
+            404: { description: "Registro moroso no encontrado" },
+            500: { description: "Error al buscar el registro moroso" },
+          },
+        },
+        put: {
+          tags: ["Estudiante Moroso"],
+          summary: "Actualiza un registro de estudiante moroso",
+          parameters: [
+            {
+              name: "MOR_BLACKLIST_LOG",
+              in: "path",
+              required: true,
+              description: "ID del registro de estudiante moroso",
+              schema: { type: "integer", format: "int64" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    EST_CARNE: { type: "string", maxLength: 20 },
+                    MOR_FECHA_AGREGADO: {
+                      type: "string",
+                      format: "date-time",
+                    },
+                    MOR_MOTIVO: { type: "string", maxLength: 100 },
+                    MOR_ESTADO: { type: "string", maxLength: 1 },
+                  },
+                  example: {
+                    EST_CARNE: "5190-23-202034",
+                    MOR_FECHA_AGREGADO: "2024-03-15T10:00:00Z",
+                    MOR_MOTIVO: "Pago parcial recibido",
+                    MOR_ESTADO: "A",
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Registro moroso actualizado exitosamente" },
+            400: { description: "Solicitud inválida o formato incorrecto" },
+            404: { description: "Registro moroso no encontrado para actualizar" },
+            500: { description: "Error al actualizar el registro moroso" },
           },
         },
       },
