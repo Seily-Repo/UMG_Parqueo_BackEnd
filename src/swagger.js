@@ -941,24 +941,6 @@ const options = {
             500: { description: "Error al actualizar la forma de pago" },
           },
         },
-        delete: {
-          tags: ["Formas de Pago"],
-          summary: "Elimina una forma de pago",
-          parameters: [
-            {
-              name: "id",
-              in: "path",
-              required: true,
-              description: "ID de la forma de pago",
-              schema: { type: "integer" },
-            },
-          ],
-          responses: {
-            200: { description: "Forma de pago eliminada exitosamente" },
-            404: { description: "Forma de pago no encontrada para eliminar" },
-            500: { description: "Error al eliminar la forma de pago" },
-          },
-        },
       },
 
       // Rutas de Pagos
