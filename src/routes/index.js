@@ -1,8 +1,7 @@
-/* Componentes */
-const test = require('./test.network');
+const reportesRoutes = require('./reportes.routes');
 
 const routes = (app) => {
-  app.use('/test', test);
+  app.use('/api/reportes', reportesRoutes);
 };
 
 module.exports = routes;
