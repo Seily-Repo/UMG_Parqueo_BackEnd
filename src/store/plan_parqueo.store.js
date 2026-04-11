@@ -1,4 +1,4 @@
-const PlanParqueo = require('../model/planParqueo.model');
+const PlanParqueo = require('../model/plan_parqueo.model');
 
 class PlanParqueoStore {
 

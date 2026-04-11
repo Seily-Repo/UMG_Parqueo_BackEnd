@@ -1,5 +1,5 @@
 
-const PlanParqueoStore = require('../store/planparqueo.store');
+const PlanParqueoStore = require('../store/plan_parqueo.store');
 
 class PlanParqueoController {
 
@@ -48,24 +48,28 @@ class PlanParqueoController {
 
     // Crear plan
     static async crearPlan(req, res) {
+
+
         try {
+
 
             const {
                 PLN_PLAN,
                 PLN_NAME,
-                PLA_DESCRIPCION,
-                PLA_PRECIO,
-                PLA_ESTADO,
+                PLN_DESCRIPCION,
+                PLN_PRECIO,
+                PLN_ESTADO,
                 PLN_MONEDA
             } = req.body;
-
+            // Se elimina el campo PLN_PLAN porque es autogenerado
+            delete req.body.PLN_PLAN;
             /* VALIDACIONES */
 
-            if (!PLN_PLAN) {
+/*             if (!PLN_PLAN) {
                 return res.status(400).json({
                     message: 'El ID del plan es obligatorio'
                 });
-            }
+            } */
 
             if (!PLN_NAME || PLN_NAME.trim() === '') {
                 return res.status(400).json({
@@ -73,25 +77,25 @@ class PlanParqueoController {
                 });
             }
 
-            if (!PLA_DESCRIPCION || PLA_DESCRIPCION.trim() === '') {
+            if (!PLN_DESCRIPCION || PLN_DESCRIPCION.trim() === '') {
                 return res.status(400).json({
                     message: 'La descripción es obligatoria'
                 });
             }
 
-            if (!PLA_PRECIO || PLA_PRECIO <= 0) {
+            if (!PLN_PRECIO || PLN_PRECIO <= 0) {
                 return res.status(400).json({
                     message: 'El precio debe ser mayor a 0'
                 });
             }
 
-            if (!PLA_ESTADO) {
+            if (!PLN_ESTADO) {
                 return res.status(400).json({
                     message: 'El estado es obligatorio'
                 });
             }
 
-            if (PLA_ESTADO !== 'A' && PLA_ESTADO !== 'I') {
+            if (PLN_ESTADO !== 'A' && PLN_ESTADO !== 'I') {
                 return res.status(400).json({
                     message: 'El estado debe ser A o I'
                 });
@@ -120,6 +124,7 @@ class PlanParqueoController {
                     message: 'El plan ya existe'
                 });
             }
+            
 
             const nuevoPlan = await PlanParqueoStore.create(req.body);
 
@@ -129,6 +134,7 @@ class PlanParqueoController {
             });
 
         } catch (error) {
+            console.log("Error al crear el plan:", error);
             res.status(500).json({
                 message: 'Error al crear el plan',
                 error: error.message
@@ -144,9 +150,9 @@ class PlanParqueoController {
 
             const {
                 PLN_NAME,
-                PLA_DESCRIPCION,
-                PLA_PRECIO,
-                PLA_ESTADO,
+                PLN_DESCRIPCION,
+                PLN_PRECIO,
+                PLN_ESTADO,
                 PLN_MONEDA
             } = req.body;
 
@@ -166,25 +172,25 @@ class PlanParqueoController {
                 });
             }
 
-            if (!PLA_DESCRIPCION || PLA_DESCRIPCION.trim() === '') {
+            if (!PLN_DESCRIPCION || PLN_DESCRIPCION.trim() === '') {
                 return res.status(400).json({
                     message: 'La descripción es obligatoria'
                 });
             }
 
-            if (!PLA_PRECIO || PLA_PRECIO <= 0) {
+            if (!PLN_PRECIO || PLN_PRECIO <= 0) {
                 return res.status(400).json({
                     message: 'El precio debe ser mayor a 0'
                 });
             }
 
-            if (!PLA_ESTADO) {
+            if (!PLN_ESTADO) {
                 return res.status(400).json({
                     message: 'El estado es obligatorio'
                 });
             }
 
-            if (PLA_ESTADO !== 'A' && PLA_ESTADO !== 'I') {
+            if (PLN_ESTADO !== 'A' && PLN_ESTADO !== 'I') {
                 return res.status(400).json({
                     message: 'El estado debe ser A o I'
                 });

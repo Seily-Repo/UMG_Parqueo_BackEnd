@@ -17,52 +17,42 @@ const options = {
         PlanParqueo: {
           type: "object",
           required: [
-            "PLA_id_plan_parqueo",
-            "PLA_nombre",
-            "PLA_precio",
-            "PLA_creado_por",
+            "PLN_NAME",
+            "PLN_DESCRIPCION",
+            "PLN_PRECIO",
+            "PLN_ESTADO",
+            "PLN_MONEDA",
           ],
           properties: {
-            PLA_id_plan_parqueo: {
-              type: "integer",
-              description: "ID del plan de parqueo",
-            },
-
-            PLA_nombre: {
+            PLN_NAME: {
               type: "string",
               description: "Nombre del plan",
             },
-
-            PLA_precio: {
+            PLN_PRECIO: {
               type: "number",
               format: "decimal",
               description: "Precio del plan",
             },
-
-            PLA_descripcion: {
+            PLN_DESCRIPCION: {
               type: "string",
               description: "Descripción del plan",
             },
-
-            PLA_creado_por: {
+            PLN_ESTADO: {
               type: "string",
-              description: "Usuario que creó el plan",
+              description: "Estado del plan",
             },
-
-            PLA_fecha_creacion: {
+            PLN_MONEDA: {
               type: "string",
-              format: "date-time",
-              description: "Fecha de creación",
+              description: "Moneda del plan",
             },
           },
 
           example: {
-            PLA_id_plan_parqueo: 1,
-            PLA_nombre: "Plan Mensual",
-            PLA_precio: 150.0,
-            PLA_descripcion: "Plan mensual de parqueo",
-            PLA_creado_por: "admin",
-            PLA_fecha_creacion: "2024-01-01T10:00:00Z",
+            PLN_NAME: "Plan Prueba",
+            PLN_PRECIO: 150.0,
+            PLN_DESCRIPCION: "Plan de prueba",
+            PLN_ESTADO: "A",
+            PLN_MONEDA: "GTQ",
           },
         },
         // Estudiante
@@ -94,9 +84,9 @@ const options = {
             },
           },
           example: {
-            EST_CARNE: "51902310007",
+            EST_CARNE: "5190-23-202034",
             EST_NOMBRE_COMPLETO: "Juan Pérez García",
-            EST_EMAIL: "jperez@miumg.edu.gt",
+            EST_EMAIL: "[EMAIL_ADDRESS]",
             EST_FECHA_CREACION: "2024-01-01T10:00:00Z",
           },
         },
@@ -377,7 +367,7 @@ const options = {
 
     paths: {
       // Rutas de Plan Parqueo
-      "/api/plan-parqueo": {
+      "/api/plan_parqueo": {
         get: {
           tags: ["Plan Parqueo"],
           summary: "Obtiene todos los planes de parqueo",
@@ -420,7 +410,7 @@ const options = {
       },
 
       // Rutas de Plan Parqueo por ID
-      "/api/plan-parqueo/{id}": {
+      "/api/plan_parqueo/{id}": {
         get: {
           tags: ["Plan Parqueo"],
           summary: "Obtiene un plan por ID",

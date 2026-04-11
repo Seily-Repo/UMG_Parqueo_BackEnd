@@ -4,9 +4,10 @@ const { sequelize } = require('../config/db');
 const PlanParqueo = sequelize.define('PlanParqueo', {
 
     PLN_PLAN: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.NUMBER(10),
         primaryKey: true,
-        allowNull: false
+        autoIncrement: true,
+        field: 'PLN_PLAN'
     },
 
     PLN_NAME: {
@@ -36,7 +37,7 @@ const PlanParqueo = sequelize.define('PlanParqueo', {
 
 
 }, {
-    tableName: 'PLAN_PARQUEO',
+    tableName: 'PAR_PLAN_PARQUEO',
     timestamps: false
 });
 
