@@ -56,6 +56,13 @@ class EspacioStore {
         });
     }
 
+     static async updateEstado(id, estado) {
+    return await Espacio.update(
+      { ES_Estado: estado },
+      { where: { ES_Espacio: id } }
+    );
+  }
+
     /**
      * Lógica de disponibilidad:
      * Filtra espacios que NO estén en la lista de asignaciones ocupadas 
@@ -84,6 +91,7 @@ class EspacioStore {
             },
             order: [['ES_Numero', 'ASC']]
         });
+        
     }
 }
 

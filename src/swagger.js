@@ -58,20 +58,51 @@ const options = {
             TES_ESPACIO: { type: 'integer', example: 1, description: 'ID del Tipo de Espacio al que pertenece' }
           }
         },
-        Asignacion: {
+  Asignacion: {
           type: 'object',
-          required: ['US_Identificacion', 'ES_Espacio', 'SM_Semestre', 'JD_Jornada'],
+          required: ['carne_usuario', 'ES_Espacio', 'id_ciclo', 'id_jornada'],
           properties: {
-            AS_Asignacion: { type: 'integer', readOnly: true },
-            AS_FechaAsignacion: { type: 'string', format: 'date-time', readOnly: true },
-            AS_Estado: { type: 'integer', readOnly: true, example: 1 },
-            US_Identificacion: { type: 'integer', example: 1 },
-            ES_Espacio: { type: 'integer', example: 1 },
-            SM_Semestre: { type: 'integer', example: 1 },
-            JD_Jornada: { type: 'integer', example: 1 }
+            AS_Asignacion: { 
+              type: 'integer', 
+              readOnly: true, 
+              description: 'ID autogenerado de la asignación' 
+            },
+            AS_FechaAsignacion: { 
+              type: 'string', 
+              format: 'date-time', 
+              readOnly: true,
+              description: 'Fecha y hora en que se realizó la asignación'
+            },
+            AS_Estado: { 
+              type: 'integer', 
+              readOnly: true, 
+              example: 1, 
+              description: '1: Activa, 0: Anulada' 
+            },
+            carne_usuario: { 
+              type: 'string', 
+              example: '2026-01-001', 
+              description: 'Carné del estudiante o identificación del usuario'
+            },
+            ES_Espacio: { 
+              type: 'integer', 
+              example: 1, 
+              description: 'ID único del espacio físico'
+            },
+            id_ciclo: { 
+              type: 'integer', 
+              example: 1, 
+              description: 'ID del ciclo/semestre correspondiente'
+            },
+            id_jornada: { 
+              type: 'integer', 
+              example: 1, 
+              description: 'ID de la jornada (Matutina, Nocturna, etc.)'
+            }
           }
         }
       }
+      
     },
     paths: {
       // --- PARQUEOS ---
@@ -162,23 +193,44 @@ const options = {
 
       // --- ASIGNACIONES ---
       '/api/asignacion': {
-        get: { tags: ['Asignaciones'], summary: 'Obtiene todas las asignaciones', responses: { '200': { description: 'Ok' } } },
+        get: { 
+          tags: ['Asignaciones'], 
+          summary: 'Obtiene todas las asignaciones',
+          parameters: [
+            { name: 'id_ciclo', in: 'query', schema: { type: 'integer' }, description: 'Filtrar por ciclo' },
+            { name: 'estado', in: 'query', schema: { type: 'integer' }, description: 'Filtrar por estado (1 o 0)' }
+          ],
+          responses: { '200': { description: 'Ok', content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiResponse' } } } } } 
+        },
         post: {
           tags: ['Asignaciones'],
-          summary: 'Asigna un espacio (Valida disponibilidad)',
-          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Asignacion' } } } },
+          summary: 'Asigna un espacio (Valida disponibilidad y estado del usuario)',
+          requestBody: { 
+            required: true, 
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Asignacion' } } } 
+          },
           responses: { 
-            '201': { description: 'Asignación exitosa' },
-            '409': { description: 'Espacio ya ocupado en esa jornada/semestre' }
+            '201': { description: '¡Asignación creada exitosamente!' },
+            '404': { description: 'El espacio de parqueo indicado no existe.' },
+            '409': { description: 'Conflicto: El usuario ya tiene asignación o el espacio está ocupado.' }
           }
         }
       },
       '/api/asignacion/anular/{id}': {
         put: {
           tags: ['Asignaciones'],
-          summary: 'Anula una asignación',
-          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-          responses: { '200': { description: 'Anulado correctamente' } }
+          summary: 'Anula una asignación (Libera el espacio en tiempo real)',
+          parameters: [{ 
+            name: 'id', 
+            in: 'path', 
+            required: true, 
+            schema: { type: 'integer' },
+            description: 'ID de la asignación (AS_Asignacion)'
+          }],
+          responses: { 
+            '200': { description: 'Asignación anulada correctamente' },
+            '404': { description: 'Asignación no encontrada' }
+          }
         }
       }
     }

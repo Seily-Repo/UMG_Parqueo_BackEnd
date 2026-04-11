@@ -41,12 +41,12 @@ class AsignacionStore {
         return await Asignacion.findAll(queryOptions);
     }
 
-    static async anular(id) {
-        return await Asignacion.update(
-            { AS_Estado: 0 },
-            { where: { AS_Asignacion: id } }
-        );
-    }
+ static async anular(id) {
+    const asignacion = await Asignacion.findByPk(id);
+    if (!asignacion) return null;
+    await asignacion.update({ AS_Estado: 0 });
+    return asignacion; 
+}
 
     static async checkUsuarioOcupado(carne_usuario, id_ciclo, id_jornada) {
         return await Asignacion.findOne({
