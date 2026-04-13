@@ -77,15 +77,26 @@ exports.deleteEspacio = async (req, res) => {
 exports.getEspaciosByTipo = async (req, res) => { 
     try {
         const { tipoId } = req.params;
-        const espacios = await EspacioStore.getByTipoId(tipoId);
+        const { estado } = req.query; 
+
+        const estadoFiltro = (estado !== undefined) ? parseInt(estado) : null;
+
+        const espacios = await EspacioStore.getByTipoId(tipoId, estadoFiltro);
+
         res.status(200).json({
             success: true,
             status: 200,
-            message: "Espacios obtenidos por tipo",
+            message: estadoFiltro !== null 
+                ? `Espacios de tipo ${tipoId} con estado ${estadoFiltro}` 
+                : "Todos los espacios por tipo",
             details: espacios
         });
     } catch (error) { 
-        res.status(500).json({ success: false, message: 'Error al obtener espacios', error: error.message }); 
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error al obtener espacios', 
+            error: error.message 
+        }); 
     }
 };
 

@@ -108,8 +108,11 @@ const options = {
       '/api/espacios/tipo/{tipoId}': {
         get: {
           tags: ['Espacios'],
-          summary: 'Obtiene espacios por su Tipo',
-          parameters: [{ name: 'tipoId', in: 'path', required: true, schema: { type: 'integer' } }],
+          summary: 'Obtiene espacios por su Tipo y opcionalmente por estado',
+          parameters: [
+            { name: 'tipoId', in: 'path', required: true, schema: { type: 'integer' } },
+            { name: 'estado', in: 'query', required: false, schema: { type: 'integer', enum: [0, 1] }, description: '1: Libre, 0: Ocupado' }
+          ],
           responses: { '200': { description: 'Ok' } }
         }
       },
