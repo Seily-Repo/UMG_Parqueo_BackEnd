@@ -18,7 +18,7 @@ const Espacio = sequelize.define('Espacio', {
     ES_Estado: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        defaultValue: 0, // 0: Disponible, 1: Ocupado
+        defaultValue: 1,
         validate: {
             isIn: [[0, 1]]
         },
@@ -40,7 +40,7 @@ const Espacio = sequelize.define('Espacio', {
     indexes: [
         {
             unique: true,
-            fields: ['ES_NUMERO', 'TES_ESPACIO'] // Unicidad por Tipo
+            fields: ['ES_NUMERO', 'TES_ESPACIO'] 
         }
     ]
 });

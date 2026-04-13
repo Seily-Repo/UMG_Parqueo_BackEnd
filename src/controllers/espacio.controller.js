@@ -73,27 +73,7 @@ exports.deleteEspacio = async (req, res) => {
     }
 };
 
-exports.getLibres = async (req, res) => {
-    try {
-        const { parqueoId, semestre, jornada } = req.query;
-        
-        if (!parqueoId || !semestre || !jornada) {
-            return sendResponse(res, 400, false, 'Faltan parámetros de búsqueda (parqueoId, semestre, jornada)');
-        }
 
-        const espaciosLibres = await EspacioStore.getEspaciosLibres(parqueoId, semestre, jornada);
-        
-        return res.status(200).json({
-            success: true,
-            status: 200,
-            message: 'Consulta de disponibilidad realizada',
-            total_libres: espaciosLibres.length,
-            data: espaciosLibres
-        });
-    } catch (error) {
-        return sendResponse(res, 500, false, 'Error al consultar disponibilidad', error.message);
-    }
-};
 exports.getEspaciosByTipo = async (req, res) => { 
     try {
         const { tipoId } = req.params;
@@ -112,13 +92,35 @@ exports.getEspaciosByTipo = async (req, res) => {
 exports.getLibres = async (req, res) => {
     try {
         const { tipoEspacioId, semestre, jornada } = req.query;
+        
+        if (!tipoEspacioId || !semestre || !jornada) {
+            return sendResponse(res, 400, false, 'Faltan parámetros (tipoEspacioId, semestre, jornada)');
+        }
+
         const espaciosLibres = await EspacioStore.getEspaciosLibres(tipoEspacioId, semestre, jornada);
-        res.status(200).json({
+        
+        return res.status(200).json({
             success: true,
+            status: 200,
+            message: 'Consulta de disponibilidad realizada',
             total_libres: espaciosLibres.length,
             data: espaciosLibres
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Error al consultar disponibilidad', error: error.message });
+        return sendResponse(res, 500, false, 'Error al consultar disponibilidad', error.message);
+    }
+};
+
+exports.getMetricasDisponibilidad = async (req, res) => {
+    try {
+        const { tipoId } = req.params;
+        const disponibles = await EspacioStore.contarDisponibles(tipoId);
+        
+        return sendResponse(res, 200, true, "Conteo de disponibilidad obtenido", {
+            tipoEspacioId: parseInt(tipoId),
+            disponibles: disponibles
+        });
+    } catch (error) {
+        return sendResponse(res, 500, false, 'Error al obtener métricas', error.message);
     }
 };

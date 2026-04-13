@@ -6,8 +6,8 @@ const options = {
     openapi: '3.0.0',
     info: { 
       title: 'UMG Parqueos API - Sistema de Disponibilidad', 
-      version: '1.1.0', 
-      description: 'Backend para control de Disponibilidad, Tipos de Espacio y Asignaciones.\n\n**Nota sobre Tiempo Real:**\nEste servidor utiliza `socket.io`. El frontend puede conectarse a la raíz del servidor para escuchar actualizaciones del mapa en tiempo real.\n\n**Lógica de Capacidad:**\n1. Los tipos de espacio se crean basados en un porcentaje del parqueo.\n2. No se pueden crear más espacios físicos que los permitidos por el tipo.' 
+      version: '1.2.0', 
+      description: 'Backend para control de Disponibilidad, Tipos de Espacio y Asignaciones.\n\n**Nota sobre Estados:**\n* **ES_Estado = 1**: Espacio Disponible (Libre).\n* **ES_Estado = 0**: Espacio Ocupado (Asignado).\n\n**Lógica de Capacidad:**\n1. Los tipos de espacio se crean basados en un porcentaje del parqueo.\n2. No se pueden crear más espacios físicos que los permitidos por el tope del tipo.' 
     },
     servers: [
       { 
@@ -17,7 +17,6 @@ const options = {
     ],
     components: {
       schemas: {
-        // Esquema de Respuesta General
         ApiResponse: {
           type: 'object',
           properties: {
@@ -43,9 +42,9 @@ const options = {
           properties: {
             TES_ESPACIO: { type: 'integer', readOnly: true },
             TES_NOMBRE: { type: 'string', example: 'Motos' },
-            TES_CAPACIDAD_MAX_TIPO: { type: 'integer', readOnly: true, description: 'Calculado automáticamente (Parqueo Capacidad * Porcentaje)' },
+            TES_CAPACIDAD_MAX_TIPO: { type: 'integer', readOnly: true },
             PQ_Parqueo: { type: 'integer', example: 1 },
-            porcentaje: { type: 'integer', example: 20, description: 'Porcentaje de la capacidad total del parqueo' }
+            porcentaje: { type: 'integer', example: 20 }
           }
         },
         Espacio: {
@@ -54,55 +53,24 @@ const options = {
           properties: {
             ES_Espacio: { type: 'integer', readOnly: true },
             ES_Numero: { type: 'integer', example: 101 },
-            ES_Estado: { type: 'integer', example: 0, description: '0: Disponible, 1: Ocupado' },
-            TES_ESPACIO: { type: 'integer', example: 1, description: 'ID del Tipo de Espacio al que pertenece' }
+            ES_Estado: { type: 'integer', example: 1, description: '1: Disponible, 0: Ocupado' },
+            TES_ESPACIO: { type: 'integer', example: 1 }
           }
         },
-  Asignacion: {
+        Asignacion: {
           type: 'object',
           required: ['carne_usuario', 'ES_Espacio', 'id_ciclo', 'id_jornada'],
           properties: {
-            AS_Asignacion: { 
-              type: 'integer', 
-              readOnly: true, 
-              description: 'ID autogenerado de la asignación' 
-            },
-            AS_FechaAsignacion: { 
-              type: 'string', 
-              format: 'date-time', 
-              readOnly: true,
-              description: 'Fecha y hora en que se realizó la asignación'
-            },
-            AS_Estado: { 
-              type: 'integer', 
-              readOnly: true, 
-              example: 1, 
-              description: '1: Activa, 0: Anulada' 
-            },
-            carne_usuario: { 
-              type: 'string', 
-              example: '2026-01-001', 
-              description: 'Carné del estudiante o identificación del usuario'
-            },
-            ES_Espacio: { 
-              type: 'integer', 
-              example: 1, 
-              description: 'ID único del espacio físico'
-            },
-            id_ciclo: { 
-              type: 'integer', 
-              example: 1, 
-              description: 'ID del ciclo/semestre correspondiente'
-            },
-            id_jornada: { 
-              type: 'integer', 
-              example: 1, 
-              description: 'ID de la jornada (Matutina, Nocturna, etc.)'
-            }
+            AS_Asignacion: { type: 'integer', readOnly: true, description: 'ID autogenerado' },
+            AS_FechaAsignacion: { type: 'string', format: 'date-time', readOnly: true },
+            AS_Estado: { type: 'integer', readOnly: true, example: 1, description: '1: Activa, 0: Anulada' },
+            carne_usuario: { type: 'string', example: '2026-01-001' },
+            ES_Espacio: { type: 'integer', example: 1 },
+            id_ciclo: { type: 'integer', example: 1 },
+            id_jornada: { type: 'integer', example: 1 }
           }
         }
       }
-      
     },
     paths: {
       // --- PARQUEOS ---
@@ -115,10 +83,6 @@ const options = {
           responses: { '201': { description: 'Creado' } }
         }
       },
-      '/api/parqueos/{id}': {
-        get: { tags: ['Parqueos'], summary: 'Obtiene un parqueo por ID', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Ok' } } },
-        delete: { tags: ['Parqueos'], summary: 'Elimina un parqueo', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
-      },
 
       // --- TIPO ESPACIOS ---
       '/api/tipo-espacios': {
@@ -127,18 +91,7 @@ const options = {
           tags: ['Tipo Espacio'],
           summary: 'Crea un tipo de espacio (Calcula capacidad por porcentaje)',
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/TipoEspacio' } } } },
-          responses: { 
-            '201': { description: 'Creado exitosamente' },
-            '409': { description: 'La sumatoria de tipos excede la capacidad del parqueo' }
-          }
-        }
-      },
-      '/api/tipo-espacios/parqueo/{idParqueo}': {
-        get: {
-          tags: ['Tipo Espacio'],
-          summary: 'Obtiene los tipos de espacio asociados a un parqueo',
-          parameters: [{ name: 'idParqueo', in: 'path', required: true, schema: { type: 'integer' } }],
-          responses: { '200': { description: 'Ok' } }
+          responses: { '201': { description: 'Creado exitosamente' } }
         }
       },
 
@@ -149,10 +102,7 @@ const options = {
           tags: ['Espacios'],
           summary: 'Crea un nuevo espacio (Valida tope del Tipo)',
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Espacio' } } } },
-          responses: { 
-            '201': { description: 'Espacio creado' },
-            '409': { description: 'Capacidad máxima del tipo alcanzada' }
-          }
+          responses: { '201': { description: 'Espacio creado' }, '409': { description: 'Tope alcanzado' } }
         }
       },
       '/api/espacios/tipo/{tipoId}': {
@@ -161,6 +111,14 @@ const options = {
           summary: 'Obtiene espacios por su Tipo',
           parameters: [{ name: 'tipoId', in: 'path', required: true, schema: { type: 'integer' } }],
           responses: { '200': { description: 'Ok' } }
+        }
+      },
+      '/api/espacios/count-disponibles/{tipoId}': {
+        get: {
+          tags: ['Espacios'],
+          summary: 'Obtiene el número de espacios disponibles (Estado 1) para un tipo',
+          parameters: [{ name: 'tipoId', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: { '200': { description: 'Conteo exitoso' } }
         }
       },
       '/api/espacios/disponibilidad/libres': {
@@ -178,16 +136,16 @@ const options = {
       '/api/espacios/{id}': {
         put: {
           tags: ['Espacios'],
-          summary: 'Actualiza un espacio por ID',
+          summary: 'Actualiza un espacio',
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Espacio' } } } },
-          responses: { '200': { description: 'Actualizado' } }
+          responses: { '200': { description: 'Ok' } }
         },
         delete: {
           tags: ['Espacios'],
           summary: 'Elimina un espacio',
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-          responses: { '200': { description: 'Eliminado' } }
+          responses: { '200': { description: 'Ok' } }
         }
       },
 
@@ -197,10 +155,10 @@ const options = {
           tags: ['Asignaciones'], 
           summary: 'Obtiene todas las asignaciones',
           parameters: [
-            { name: 'id_ciclo', in: 'query', schema: { type: 'integer' }, description: 'Filtrar por ciclo' },
-            { name: 'estado', in: 'query', schema: { type: 'integer' }, description: 'Filtrar por estado (1 o 0)' }
+            { name: 'id_ciclo', in: 'query', schema: { type: 'integer' } },
+            { name: 'estado', in: 'query', schema: { type: 'integer' } }
           ],
-          responses: { '200': { description: 'Ok', content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiResponse' } } } } } 
+          responses: { '200': { description: 'Ok' } } 
         },
         post: {
           tags: ['Asignaciones'],
@@ -210,27 +168,17 @@ const options = {
             content: { 'application/json': { schema: { $ref: '#/components/schemas/Asignacion' } } } 
           },
           responses: { 
-            '201': { description: '¡Asignación creada exitosamente!' },
-            '404': { description: 'El espacio de parqueo indicado no existe.' },
-            '409': { description: 'Conflicto: El usuario ya tiene asignación o el espacio está ocupado.' }
+            '201': { description: '¡Asignación creada!' },
+            '409': { description: 'Conflicto: Espacio ocupado o usuario ya tiene asignación' }
           }
         }
       },
       '/api/asignacion/anular/{id}': {
         put: {
           tags: ['Asignaciones'],
-          summary: 'Anula una asignación (Libera el espacio en tiempo real)',
-          parameters: [{ 
-            name: 'id', 
-            in: 'path', 
-            required: true, 
-            schema: { type: 'integer' },
-            description: 'ID de la asignación (AS_Asignacion)'
-          }],
-          responses: { 
-            '200': { description: 'Asignación anulada correctamente' },
-            '404': { description: 'Asignación no encontrada' }
-          }
+          summary: 'Anula una asignación (Libera el espacio)',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: { '200': { description: 'Anulado correctamente' } }
         }
       }
     }

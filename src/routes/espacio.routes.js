@@ -2,16 +2,19 @@ const express = require('express');
 const router = express.Router();
 const espacioController = require('../controllers/espacio.controller');
 
-// Obtener todos los espacios físicos
+// 1. Obtener todos los espacios físicos
 router.get('/', espacioController.getAllEspacios);
 
-// Obtener espacios filtrados por su TIPO (Motos, Carros, etc.)
-router.get('/tipo/:tipoId', espacioController.getEspaciosByTipo); // Cambiado para coincidir con la jerarquía
+// 2. Obtener espacios filtrados por su TIPO (Motos, Carros, etc.)
+router.get('/tipo/:tipoId', espacioController.getEspaciosByTipo);
 
-// Consultar disponibilidad (Libres)
+// 3. Consultar disponibilidad dinámica (Libres por jornada/semestre)
 router.get('/disponibilidad/libres', espacioController.getLibres);
 
-// CRUD básico
+// 4. NUEVO: Obtener el conteo de espacios disponibles (Estado 1) para el Front
+router.get('/count-disponibles/:tipoId', espacioController.getMetricasDisponibilidad);
+
+// 5. CRUD básico
 router.post('/', espacioController.createEspacio);
 router.put('/:id', espacioController.updateEspacio);
 router.delete('/:id', espacioController.deleteEspacio);

@@ -84,7 +84,7 @@ class EspacioStore {
         return await Espacio.findAll({
             where: {
                 TES_ESPACIO: tipoEspacioId,
-                ES_Estado: 0, // Solo los que están marcados como Disponibles en la tabla base
+                ES_Estado: 1, // Solo los que están marcados como Disponibles en la tabla base
                 ES_Espacio: {
                     [Op.notIn]: espaciosOcupadosIds.length > 0 ? espaciosOcupadosIds : [0] 
                 }
@@ -93,6 +93,8 @@ class EspacioStore {
         });
         
     }
+
+
 }
 
 module.exports = EspacioStore;
