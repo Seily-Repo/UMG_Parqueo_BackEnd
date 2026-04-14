@@ -17,7 +17,6 @@ const options = {
     ],
     components: {
       schemas: {
-        // Esquema de Respuesta General
         ApiResponse: {
           type: 'object',
           properties: {
@@ -39,70 +38,38 @@ const options = {
         },
         TipoEspacio: {
           type: 'object',
-          required: ['TES_NOMBRE', 'porcentaje', 'PQ_Parqueo'],
+          required: ['TES_NOMBRE', 'TES_CAPACIDAD_MAX_TIPO', 'PQ_Parqueo'],
           properties: {
             TES_ESPACIO: { type: 'integer', readOnly: true },
-            TES_NOMBRE: { type: 'string', example: 'Motos' },
-            TES_CAPACIDAD_MAX_TIPO: { type: 'integer', readOnly: true, description: 'Calculado automáticamente (Parqueo Capacidad * Porcentaje)' },
-            PQ_Parqueo: { type: 'integer', example: 1 },
-            porcentaje: { type: 'integer', example: 20, description: 'Porcentaje de la capacidad total del parqueo' }
+            TES_NOMBRE: { type: 'string', example: 'MOTOS', description: 'Nombre limpio sin caracteres especiales.' },
+            TES_CAPACIDAD_MAX_TIPO: { type: 'integer', example: 30, description: 'Cantidad entera de espacios permitidos.' },
+            PQ_Parqueo: { type: 'integer', example: 1 }
           }
         },
         Espacio: {
           type: 'object',
-          required: ['ES_Numero', 'TES_ESPACIO'],
+          required: ['TES_ESPACIO'],
           properties: {
             ES_Espacio: { type: 'integer', readOnly: true },
-            ES_Numero: { type: 'integer', example: 101 },
-            ES_Estado: { type: 'integer', example: 0, description: '0: Disponible, 1: Ocupado' },
-            TES_ESPACIO: { type: 'integer', example: 1, description: 'ID del Tipo de Espacio al que pertenece' }
+            ES_Numero: { type: 'integer', example: 1, description: 'Generado automáticamente buscando huecos en la numeración.' },
+            ES_Estado: { type: 'integer', example: 1, description: '1: Disponible, 0: Ocupado/Mantenimiento' },
+            TES_ESPACIO: { type: 'integer', example: 1 }
           }
         },
-  Asignacion: {
+        Asignacion: {
           type: 'object',
           required: ['carne_usuario', 'ES_Espacio', 'id_ciclo', 'id_jornada'],
           properties: {
-            AS_Asignacion: { 
-              type: 'integer', 
-              readOnly: true, 
-              description: 'ID autogenerado de la asignación' 
-            },
-            AS_FechaAsignacion: { 
-              type: 'string', 
-              format: 'date-time', 
-              readOnly: true,
-              description: 'Fecha y hora en que se realizó la asignación'
-            },
-            AS_Estado: { 
-              type: 'integer', 
-              readOnly: true, 
-              example: 1, 
-              description: '1: Activa, 0: Anulada' 
-            },
-            carne_usuario: { 
-              type: 'string', 
-              example: '2026-01-001', 
-              description: 'Carné del estudiante o identificación del usuario'
-            },
-            ES_Espacio: { 
-              type: 'integer', 
-              example: 1, 
-              description: 'ID único del espacio físico'
-            },
-            id_ciclo: { 
-              type: 'integer', 
-              example: 1, 
-              description: 'ID del ciclo/semestre correspondiente'
-            },
-            id_jornada: { 
-              type: 'integer', 
-              example: 1, 
-              description: 'ID de la jornada (Matutina, Nocturna, etc.)'
-            }
+            AS_Asignacion: { type: 'integer', readOnly: true },
+            AS_FechaAsignacion: { type: 'string', format: 'date-time', readOnly: true },
+            AS_Estado: { type: 'integer', readOnly: true, example: 1, description: '1: Activa, 0: Anulada' },
+            carne_usuario: { type: 'string', example: '2026-01-001' },
+            ES_Espacio: { type: 'integer', example: 1 },
+            id_ciclo: { type: 'integer', example: 1 },
+            id_jornada: { type: 'integer', example: 1 }
           }
         }
       }
-      
     },
     paths: {
       // --- PARQUEOS ---
@@ -125,32 +92,56 @@ const options = {
         get: { tags: ['Tipo Espacio'], summary: 'Lista todos los tipos de espacio', responses: { '200': { description: 'Ok' } } },
         post: {
           tags: ['Tipo Espacio'],
-          summary: 'Crea un tipo de espacio (Calcula capacidad por porcentaje)',
+          summary: 'Crea un tipo (Valida capacidad entera y sumatoria total)',
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/TipoEspacio' } } } },
           responses: { 
             '201': { description: 'Creado exitosamente' },
-            '409': { description: 'La sumatoria de tipos excede la capacidad del parqueo' }
+            '400': { description: 'Caracteres inválidos o capacidad no entera' },
+            '409': { description: 'Capacidad excede el límite del parqueo' }
           }
         }
       },
-      '/api/tipo-espacios/parqueo/{idParqueo}': {
+      '/api/tipo-espacios/{idTipo}/espacios': {
         get: {
           tags: ['Tipo Espacio'],
-          summary: 'Obtiene los tipos de espacio asociados a un parqueo',
-          parameters: [{ name: 'idParqueo', in: 'path', required: true, schema: { type: 'integer' } }],
-          responses: { '200': { description: 'Ok' } }
+          summary: 'Listar espacios físicos por Tipo y Estado',
+          parameters: [
+            { name: 'idTipo', in: 'path', required: true, schema: { type: 'integer' } },
+            { name: 'estado', in: 'query', required: false, schema: { type: 'integer', enum: [0, 1] }, description: '1: Disponible, 0: Ocupado' }
+          ],
+          responses: { '200': { description: 'Listado obtenido' } }
+        }
+      },
+      '/api/tipo-espacios/{id}': {
+        put: {
+          tags: ['Tipo Espacio'],
+          summary: 'Actualiza nombre o capacidad de un tipo',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { TES_NOMBRE: { type: 'string' }, TES_CAPACIDAD_MAX_TIPO: { type: 'integer' } } } } } },
+          responses: { '200': { description: 'Actualizado' } }
+        },
+        delete: {
+          tags: ['Tipo Espacio'],
+          summary: 'Eliminar tipo (Libera estados y borra espacios asociados)',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: { '200': { description: 'Tipo eliminado y espacios liberados' } }
         }
       },
 
-      // --- ESPACIOS ---
+      // --- ESPACIOS (ACTUALIZADO) ---
       '/api/espacios': {
         get: { tags: ['Espacios'], summary: 'Obtiene todos los espacios registrados', responses: { '200': { description: 'Ok' } } },
         post: {
           tags: ['Espacios'],
-          summary: 'Crea un nuevo espacio (Valida tope del Tipo)',
-          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Espacio' } } } },
+          summary: 'Crea un espacio (Auto-numeración y validación de tope)',
+          description: 'No requiere ES_Numero. El sistema busca el primer hueco disponible en el parqueo.',
+          requestBody: { 
+            required: true, 
+            content: { 'application/json': { schema: { type: 'object', properties: { TES_ESPACIO: { type: 'integer', example: 1 } } } } } 
+          },
           responses: { 
-            '201': { description: 'Espacio creado' },
+            '201': { description: 'Espacio creado exitosamente' },
+            '404': { description: 'El tipo de espacio no existe' },
             '409': { description: 'Capacidad máxima del tipo alcanzada' }
           }
         }
@@ -159,33 +150,69 @@ const options = {
         get: {
           tags: ['Espacios'],
           summary: 'Obtiene espacios por su Tipo',
-          parameters: [{ name: 'tipoId', in: 'path', required: true, schema: { type: 'integer' } }],
+          parameters: [
+            { name: 'tipoId', in: 'path', required: true, schema: { type: 'integer' } },
+            { name: 'estado', in: 'query', schema: { type: 'integer', enum: [0, 1] }, description: '1: Libre, 0: Ocupado' }
+          ],
           responses: { '200': { description: 'Ok' } }
         }
       },
-      '/api/espacios/disponibilidad/libres': {
+      '/api/espacios/metricas/{tipoId}': {
         get: {
           tags: ['Espacios'],
-          summary: 'Consulta espacios libres por semestre y jornada',
+          summary: 'Métricas de disponibilidad por tipo',
+          parameters: [{ name: 'tipoId', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: { '200': { description: 'Conteo exitoso' } }
+        }
+      },
+      '/api/espacios/disponibilidad/avanzada': {
+        get: {
+          tags: ['Espacios'],
+          summary: 'Disponibilidad por semestre y jornada (Regla 6)',
+          description: 'Cruza espacios físicos con asignaciones activas para el periodo seleccionado.',
           parameters: [
-            { name: 'tipoEspacioId', in: 'query', required: true, schema: { type: 'integer' } },
-            { name: 'semestre', in: 'query', required: true, schema: { type: 'integer' } },
-            { name: 'jornada', in: 'query', required: true, schema: { type: 'integer' } }
+            { name: 'semestre', in: 'query', required: true, schema: { type: 'integer' }, description: 'ID del Ciclo/Semestre' },
+            { name: 'jornada', in: 'query', required: true, schema: { type: 'integer' }, description: 'ID de la Jornada' },
+            { name: 'estado', in: 'query', schema: { type: 'integer', enum: [0, 1] }, description: 'Filtrar por estado del espacio físico' }
           ],
-          responses: { '200': { description: 'Lista de espacios disponibles' } }
+          responses: { '200': { description: 'Ok' } }
+        }
+      },
+      '/api/espacios/parqueo/{id}': {
+        get: {
+          tags: ['Espacios'],
+          summary: 'Obtiene un parqueo por ID',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: { '200': { description: 'Ok' } }
         }
       },
       '/api/espacios/{id}': {
         put: {
           tags: ['Espacios'],
-          summary: 'Actualiza un espacio por ID',
+          summary: 'Actualiza un espacio (Edición Dual)',
+          description: 'Si se envía "soloEstado: true", solo se actualiza ES_Estado. De lo contrario, valida cambios de tipo y capacidad.',
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Espacio' } } } },
-          responses: { '200': { description: 'Actualizado' } }
+          requestBody: { 
+            required: true, 
+            content: { 
+              'application/json': { 
+                schema: { 
+                  type: 'object',
+                  properties: {
+                    ES_Estado: { type: 'integer', example: 1 },
+                    TES_ESPACIO: { type: 'integer', example: 2 },
+                    soloEstado: { type: 'boolean', example: true }
+                  }
+                } 
+              } 
+            } 
+          },
+          responses: { '200': { description: 'Actualizado' }, '409': { description: 'Capacidad máxima del nuevo tipo alcanzada' } }
         },
         delete: {
           tags: ['Espacios'],
-          summary: 'Elimina un espacio',
+          summary: 'Elimina un espacio físico',
+          description: 'Elimina el registro. El número que ocupaba queda libre para ser reutilizado por el algoritmo de huecos.',
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
           responses: { '200': { description: 'Eliminado' } }
         }
@@ -197,40 +224,27 @@ const options = {
           tags: ['Asignaciones'], 
           summary: 'Obtiene todas las asignaciones',
           parameters: [
-            { name: 'id_ciclo', in: 'query', schema: { type: 'integer' }, description: 'Filtrar por ciclo' },
-            { name: 'estado', in: 'query', schema: { type: 'integer' }, description: 'Filtrar por estado (1 o 0)' }
+            { name: 'id_ciclo', in: 'query', schema: { type: 'integer' } },
+            { name: 'estado', in: 'query', schema: { type: 'integer' } }
           ],
-          responses: { '200': { description: 'Ok', content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiResponse' } } } } } 
+          responses: { '200': { description: 'Ok' } } 
         },
         post: {
           tags: ['Asignaciones'],
-          summary: 'Asigna un espacio (Valida disponibilidad y estado del usuario)',
-          requestBody: { 
-            required: true, 
-            content: { 'application/json': { schema: { $ref: '#/components/schemas/Asignacion' } } } 
-          },
+          summary: 'Asigna un espacio (Valida disponibilidad y estado)',
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Asignacion' } } } },
           responses: { 
-            '201': { description: '¡Asignación creada exitosamente!' },
-            '404': { description: 'El espacio de parqueo indicado no existe.' },
-            '409': { description: 'Conflicto: El usuario ya tiene asignación o el espacio está ocupado.' }
+            '201': { description: 'Asignación creada' },
+            '409': { description: 'Conflicto: Espacio ocupado o usuario con asignación activa' }
           }
         }
       },
       '/api/asignacion/anular/{id}': {
         put: {
           tags: ['Asignaciones'],
-          summary: 'Anula una asignación (Libera el espacio en tiempo real)',
-          parameters: [{ 
-            name: 'id', 
-            in: 'path', 
-            required: true, 
-            schema: { type: 'integer' },
-            description: 'ID de la asignación (AS_Asignacion)'
-          }],
-          responses: { 
-            '200': { description: 'Asignación anulada correctamente' },
-            '404': { description: 'Asignación no encontrada' }
-          }
+          summary: 'Anula una asignación (Libera el espacio)',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: { '200': { description: 'Anulada' } }
         }
       }
     }

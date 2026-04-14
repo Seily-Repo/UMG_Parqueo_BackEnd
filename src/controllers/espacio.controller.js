@@ -1,45 +1,133 @@
 const EspacioStore = require('../store/espacio.store');
-const TipoEspacio = require('../model/tipo_espacio.model'); 
-const Asignacion = require('../model/asignacion.model'); 
+const TipoEspacioStore = require('../store/tipo_espacio.store');
+const ParqueoStore = require('../store/parqueo.store');
 
 const sendResponse = (res, status, success, message, details = null) => {
     return res.status(status).json({ success, status, message, details });
 };
 
+// --- 1. INSERTAR (Con numeración automática y llenado de huecos) ---
 exports.createEspacio = async (req, res) => { 
     try {
-        const { ES_Numero, TES_ESPACIO } = req.body;
+        const { TES_ESPACIO } = req.body;
 
-        // 1. Validar que el Tipo de Espacio exista y obtener su capacidad máxima
-        const tipo = await TipoEspacio.findByPk(TES_ESPACIO);
-        if (!tipo) {
-            return sendResponse(res, 404, false, "El tipo de espacio especificado no existe.", null);
-        }
+        // Validar existencia del tipo
+        const tipo = await TipoEspacioStore.getById(TES_ESPACIO);
+        if (!tipo) return sendResponse(res, 404, false, "El tipo de espacio no existe.");
 
-        // 2. Contar cuántos espacios ya están registrados para este tipo
+        // REGLA #2: Validación de Tope por Tipo
         const conteoActual = await EspacioStore.countByTipo(TES_ESPACIO);
-
-        // 3. VALIDACIÓN DE TOPE: No superar la capacidad máxima definida por el porcentaje
         if (conteoActual >= tipo.TES_CAPACIDAD_MAX_TIPO) {
             return sendResponse(res, 409, false, 
-                `Operación rechazada: Se ha alcanzado la capacidad máxima (${tipo.TES_CAPACIDAD_MAX_TIPO}) para el tipo ${tipo.TES_NOMBRE}.`, 
-                { capacidadMaxima: tipo.TES_CAPACIDAD_MAX_TIPO, conteoActual }
+                `Capacidad máxima alcanzada para ${tipo.TES_NOMBRE} (${tipo.TES_CAPACIDAD_MAX_TIPO}).`
             );
         }
 
-        // 4. Crear el espacio
-        const nuevoEspacio = await EspacioStore.create(req.body);
+        // REGLA #1: Generación de número automático (Busca huecos primero)
+        const proximoNumero = await EspacioStore.findNextAvailableNumber(tipo.PQ_Parqueo);
+
+        // Crear el espacio con el número calculado
+        const nuevoEspacio = await EspacioStore.create({
+            ES_Numero: proximoNumero,
+            TES_ESPACIO: TES_ESPACIO
+        });
+
         return sendResponse(res, 201, true, 'Espacio creado exitosamente', nuevoEspacio);
 
     } catch (error) { 
-        // Capturar errores de unicidad (ES_Numero + TES_ESPACIO)
-        if (error.name === 'SequelizeUniqueConstraintError') {
-            return sendResponse(res, 409, false, "El número de espacio ya existe para este tipo de categoría.", error.message);
-        }
         return sendResponse(res, 500, false, 'Error al crear espacio', error.message); 
     }
 };
 
+// --- 3. ACTUALIZAR (Edición Dual: Solo Estado o Campos Completos) ---
+exports.updateEspacio = async (req, res) => { 
+    try {
+        const { id } = req.params;
+        const { ES_Estado, TES_ESPACIO, soloEstado } = req.body;
+
+        const espacioActual = await EspacioStore.getById(id);
+        if (!espacioActual) return sendResponse(res, 404, false, 'No se encontró el espacio');
+
+        // CASO A: Solo editar estado (Regla #3 parte 1)
+        if (soloEstado) {
+            if (![0, 1].includes(ES_Estado)) return sendResponse(res, 400, false, "Estado inválido");
+            await EspacioStore.updateEstado(id, ES_Estado);
+            return sendResponse(res, 200, true, 'Estado del espacio actualizado');
+        }
+
+        // CASO B: Editar todos los campos (Regla #3 parte 2)
+        const dataUpdate = { ...req.body };
+        
+        // Si cambia de Tipo de Espacio, validar capacidad del nuevo tipo
+        if (TES_ESPACIO && TES_ESPACIO !== espacioActual.TES_ESPACIO) {
+            const nuevoTipo = await TipoEspacioStore.getById(TES_ESPACIO);
+            if (!nuevoTipo) return sendResponse(res, 404, false, "El nuevo tipo no existe");
+
+            const conteoNuevoTipo = await EspacioStore.countByTipo(TES_ESPACIO);
+            if (conteoNuevoTipo >= nuevoTipo.TES_CAPACIDAD_MAX_TIPO) {
+                return sendResponse(res, 409, false, "Capacidad máxima del tipo destino alcanzada");
+            }
+        }
+
+        // Bloqueamos la edición manual del número de parqueo o número de espacio 
+        // para mantener la integridad de la numeración automática
+        delete dataUpdate.ES_Numero; 
+
+        await EspacioStore.update(id, dataUpdate);
+        return sendResponse(res, 200, true, 'Espacio actualizado exitosamente');
+
+    } catch (error) { 
+        return sendResponse(res, 500, false, 'Error al actualizar espacio', error.message); 
+    }
+};
+
+// --- 4. ELIMINAR (Regla #4) ---
+exports.deleteEspacio = async (req, res) => { 
+    try {
+        const id = req.params.id;
+        const espacio = await EspacioStore.getById(id);
+        if (!espacio) return sendResponse(res, 404, false, 'Espacio no encontrado');
+
+        await EspacioStore.delete(id);
+        return sendResponse(res, 200, true, `Espacio #${espacio.ES_Numero} eliminado. El número queda libre.`);
+    } catch (error) { 
+        return sendResponse(res, 500, false, 'Error al eliminar espacio', error.message); 
+    }
+};
+
+// --- 5 & 7. LISTADOS DE PARQUEO ---
+exports.getParqueoById = async (req, res) => {
+    try {
+        const parqueo = await ParqueoStore.getById(req.params.id);
+        if (!parqueo) return sendResponse(res, 404, false, "Parqueo no encontrado");
+        return sendResponse(res, 200, true, "Parqueo obtenido", parqueo);
+    } catch (error) {
+        return sendResponse(res, 500, false, "Error", error.message);
+    }
+};
+
+// --- 6. LISTAR DISPONIBLES / OCUPADOS POR JORNADA Y SEMESTRE ---
+exports.getDisponibilidadAvanzada = async (req, res) => {
+    try {
+        const { semestre, jornada, estado } = req.query;
+        
+        if (!semestre || !jornada) {
+            return sendResponse(res, 400, false, 'Faltan parámetros: semestre y jornada');
+        }
+
+        const espacios = await EspacioStore.getDisponibilidadAvanzada(semestre, jornada, estado);
+        
+        return res.status(200).json({
+            success: true,
+            total: espacios.length,
+            data: espacios
+        });
+    } catch (error) {
+        return sendResponse(res, 500, false, 'Error al consultar disponibilidad', error.message);
+    }
+};
+
+// Otros listados básicos...
 exports.getAllEspacios = async (req, res) => { 
     try {
         const espacios = await EspacioStore.getAll();
@@ -49,87 +137,30 @@ exports.getAllEspacios = async (req, res) => {
     }
 };
 
-exports.updateEspacio = async (req, res) => { 
-    try {
-        const { id } = req.params;
-        const actualizado = await EspacioStore.update(id, req.body);
-        
-        if (!actualizado) {
-            return sendResponse(res, 404, false, 'No se encontró el espacio para actualizar', null);
-        }
-
-        return sendResponse(res, 200, true, 'Espacio actualizado exitosamente');
-    } catch (error) { 
-        return sendResponse(res, 500, false, 'Error al actualizar espacio', error.message); 
-    }
-};
-
-exports.deleteEspacio = async (req, res) => { 
-    try {
-        await EspacioStore.delete(req.params.id);
-        return sendResponse(res, 200, true, 'Espacio eliminado exitosamente');
-    } catch (error) { 
-        return sendResponse(res, 500, false, 'Error al eliminar espacio', error.message); 
-    }
-};
-
-
 exports.getEspaciosByTipo = async (req, res) => { 
     try {
         const { tipoId } = req.params;
         const { estado } = req.query; 
 
-        const estadoFiltro = (estado !== undefined) ? parseInt(estado) : null;
+        const estadoFiltro = (estado === '1' || estado === '0') ? parseInt(estado) : undefined;
 
-        const espacios = await EspacioStore.getByTipoId(tipoId, estadoFiltro);
+        const espacios = await EspacioStore.getByTipoYEstado(tipoId, estadoFiltro);
 
-        res.status(200).json({
-            success: true,
-            status: 200,
-            message: estadoFiltro !== null 
-                ? `Espacios de tipo ${tipoId} con estado ${estadoFiltro}` 
-                : "Todos los espacios por tipo",
-            details: espacios
-        });
+        return sendResponse(res, 200, true, 'Listado por tipo obtenido', espacios);
     } catch (error) { 
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error al obtener espacios', 
-            error: error.message 
-        }); 
+        return sendResponse(res, 500, false, 'Error al obtener espacios por tipo', error.message); 
     }
 };
 
-exports.getLibres = async (req, res) => {
-    try {
-        const { tipoEspacioId, semestre, jornada } = req.query;
-        
-        if (!tipoEspacioId || !semestre || !jornada) {
-            return sendResponse(res, 400, false, 'Faltan parámetros (tipoEspacioId, semestre, jornada)');
-        }
-
-        const espaciosLibres = await EspacioStore.getEspaciosLibres(tipoEspacioId, semestre, jornada);
-        
-        return res.status(200).json({
-            success: true,
-            status: 200,
-            message: 'Consulta de disponibilidad realizada',
-            total_libres: espaciosLibres.length,
-            data: espaciosLibres
-        });
-    } catch (error) {
-        return sendResponse(res, 500, false, 'Error al consultar disponibilidad', error.message);
-    }
-};
-
+// --- EXTRA: Métricas rápidas ---
 exports.getMetricasDisponibilidad = async (req, res) => {
     try {
         const { tipoId } = req.params;
-        const disponibles = await EspacioStore.contarDisponibles(tipoId);
+        const disponibles = await EspacioStore.countByTipo(tipoId); // O una lógica de conteo específica
         
-        return sendResponse(res, 200, true, "Conteo de disponibilidad obtenido", {
-            tipoEspacioId: parseInt(tipoId),
-            disponibles: disponibles
+        return sendResponse(res, 200, true, "Métricas obtenidas", {
+            tipoId: parseInt(tipoId),
+            totalRegistrados: disponibles
         });
     } catch (error) {
         return sendResponse(res, 500, false, 'Error al obtener métricas', error.message);

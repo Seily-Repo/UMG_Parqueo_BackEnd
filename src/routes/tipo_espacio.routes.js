@@ -2,17 +2,19 @@ const express = require('express');
 const router = express.Router();
 const tipoEspacioController = require('../controllers/tipo_espacio.controller');
 
-// Obtener todos
+// 1. Obtener todos los tipos de espacio (General)
 router.get('/', tipoEspacioController.getAllTipos);
 
-// Crear nuevo tipo (con cálculo de porcentaje)
+// 2. Crear nuevo tipo (Con validación de basura, duplicados y cálculo de porcentaje)
 router.post('/', tipoEspacioController.crearTipoEspacio);
 
-// Listar por parqueo
-router.get('/parqueo/:idParqueo', tipoEspacioController.listarTiposPorParqueo);
+//3. Listar espacios de un tipo específico filtrados por estado (query param ?estado=1)
+router.get('/:idTipo/espacios', tipoEspacioController.listarEspaciosPorTipoYEstado);
 
-// --- COMENTA ESTAS LÍNEAS PARA EVITAR EL CRASH ---
-// router.put('/:id', tipoEspacioController.updateTipoEspacio); // Línea 15: Aquí es donde truena
-// router.delete('/:id', tipoEspacioController.deleteTipoEspacio);
+// 4. Editar tipo de espacio (Actualiza nombre a MAYÚSCULAS o recalcula porcentaje)
+router.put('/:id', tipoEspacioController.updateTipoEspacio);
+
+// 5. Eliminar tipo de espacio (Elimina el tipo y LIBERA todos los espacios vinculados)
+router.delete('/:id', tipoEspacioController.deleteTipoEspacio);
 
 module.exports = router;

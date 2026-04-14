@@ -12,7 +12,6 @@ const Espacio = sequelize.define('Espacio', {
     ES_Numero: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        unique: 'compositeIndex', 
         field: 'ES_NUMERO'
     },
     ES_Estado: {
@@ -20,14 +19,13 @@ const Espacio = sequelize.define('Espacio', {
         allowNull: false,
         defaultValue: 1,
         validate: {
-            isIn: [[0, 1]]
+            isIn: [[0, 1]] // 1: Disponible, 0: Ocupado
         },
         field: 'ES_ESTADO'
     },
     TES_ESPACIO: {
         type: DataTypes.BIGINT,
-        allowNull: false,
-        unique: 'compositeIndex',
+        allowNull: true, // Crucial para que no se borre el registro
         references: {
             model: TipoEspacio,
             key: 'TES_ESPACIO'
@@ -36,17 +34,18 @@ const Espacio = sequelize.define('Espacio', {
     }
 }, {
     tableName: 'DP_ESPACIO',
-    timestamps: false,
-    indexes: [
-        {
-            unique: true,
-            fields: ['ES_NUMERO', 'TES_ESPACIO'] 
-        }
-    ]
+    timestamps: false
 });
 
-// Relación TipoEspacio -> Espacio
-TipoEspacio.hasMany(Espacio, { foreignKey: 'TES_ESPACIO' });
-Espacio.belongsTo(TipoEspacio, { foreignKey: 'TES_ESPACIO' });
+TipoEspacio.hasMany(Espacio, { 
+    foreignKey: 'TES_ESPACIO',
+    onDelete: 'SET NULL', 
+    hooks: true 
+});
+
+Espacio.belongsTo(TipoEspacio, { 
+    foreignKey: 'TES_ESPACIO',
+    onDelete: 'SET NULL'
+});
 
 module.exports = Espacio;

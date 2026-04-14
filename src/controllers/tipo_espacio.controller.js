@@ -1,122 +1,133 @@
-const TipoEspacio = require('../model/tipo_espacio.model');
-const Parqueo = require('../model/parqueo.model');
+const TipoEspacioStore = require('../store/tipo_espacio.store');
+const ParqueoStore = require('../store/parqueo.store');
+const EspacioStore = require('../store/espacio.store'); 
 
-/**
- * Crea un nuevo Tipo de Espacio calculando su capacidad por porcentaje
- */
+const sendResponse = (res, status, success, message, details = null) => {
+    return res.status(status).json({ success, status, message, details });
+};
+
+// Regla 6: Limpieza de caracteres basura y especiales
+const limpiarTexto = (texto) => {
+    if (!texto) return "";
+    return texto.trim().replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase();
+};
+
 exports.crearTipoEspacio = async (req, res) => {
     try {
-        const { TES_NOMBRE, porcentaje, PQ_Parqueo } = req.body;
+        let { TES_NOMBRE, TES_CAPACIDAD_MAX_TIPO, PQ_Parqueo } = req.body;
 
-        // 1. Validar que el Parqueo exista
-        const parqueo = await Parqueo.findByPk(PQ_Parqueo);
-        if (!parqueo) {
-            return res.status(404).json({
-                success: false,
-                status: 404,
-                message: "Operación rechazada: El parqueo especificado no existe.",
-                details: `PQ_Parqueo ${PQ_Parqueo} not found.`
-            });
+        // Limpieza y Validación de nombre
+        TES_NOMBRE = limpiarTexto(TES_NOMBRE);
+        if (!TES_NOMBRE) return sendResponse(res, 400, false, "El nombre es obligatorio y no debe contener caracteres especiales.");
+
+        // Regla 4: Solo números enteros
+        if (!Number.isInteger(TES_CAPACIDAD_MAX_TIPO) || TES_CAPACIDAD_MAX_TIPO <= 0) {
+            return sendResponse(res, 400, false, "La capacidad debe ser un número entero mayor a cero.");
         }
 
-        // 2. Calcular capacidad basada en porcentaje
-        const capacidadCalculada = Math.floor(parqueo.PQ_Capacidad * (porcentaje / 100));
+        // Validación de existencia de Parqueo
+        const parqueo = await ParqueoStore.getById(PQ_Parqueo);
+        if (!parqueo) return sendResponse(res, 404, false, "El parqueo especificado no existe.");
 
-        if (capacidadCalculada <= 0) {
-            return res.status(400).json({
-                success: false,
-                status: 400,
-                message: "El porcentaje asignado resulta en una capacidad de 0 espacios.",
-                details: null
-            });
+        // Validación de Duplicados (No repetir "MOTOS" en el mismo parqueo)
+        const duplicado = await TipoEspacioStore.findDuplicate(TES_NOMBRE, PQ_Parqueo);
+        if (duplicado) return sendResponse(res, 409, false, `Operación rechazada: Ya existe el tipo '${TES_NOMBRE}' en este parqueo.`);
+
+        // Regla 5: Validaciones de capacidad
+        if (TES_CAPACIDAD_MAX_TIPO > parqueo.PQ_Capacidad) {
+            return sendResponse(res, 409, false, `La capacidad del tipo excede la capacidad total del parqueo (${parqueo.PQ_Capacidad}).`);
         }
 
-        // 3. Validar sumatoria de tipos para no exceder la capacidad total del parqueo
-        const sumatoriaActual = await TipoEspacio.sum('TES_CAPACIDAD_MAX_TIPO', {
-            where: { PQ_Parqueo: PQ_Parqueo }
-        }) || 0;
-
-        if ((sumatoriaActual + capacidadCalculada) > parqueo.PQ_Capacidad) {
-            return res.status(409).json({
-                success: false,
-                status: 409,
-                message: "Operación rechazada: La sumatoria de capacidades por tipo excede la capacidad total del parqueo.",
-                details: {
-                    capacidadParqueo: parqueo.PQ_Capacidad,
-                    disponible: parqueo.PQ_Capacidad - sumatoriaActual,
-                    intentoAsignar: capacidadCalculada
-                }
-            });
+        const sumaActual = await TipoEspacioStore.getSumCapacidadByParqueo(PQ_Parqueo);
+        if ((sumaActual + TES_CAPACIDAD_MAX_TIPO) > parqueo.PQ_Capacidad) {
+            const restante = parqueo.PQ_Capacidad - sumaActual;
+            return sendResponse(res, 409, false, `Capacidad excedida. Espacio disponible restante en el parqueo: ${restante}`);
         }
 
-        // 4. Crear el registro
-        const nuevoTipo = await TipoEspacio.create({
-            TES_NOMBRE,
-            TES_CAPACIDAD_MAX_TIPO: capacidadCalculada,
-            PQ_Parqueo
-        });
-
-        return res.status(201).json({
-            success: true,
-            status: 201,
-            message: "Tipo de espacio creado exitosamente.",
-            details: nuevoTipo
-        });
+        const nuevoTipo = await TipoEspacioStore.create({ TES_NOMBRE, TES_CAPACIDAD_MAX_TIPO, PQ_Parqueo });
+        return sendResponse(res, 201, true, "Tipo de espacio creado exitosamente", nuevoTipo);
 
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            status: 500,
-            message: "Error interno del servidor.",
-            details: error.message
-        });
+        return sendResponse(res, 500, false, "Error al crear tipo de espacio", error.message);
     }
 };
 
-/**
- * Listar tipos de espacio por Parqueo
- */
-exports.listarTiposPorParqueo = async (req, res) => {
-    try {
-        const { idParqueo } = req.params;
-        const tipos = await TipoEspacio.findAll({
-            where: { PQ_Parqueo: idParqueo }
-        });
-
-        return res.status(200).json({
-            success: true,
-            status: 200,
-            message: "Listado de tipos de espacio obtenido.",
-            details: tipos
-        });
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            status: 500,
-            message: "Error al obtener los tipos de espacio.",
-            details: error.message
-        });
-    }
-};
-
-/**
- * Obtener todos los tipos de espacio (General)
- */
 exports.getAllTipos = async (req, res) => {
     try {
-        const tipos = await TipoEspacio.findAll();
-        return res.status(200).json({
-            success: true,
-            status: 200,
-            message: "Todos los tipos de espacio obtenidos.",
-            details: tipos
-        });
+        const tipos = await TipoEspacioStore.getAll();
+        return sendResponse(res, 200, true, "Listado general obtenido", tipos);
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            status: 500,
-            message: "Error al obtener tipos.",
-            details: error.message
-        });
+        return sendResponse(res, 500, false, "Error al obtener tipos", error.message);
+    }
+};
+
+exports.listarEspaciosPorTipoYEstado = async (req, res) => {
+    try {
+        const { idTipo } = req.params;
+        const { estado } = req.query; // Puede ser 1 o 0
+
+        // Validar que el tipo existe
+        const tipo = await TipoEspacioStore.getById(idTipo);
+        if (!tipo) return sendResponse(res, 404, false, "El tipo de espacio no existe.");
+
+        // Llamamos al store de ESPACIOS (necesitarás este método en espacio.store)
+        const espacios = await EspacioStore.getByTipoYEstado(idTipo, estado);
+        
+        return sendResponse(res, 200, true, `Espacios de tipo ${tipo.TES_NOMBRE} filtrados correctamente.`, espacios);
+    } catch (error) {
+        return sendResponse(res, 500, false, "Error al filtrar espacios.", error.message);
+    }
+};
+
+exports.updateTipoEspacio = async (req, res) => {
+    try {
+        const { id } = req.params;
+        let { TES_NOMBRE, TES_CAPACIDAD_MAX_TIPO } = req.body;
+
+        const tipoActual = await TipoEspacioStore.getById(id);
+        if (!tipoActual) return sendResponse(res, 404, false, "Tipo de espacio no encontrado.");
+
+        const dataUpdate = {};
+
+        if (TES_NOMBRE) {
+            TES_NOMBRE = limpiarTexto(TES_NOMBRE);
+            const duplicado = await TipoEspacioStore.findDuplicate(TES_NOMBRE, tipoActual.PQ_Parqueo, id);
+            if (duplicado) return sendResponse(res, 409, false, `El nombre '${TES_NOMBRE}' ya está en uso.`);
+            dataUpdate.TES_NOMBRE = TES_NOMBRE;
+        }
+
+        if (TES_CAPACIDAD_MAX_TIPO !== undefined) {
+            if (!Number.isInteger(TES_CAPACIDAD_MAX_TIPO)) return sendResponse(res, 400, false, "La capacidad debe ser entera.");
+            
+            const parqueo = await ParqueoStore.getById(tipoActual.PQ_Parqueo);
+            const sumaOtros = (await TipoEspacioStore.getSumCapacidadByParqueo(tipoActual.PQ_Parqueo)) - tipoActual.TES_CAPACIDAD_MAX_TIPO;
+
+            if ((sumaOtros + TES_CAPACIDAD_MAX_TIPO) > parqueo.PQ_Capacidad) {
+                return sendResponse(res, 409, false, "La nueva capacidad excede el límite total del parqueo.");
+            }
+            dataUpdate.TES_CAPACIDAD_MAX_TIPO = TES_CAPACIDAD_MAX_TIPO;
+        }
+
+        await TipoEspacioStore.update(id, dataUpdate);
+        return sendResponse(res, 200, true, "Tipo de espacio actualizado correctamente.");
+    } catch (error) {
+        return sendResponse(res, 500, false, "Error al actualizar", error.message);
+    }
+};
+
+exports.deleteTipoEspacio = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const tipo = await TipoEspacioStore.getById(id);
+        
+        if (!tipo) return sendResponse(res, 404, false, "El tipo de espacio no existe.");
+
+        // Ejecutamos la lógica de desvincular y borrar
+        await TipoEspacioStore.deleteConLiberacion(id);
+
+        return sendResponse(res, 200, true, 
+            `El tipo '${tipo.TES_NOMBRE}' ha sido eliminado. Los espacios asociados ahora no tienen tipo y están en estado DISPONIBLE.`);
+    } catch (error) {
+        return sendResponse(res, 500, false, "Error al eliminar el tipo y liberar espacios.", error.message);
     }
 };
