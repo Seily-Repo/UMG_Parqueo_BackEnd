@@ -26,8 +26,8 @@ class MultaStore {
       MUL_DESCRIPCION: data.MUL_DESCRIPCION,
       MUL_FECHA: data.MUL_FECHA,
       MUL_FECHA_VENCIMIENTO: data.MUL_FECHA_VENCIMIENTO,
-      MUL_CREADO_POR: data.MUL_creado_por,
-      MUL_FECHA_CREACION: data.MUL_fecha_creacion || new Date(),
+      MUL_CREADO_POR: data.MUL_CREADO_POR,
+      MUL_FECHA_CREACION: data.MUL_FECHA_CREACION || new Date(),
       MUL_MODIFICADO_POR: data.MUL_MODIFICADO_POR,
       MUL_FECHA_MODIFICACION: data.MUL_FECHA_MODIFICACION,
     });

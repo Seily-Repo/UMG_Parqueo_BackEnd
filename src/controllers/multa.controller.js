@@ -49,7 +49,7 @@ exports.createMulta = async (req, res) => {
       });
     }
 
-    const existente = await MultaStore.getById(MUL_id_multa);
+    const existente = await MultaStore.getById(MUL_MULTA);
     if (existente) {
       return res.status(400).json({
         message: "El ID de la multa ya existe en el sistema",

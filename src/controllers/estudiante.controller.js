@@ -54,6 +54,29 @@ exports.createEstudiante = async (req, res) => {
       });
     }
 
+    //Validar que el nombre no incluya numeros solo letras con espacios y acentos
+    if (
+      !req.body.EST_NOMBRE_COMPLETO ||
+      !/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(req.body.EST_NOMBRE_COMPLETO)
+    ) {
+      return res.status(400).json({
+        message: "El nombre del estudiante es inválido",
+      });
+    }
+
+    //Validar que el correo del Estudiante sea correcto
+    if (
+      !req.body.EST_EMAIL ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(req.body.EST_EMAIL)
+    ) {
+      return res.status(400).json({
+        message: "El correo del estudiante es inválido",
+      });
+    }
+
+    //Insertar fecha actual
+    req.body.EST_FECHA_CREACION = new Date();
+
     const estudiante = await EstudianteStore.create(req.body);
     res.status(201).json({
       message: "Estudiante creado exitosamente",
