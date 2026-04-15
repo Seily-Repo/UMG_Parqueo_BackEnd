@@ -932,6 +932,45 @@ const options = {
         },
       },
 
+      // Ruta Pago por Payment ID de Stripe
+
+      "/api/pago/verify/{pi}": {
+        get: {
+          tags: ["Pagos"],
+          summary: "Verifica el estado de un pago por su Payment ID de Stripe",
+          parameters: [
+            {
+              name: "pi",
+              in: "path",
+              required: true,
+              description: "Payment ID de Stripe",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Pago verificado exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: {
+                        type: "string",
+                        example: "Pago verificado exitosamente",
+                      },
+                      data: { $ref: "#/components/schemas/Pago" },
+                    },
+                  },
+                },
+              },
+            },
+            404: { description: "Pago no encontrado" },
+            500: { description: "Error al verificar el pago" },
+          },
+        },
+      },
+
       // Webhook Stripe
       "/api/webhook": {
         post: {

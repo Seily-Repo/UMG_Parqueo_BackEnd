@@ -18,7 +18,7 @@ exports.getAllPagos = async (req, res) => {
   }
 };
 
-// Obtener pago por ID
+// Obtener pago por ID de
 exports.getPagoById = async (req, res) => {
   try {
     const pago = await PagoStore.getById(req.params.id);
@@ -46,7 +46,7 @@ exports.verifyPayment = async (req, res) => {
 
     if (!pi || !pi.startsWith("pi_")) {
       return res.status(400).json({
-        message: "Se requiere un ID de pago de Stripe válido (empieza con pi_)",
+        message: `Se requiere un ID de pago de Stripe válido (empieza con pi_). Valor recibido: "${pi}"`,
       });
     }
 
