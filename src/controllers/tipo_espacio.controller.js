@@ -122,12 +122,45 @@ exports.deleteTipoEspacio = async (req, res) => {
         
         if (!tipo) return sendResponse(res, 404, false, "El tipo de espacio no existe.");
 
-        // Ejecutamos la lógica de desvincular y borrar
+        // --- VALIDACIÓN: Espacios ocupados (Estado 0) ---
+        const ocupados = await EspacioStore.countOcupadosByTipo(id);
+        if (ocupados > 0) {
+            return sendResponse(res, 409, false, 
+                `No se puede eliminar. Hay ${ocupados} espacios actualmente OCUPADOS bajo este tipo.`);
+        }
+
+        // Si está limpio, procedemos
         await TipoEspacioStore.deleteConLiberacion(id);
 
         return sendResponse(res, 200, true, 
             `El tipo '${tipo.TES_NOMBRE}' ha sido eliminado. Los espacios asociados ahora no tienen tipo y están en estado DISPONIBLE.`);
     } catch (error) {
-        return sendResponse(res, 500, false, "Error al eliminar el tipo y liberar espacios.", error.message);
+        return sendResponse(res, 500, false, "Error al eliminar el tipo.", error.message);
     }
+};
+
+exports.updateEstadoTipo = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nuevoEstado } = req.body; // El front envía { "nuevoEstado": 0 }
+
+        const tipo = await TipoEspacioStore.getById(id);
+        if (!tipo) return sendResponse(res, 404, false, "El tipo de espacio no existe.");
+
+        // Solo validamos ocupación si se intenta INACTIVAR (estado 0)
+        if (nuevoEstado === 0) {
+            const ocupados = await EspacioStore.countOcupadosByTipo(id);
+            if (ocupados > 0) {
+                return sendResponse(res, 409, false, 
+                    `No se puede inactivar. Tiene ${ocupados} espacios ocupados.`);
+            }
+        }
+
+        await TipoEspacioStore.update(id, { TES_ESTADO: nuevoEstado });
+
+        return sendResponse(res, 200, true, `Estado del tipo '${tipo.TES_NOMBRE}' actualizado a ${nuevoEstado}.`);
+    } catch (error) {
+        return sendResponse(res, 500, false, "Error al actualizar estado.", error.message);
+    }
+
 };

@@ -1,10 +1,10 @@
 const TipoEspacio = require('../model/tipo_espacio.model');
-const Espacio = require('../model/espacio.model'); // Importante para la Regla #3
+const Espacio = require('../model/espacio.model'); 
 const { sequelize } = require('../config/db');
 const { Op } = require('sequelize');
 
 class TipoEspacioStore {
-    // 1. Obtener todos
+    // 1. Obtener todos (Solo los activos por defecto para el front)
     static async getAll() {
         return await TipoEspacio.findAll({
             order: [['TES_ESPACIO', 'ASC']]
@@ -24,7 +24,7 @@ class TipoEspacioStore {
         });
     }
 
-    // 4. Buscar duplicados (Útil para evitar "MOTOS" dos veces en el mismo parqueo)
+    // 4. Buscar duplicados
     static async findDuplicate(nombre, parqueoId, excludeId = null) {
         const whereClause = {
             TES_NOMBRE: nombre,
@@ -36,10 +36,13 @@ class TipoEspacioStore {
         return await TipoEspacio.findOne({ where: whereClause });
     }
 
-    // 5. Sumatoria de capacidades (Regla #5 del Controller)
+    // 5. Sumatoria de capacidades
     static async getSumCapacidadByParqueo(parqueoId) {
         const suma = await TipoEspacio.sum('TES_CAPACIDAD_MAX_TIPO', {
-            where: { PQ_Parqueo: parqueoId }
+            where: { 
+                PQ_Parqueo: parqueoId,
+                TES_ESTADO: 1 // Solo sumamos los que están activos físicamente
+            }
         });
         return suma || 0;
     }
@@ -49,26 +52,26 @@ class TipoEspacioStore {
         return await TipoEspacio.create({
             TES_NOMBRE: data.TES_NOMBRE,
             TES_CAPACIDAD_MAX_TIPO: data.TES_CAPACIDAD_MAX_TIPO,
-            PQ_Parqueo: data.PQ_Parqueo
+            PQ_Parqueo: data.PQ_Parqueo,
+            TES_ESTADO: 1 // Siempre inicia activo
         });
     }
 
-    // 7. Actualizar
-        static async update(id, data) {
-            return await TipoEspacio.update(data, {
-                where: { TES_ESPACIO: id }
-            });
-        }
+    // 7. Actualizar (Sirve para datos generales e inactivación lógica)
+    static async update(id, data) {
+        return await TipoEspacio.update(data, {
+            where: { TES_ESPACIO: id }
+        });
+    }
 
-        /**
-         * 8. Eliminar en Cascada (Regla #3)
-         * Usamos una transacción para asegurar que se borren los espacios Y el tipo.
-         */
-        static async deleteConLiberacion(id) {
+    /**
+     * 8. Eliminar en Cascada (Regla #3)
+     * Modificada para asegurar que los espacios queden libres.
+     */
+    static async deleteConLiberacion(id) {
         const t = await sequelize.transaction();
         try {
             // PASO 1: Ponemos los espacios en 1 (Disponible)
-            // El TES_ESPACIO se pondrá en NULL automáticamente por la BD al borrar el tipo
             await Espacio.update(
                 { ES_Estado: 1 }, 
                 { 
@@ -89,6 +92,19 @@ class TipoEspacioStore {
             await t.rollback();
             throw error;
         }
+    }
+
+    /**
+     * 9. Conteo de espacios ocupados (NECESARIO PARA EL CONTROLLER)
+     * Verifica si hay vehículos parqueados actualmente.
+     */
+    static async countOcupadosByTipo(tesId) {
+        return await Espacio.count({
+            where: {
+                TES_ESPACIO: tesId,
+                ES_Estado: 0 // 0 = Ocupado
+            }
+        });
     }
 }
 

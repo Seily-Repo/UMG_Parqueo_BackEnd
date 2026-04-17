@@ -131,6 +131,19 @@ class EspacioStore {
             order: [['ES_Numero', 'ASC']]
         });
     }
+
+    static async countOcupadosByTipo(tesId) {
+        try {
+            return await Espacio.count({
+                where: {
+                    TES_ESPACIO: tesId,
+                    ES_Estado: 0
+                }
+            });
+        } catch (error) {
+            throw new Error("Error al contar espacios ocupados: " + error.message);
+        }
+    }
 }
 
 module.exports = EspacioStore;

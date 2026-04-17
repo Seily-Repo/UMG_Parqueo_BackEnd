@@ -43,6 +43,7 @@ const options = {
             TES_ESPACIO: { type: 'integer', readOnly: true },
             TES_NOMBRE: { type: 'string', example: 'MOTOS', description: 'Nombre limpio sin caracteres especiales.' },
             TES_CAPACIDAD_MAX_TIPO: { type: 'integer', example: 30, description: 'Cantidad entera de espacios permitidos.' },
+            TES_ESTADO: { type: 'integer', example: 1, description: '1: Activo, 0: Inactivo (Borrado Lógico).' },
             PQ_Parqueo: { type: 'integer', example: 1 }
           }
         },
@@ -122,13 +123,42 @@ const options = {
         },
         delete: {
           tags: ['Tipo Espacio'],
-          summary: 'Eliminar tipo (Libera estados y borra espacios asociados)',
+          summary: 'Eliminar tipo (Físico)',
+          description: 'Elimina el tipo y libera espacios asociados. Falla si hay espacios ocupados (Estado 0).',
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
-          responses: { '200': { description: 'Tipo eliminado y espacios liberados' } }
+          responses: { 
+            '200': { description: 'Tipo eliminado y espacios liberados' },
+            '409': { description: 'Conflicto: Existen espacios ocupados vinculados a este tipo' }
+          }
+        }
+      },
+      '/api/tipo-espacios/{id}/estado': {
+        put: {
+          tags: ['Tipo Espacio'],
+          summary: 'Actualizar estado del tipo (Activar/Desactivar)',
+          description: 'Permite cambiar el TES_ESTADO. Si se envía 0, valida que no haya espacios ocupados.',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    nuevoEstado: { type: 'integer', enum: [0, 1], example: 0 }
+                  }
+                }
+              }
+            }
+          },
+          responses: { 
+            '200': { description: 'Estado actualizado' },
+            '409': { description: 'Conflicto: Hay espacios ocupados' }
+          }
         }
       },
 
-      // --- ESPACIOS (ACTUALIZADO) ---
+      // --- ESPACIOS ---
       '/api/espacios': {
         get: { tags: ['Espacios'], summary: 'Obtiene todos los espacios registrados', responses: { '200': { description: 'Ok' } } },
         post: {
@@ -168,7 +198,7 @@ const options = {
       '/api/espacios/disponibilidad/avanzada': {
         get: {
           tags: ['Espacios'],
-          summary: 'Disponibilidad por semestre y jornada (Regla 6)',
+          summary: 'Disponibilidad por semestre y jornada',
           description: 'Cruza espacios físicos con asignaciones activas para el periodo seleccionado.',
           parameters: [
             { name: 'semestre', in: 'query', required: true, schema: { type: 'integer' }, description: 'ID del Ciclo/Semestre' },
@@ -212,7 +242,6 @@ const options = {
         delete: {
           tags: ['Espacios'],
           summary: 'Elimina un espacio físico',
-          description: 'Elimina el registro. El número que ocupaba queda libre para ser reutilizado por el algoritmo de huecos.',
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
           responses: { '200': { description: 'Eliminado' } }
         }
