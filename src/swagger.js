@@ -247,6 +247,32 @@ const options = {
         }
       },
 
+      '/api/espacios/{id}/estado': {
+        put: {
+          tags: ['Espacios'],
+          summary: 'Cambiar estado físico (Ocupado/Libre)',
+          description: 'Actualiza ES_Estado. Si se intenta liberar (1), valida que el Tipo de Espacio no esté desactivado.',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    nuevoEstado: { type: 'integer', enum: [0, 1], example: 0 }
+                  }
+                }
+              }
+            }
+          },
+          responses: { 
+            '200': { description: 'Estado actualizado correctamente' },
+            '409': { description: 'Conflicto: El tipo de espacio asociado está inactivo' }
+          }
+        }
+      },
+
       // --- ASIGNACIONES ---
       '/api/asignacion': {
         get: { 

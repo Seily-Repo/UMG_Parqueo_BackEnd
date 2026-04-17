@@ -95,6 +95,43 @@ exports.deleteEspacio = async (req, res) => {
     }
 };
 
+exports.updateEstadoEspacio = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nuevoEstado } = req.body; // 0: Ocupado, 1: Libre
+
+        // 1. Validar que el espacio existe
+        const espacio = await EspacioStore.getById(id);
+        if (!espacio) {
+            return sendResponse(res, 404, false, "El espacio físico no existe.");
+        }
+
+        // 2. VALIDACIÓN DE ORO: Si se intenta liberar (1), el Tipo debe estar Activo
+        if (nuevoEstado === 1) {
+            const tipo = await TipoEspacioStore.getById(espacio.TES_ESPACIO);
+            
+            // Si el tipo está desactivado (TES_ESTADO = 0), no permitimos liberar el espacio
+            // para evitar que alguien use un parqueo de un tipo que "ya no existe" legalmente.
+            if (tipo && tipo.TES_ESTADO === 0) {
+                return sendResponse(res, 409, false, 
+                    `No se puede marcar como LIBRE. El tipo '${tipo.TES_NOMBRE}' está desactivado.`);
+            }
+        }
+
+        // 3. Actualizar el estado
+        await EspacioStore.update(id, { ES_Estado: nuevoEstado });
+
+        // Aquí podrías emitir un evento de Socket.io si lo tienes configurado:
+        // io.emit('mapa-actualizado', { id, nuevoEstado });
+
+        return sendResponse(res, 200, true, 
+            `Espacio #${espacio.ES_Numero} actualizado a ${nuevoEstado === 0 ? 'OCUPADO' : 'LIBRE'}.`);
+
+    } catch (error) {
+        return sendResponse(res, 500, false, "Error al actualizar estado del espacio.", error.message);
+    }
+};
+
 // --- 5 & 7. LISTADOS DE PARQUEO ---
 exports.getParqueoById = async (req, res) => {
     try {

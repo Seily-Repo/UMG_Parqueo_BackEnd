@@ -15,5 +15,6 @@ router.get('/metricas/:tipoId', espacioController.getMetricasDisponibilidad); //
 router.post('/', espacioController.createEspacio);
 router.put('/:id', espacioController.updateEspacio);
 router.delete('/:id', espacioController.deleteEspacio);
+router.put('/:id/estado', espacioController.updateEstadoEspacio);
 
 module.exports = router;
