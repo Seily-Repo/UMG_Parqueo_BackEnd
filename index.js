@@ -21,34 +21,11 @@ app.get('/', async (req, res) => {
   res.json({ mensaje: "Conexion exitosa a Oracle 21c (Usuario: parqueo_umg)" });
 });
 
-// 📋 RUTA DE CATÁLOGO: Obtener Facultades dinámicamente
-app.get('/api/facultades', async (req, res) => {
-  let connection;
-  try {
-    connection = await oracledb.getConnection(dbConfig);
-    const result = await connection.execute(
-      `SELECT id_facultad, nombre_facultad FROM FACULTAD ORDER BY nombre_facultad ASC`,
-      [],
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
-    res.status(200).json(result.rows);
-  } catch (err) {
-    console.error("❌ Error al obtener facultades:", err);
-    res.status(500).json({ error: "Error interno del servidor", detalle: err.message });
-  } finally {
-    if (connection) {
-      try { await connection.close(); } catch (e) { console.error(e); }
-    }
-  }
-});
-
 // =============================================
 // SISTEMA DE CACHÉ EN MEMORIA (Nativo Node.js)
 // =============================================
-// Sin dependencias externas. Usa Map nativo de JS.
-// TTL de 24 horas: Oracle se consulta 1 vez por día por catálogo.
 const cache = new Map();
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
+const CACHE_TTL = 24 * 60 * 60 * 1000; 
 
 function getCache(key) {
   const entry = cache.get(key);
@@ -64,7 +41,6 @@ function setCache(key, data) {
   cache.set(key, { data, timestamp: Date.now() });
 }
 
-// Función auxiliar reutilizable para servir catálogos con caché
 async function serveCatalog(req, res, cacheKey, sql) {
   const cached = getCache(cacheKey);
   if (cached) {
@@ -89,6 +65,10 @@ async function serveCatalog(req, res, cacheKey, sql) {
 // =============================================
 // ENDPOINTS DE CATÁLOGOS DINÁMICOS
 // =============================================
+
+app.get('/api/facultades', async (req, res) => {
+  serveCatalog(req, res, 'facultades', 'SELECT id_facultad, nombre_facultad FROM FACULTAD ORDER BY nombre_facultad ASC');
+});
 
 app.get('/api/sedes', (req, res) => {
   serveCatalog(req, res, 'sedes', 'SELECT id_sede, nombre_sede FROM SEDE_CAMPUS ORDER BY nombre_sede');
@@ -144,14 +124,11 @@ app.post('/api/auth/registro', async (req, res) => {
     const datos = req.body;
     console.log("[INFO] Datos recibidos desde React:", datos);
 
-    // 1. Encriptar la contrasena
     const salt = await bcrypt.genSalt(10);
     const contrasenaEncriptada = await bcrypt.hash(datos.password, salt);
 
-    // 2. Conectar a Oracle
     connection = await oracledb.getConnection(dbConfig);
 
-    // 3. Preparar el INSERT para la tabla USUARIOS
     const sqlUsuario = `
       INSERT INTO USUARIOS (
         carne, nombres, apellidos, correo_institucional, contrasena,
@@ -164,38 +141,32 @@ app.post('/api/auth/registro', async (req, res) => {
       )
     `;
 
-    // 🔥 LA CURA PARA EL NaN: Validamos si el dato existe antes de hacer parseInt
     const bindsUsuario = {
       carne: datos.carne,
       nombres: datos.nombres,
       apellidos: datos.apellidos,
-      correo: datos.correo_electronico, // Viene como correo_electronico desde React
+      correo: datos.correo_electronico, 
       contrasena: contrasenaEncriptada,
       telefono: datos.telefonos,
-      
       id_municipio: datos.id_municipio ? parseInt(datos.id_municipio) : null,
       zona: datos.zona ? parseInt(datos.zona) : null,
       nomenclatura: datos.nomenclatura || 'N/A',
-      
       id_categoria: datos.id_rol ? parseInt(datos.id_rol) : 1, 
-      id_sede: datos.id_sede ? parseInt(datos.id_sede) : 1, // Si no hay sede, forzamos 1
+      id_sede: datos.id_sede ? parseInt(datos.id_sede) : 1, 
       id_facultad: datos.id_facultad ? parseInt(datos.id_facultad) : null,
       id_ciclo: datos.id_ciclo ? parseInt(datos.id_ciclo) : null,
       id_seccion: datos.id_seccion ? parseInt(datos.id_seccion) : null,
-      id_jornada: datos.id_jornada ? parseInt(datos.id_jornada) : 1, // Si no hay jornada, forzamos 1
+      id_jornada: datos.id_jornada ? parseInt(datos.id_jornada) : 1, 
       id_rol: 3 
     };
 
-    // Ejecutamos el insert del usuario
     await connection.execute(sqlUsuario, bindsUsuario);
 
-    // 4. Preparar el INSERT para la tabla DATOS_EMERGENCIA
     const sqlEmergencia = `
       INSERT INTO DATOS_EMERGENCIA (carne_usuario, nombre_contacto, telefono_emergencia)
       VALUES (:carne, :nombre, :telefono)
     `;
     
-    // 🔥 Salvavidas para datos de emergencia si React no los manda aún
     const bindsEmergencia = {
       carne: datos.carne,
       nombre: datos.emergencia_nombre || 'Pendiente',
@@ -203,8 +174,6 @@ app.post('/api/auth/registro', async (req, res) => {
     };
 
     await connection.execute(sqlEmergencia, bindsEmergencia);
-
-    // 5. Confirmar transaccion
     await connection.commit();
 
     console.log("[OK] Usuario registrado exitosamente en BD.");
@@ -212,20 +181,11 @@ app.post('/api/auth/registro', async (req, res) => {
 
   } catch (err) {
     console.error("[ERROR] Error al guardar en Oracle:", err);
-    
-    if (connection) {
-      await connection.rollback();
-    }
-    
-    if (err.errorNum === 1) {
-       return res.status(400).json({ error: "El carné o correo ingresado ya se encuentra registrado en el sistema." });
-    }
-    
+    if (connection) { await connection.rollback(); }
+    if (err.errorNum === 1) { return res.status(400).json({ error: "El carné o correo ingresado ya se encuentra registrado en el sistema." }); }
     res.status(500).json({ error: "Error interno del servidor", detalle: err.message });
   } finally {
-    if (connection) {
-      try { await connection.close(); } catch (e) { console.error(e); }
-    }
+    if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
   }
 });
 
@@ -233,10 +193,7 @@ app.post('/api/auth/registro', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   let connection;
   try {
-    // Recibimos carné O correo desde React
     const { carne, correo_institucional, correo_electronico, password } = req.body;
-    
-    // Si viene carne, usamos ese. Si viene correo (cualquiera de los dos nombres de campo), usamos el correo.
     const identificador = carne || correo_institucional || correo_electronico; 
     console.log(`🔑 Intento de login para: ${identificador}`);
 
@@ -255,7 +212,6 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const usuario = result.rows[0];
-
     const contrasenaValida = await bcrypt.compare(password, usuario.CONTRASENA);
 
     if (!contrasenaValida) {
@@ -275,6 +231,37 @@ app.post('/api/auth/login', async (req, res) => {
 
   } catch (err) {
     console.error("[ERROR] Error en el Login:", err);
+    res.status(500).json({ error: "Error interno del servidor", detalle: err.message });
+  } finally {
+    if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
+  }
+});
+
+// =============================================
+// RUTA ADMIN: Traer lista de usuarios para el Dashboard
+// =============================================
+app.get('/api/admin/usuarios', async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    const sql = `
+      SELECT 
+        u.carne, 
+        u.nombres || ' ' || u.apellidos AS nombre, 
+        u.correo_institucional AS correo, 
+        r.nombre_rol AS rol,
+        CASE WHEN u.activo = 1 THEN 'Activo' ELSE 'Inactivo' END AS estado
+      FROM USUARIOS u
+      JOIN ROLES r ON u.id_rol = r.id_rol
+      ORDER BY u.fecha_registro DESC
+    `;
+    
+    const result = await connection.execute(sql, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+    res.status(200).json(result.rows);
+    
+  } catch (err) {
+    console.error("[ERROR] Error al obtener usuarios para Admin:", err);
     res.status(500).json({ error: "Error interno del servidor", detalle: err.message });
   } finally {
     if (connection) {
