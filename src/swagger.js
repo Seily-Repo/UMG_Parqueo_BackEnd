@@ -1,6 +1,5 @@
 const swaggerJSDoc = require('swagger-jsdoc');
 const { PORT } = require('./config/config');
-
 const options = {
   definition: {
     openapi: '3.0.0',
@@ -26,11 +25,26 @@ const options = {
             details: { type: 'object', nullable: true }
           }
         },
-        Parqueo: {
+                Parqueo: {
+          type: 'object',
+          properties: {
+            PQ_Parqueo: { type: 'integer', readOnly: true },
+            PQ_Nombre: { type: 'string', example: 'Parqueo Central' },
+            PQ_Direccion: { type: 'string', example: 'Campus Central UMG' },
+            PQ_Capacidad: { type: 'integer', example: 150 },
+
+            estado: {
+              type: 'integer',
+              example: 1,
+              readOnly: true,
+              description: '1=Activo, 0=Inactivo (eliminación lógica)'
+            }
+          }
+        },
+        ParqueoCreate: {
           type: 'object',
           required: ['PQ_Nombre', 'PQ_Direccion', 'PQ_Capacidad'],
           properties: {
-            PQ_Parqueo: { type: 'integer', readOnly: true },
             PQ_Nombre: { type: 'string', example: 'Parqueo Central' },
             PQ_Direccion: { type: 'string', example: 'Campus Central UMG' },
             PQ_Capacidad: { type: 'integer', example: 150 }
@@ -74,20 +88,113 @@ const options = {
     },
     paths: {
       // --- PARQUEOS ---
-      '/api/parqueos': {
-        get: { tags: ['Parqueos'], summary: 'Obtiene todos los parqueos', responses: { '200': { description: 'Ok' } } },
+'/api/parqueos': {
+
+        get: { 
+          tags: ['Parqueos'], 
+          summary: 'Obtiene todos los parqueos activos (estado=1)', 
+          description: 'Solo retorna parqueos activos. Los inactivos están ocultos por eliminación lógica.',
+          responses: { '200': { description: 'Ok' } } 
+        },
+
         post: {
           tags: ['Parqueos'],
-          summary: 'Crea un parqueo',
-          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Parqueo' } } } },
-          responses: { '201': { description: 'Creado' } }
+          summary: 'Crea un parqueo (activo por defecto)',
+          description: 'Se crea con estado=1 automáticamente.',
+          requestBody: { 
+            required: true, 
+            content: { 
+              'application/json': { 
+                schema: { 
+                  $ref: '#/components/schemas/ParqueoCreate' 
+                } 
+              } 
+            } 
+          },
+          responses: { 
+            '201': { description: 'Parqueo creado' },
+            '409': { description: 'Ya existe parqueo con ese nombre' }
+          }
         }
       },
-      '/api/parqueos/{id}': {
-        get: { tags: ['Parqueos'], summary: 'Obtiene un parqueo por ID', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Ok' } } },
-        delete: { tags: ['Parqueos'], summary: 'Elimina un parqueo', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'Eliminado' } } }
-      },
 
+      '/api/parqueos/{id}': {
+
+        get: { 
+          tags: ['Parqueos'], 
+          summary: 'Obtiene parqueo por ID (solo activos)', 
+          description: 'Retorna 404 si no existe o está inactivo',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'integer' } }
+          ], 
+          responses: { 
+            '200': { description: 'Ok' }, 
+            '404': { description: 'No encontrado o inactivo' } 
+          } 
+        },
+
+        put: {
+          tags: ['Parqueos'],
+          summary: 'Actualiza parqueo',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'integer' } }
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ParqueoCreate'
+                }
+              }
+            }
+          },
+          responses: {
+            '200': { description: 'Actualizado' },
+            '404': { description: 'No encontrado' }
+          }
+        },
+
+        delete: { 
+          tags: ['Parqueos'], 
+          summary: 'Eliminación lógica de parqueo (estado=0)', 
+          description: 'No elimina de la BD, solo cambia estado a 0.',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'integer' } }
+          ], 
+          responses: { 
+            '200': { description: 'Eliminado lógicamente' },
+            '404': { description: 'No encontrado' }
+          } 
+        }
+      },
+      '/api/parqueos/{id}/restore': {
+  put: {
+    tags: ['Parqueos'],
+    summary: 'Restaura un parqueo eliminado lógicamente (estado=1)',
+    description: 'Reactiva un parqueo que fue desactivado (estado=0).',
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: { type: 'integer' }
+      }
+    ],
+    responses: {
+      '200': { description: 'Parqueo restaurado correctamente' },
+      '404': { description: 'No existe o ya está activo' }
+    }
+  }
+},
+'/api/parqueos/admin/all': {
+  get: {
+    tags: ['Parqueos'],
+    summary: 'Ver todos los parqueos (admin)',
+    description: 'Incluye activos e inactivos',
+    responses: { '200': { description: 'OK' } }
+  }
+},
       // --- TIPO ESPACIOS ---
       '/api/tipo-espacios': {
         get: { tags: ['Tipo Espacio'], summary: 'Lista todos los tipos de espacio', responses: { '200': { description: 'Ok' } } },
@@ -304,7 +411,6 @@ const options = {
       }
     }
   },
-  apis: [] 
+  apis: []
 };
-
 module.exports = swaggerJSDoc(options);
