@@ -2,6 +2,7 @@ const parqueoRoutes = require('./parqueo.routes');
 const espacioRoutes = require('./espacio.routes');
 const tipoEspacioRoutes = require('./tipo_espacio.routes'); 
 const asignacionRoutes = require('./asignacion.routes');
+//const verificarToken = require('../middleware/middleware.JWT.JS');
 
 const routes = (app) => {
 

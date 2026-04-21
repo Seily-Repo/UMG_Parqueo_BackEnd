@@ -381,6 +381,7 @@ const options = {
       },
 
       // --- ASIGNACIONES ---
+     // --- ASIGNACIONES ---
       '/api/asignacion': {
         get: { 
           tags: ['Asignaciones'], 
@@ -401,16 +402,79 @@ const options = {
           }
         }
       },
-      '/api/asignacion/anular/{id}': {
-        put: {
+
+      '/api/asignacion/disponibilidad/ocupados': {
+        get: {
           tags: ['Asignaciones'],
-          summary: 'Anula una asignación (Libera el espacio)',
+          summary: 'Obtiene los espacios actualmente ocupados',
+          description: 'Devuelve la lista de asignaciones activas filtradas por ciclo y jornada. Ideal para pintar de rojo los espacios en el mapa.',
+          parameters: [
+            { name: 'id_ciclo', in: 'query', required: true, schema: { type: 'integer' }, description: 'ID del ciclo/semestre actual' },
+            { name: 'id_jornada', in: 'query', required: true, schema: { type: 'integer' }, description: 'ID de la jornada a consultar' }
+          ],
+          responses: {
+            '200': { description: 'Lista de espacios ocupados obtenida exitosamente' },
+            '400': { description: 'Faltan parámetros de búsqueda (id_ciclo o id_jornada)' },
+            '500': { description: 'Error interno del servidor' }
+          }
+        }
+      },
+
+      '/api/asignacion/disponibilidad/libres': {
+        get: {
+          tags: ['Asignaciones'],
+          summary: 'Obtiene los espacios físicos disponibles (libres)',
+          description: 'Cruza el catálogo de espacios físicos habilitados contra las asignaciones activas y devuelve solo aquellos que NO están ocupados en el ciclo y jornada solicitados. Ideal para pintar de verde los espacios elegibles.',
+          parameters: [
+            { name: 'id_ciclo', in: 'query', required: true, schema: { type: 'integer' }, description: 'ID del ciclo/semestre actual' },
+            { name: 'id_jornada', in: 'query', required: true, schema: { type: 'integer' }, description: 'ID de la jornada a consultar' }
+          ],
+          responses: {
+            '200': { description: 'Lista de espacios libres obtenida exitosamente' },
+            '400': { description: 'Faltan parámetros de búsqueda (id_ciclo o id_jornada)' },
+            '500': { description: 'Error interno del servidor' }
+          }
+        }
+      },
+
+      '/api/asignacion/anular/{id}': {
+        delete: {
+          tags: ['Asignaciones'],
+          summary: 'Anula una asignación (Eliminación Lógica)',
+          description: 'Cambia el estado de la asignación a 0 para liberar el espacio, manteniendo el historial en la base de datos.',
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
           responses: { '200': { description: 'Anulada' } }
         }
-      }
-    }
-  },
+      },
+
+      '/api/asignacion/cambiar/{id}': {
+        put: {
+          tags: ['Asignaciones'],
+          summary: 'Cambia el espacio de una asignación existente',
+          description: 'Permite actualizar el ES_Espacio de una asignación activa. Valida que el nuevo espacio exista y no esté ocupado.',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['ES_Espacio'],
+                  properties: {
+                    ES_Espacio: { type: 'integer', example: 15, description: 'El ID del nuevo espacio físico deseado' }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            '200': { description: 'Cambio de parqueo realizado exitosamente' },
+            '400': { description: 'Datos inválidos o el espacio es el mismo' },
+            '404': { description: 'Asignación o nuevo espacio no encontrados' },
+            '409': { description: 'Asignación ya anulada, o nuevo espacio ocupado/inhabilitado' }
+          }
+        }
+      }}},
   apis: []
 };
 module.exports = swaggerJSDoc(options);

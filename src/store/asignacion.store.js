@@ -18,7 +18,7 @@ class AsignacionStore {
             ES_Espacio: data.ES_Espacio,
             id_ciclo: data.id_ciclo,
             id_jornada: data.id_jornada,
-            AS_Estado: data.AS_Estado 
+            AS_Estado: data.AS_Estado
         });
     }
 
@@ -41,17 +41,38 @@ class AsignacionStore {
         return await Asignacion.findAll(queryOptions);
     }
 
- static async anular(id) {
-    const asignacion = await Asignacion.findByPk(id);
-    if (!asignacion) return null;
-    await asignacion.update({ AS_Estado: 0 });
-    return asignacion; 
-}
+    static async anular(id) {
+        const asignacion = await Asignacion.findByPk(id);
+        if (!asignacion) return null;
+        await asignacion.update({ AS_Estado: 0 });
+        return asignacion; 
+    }
 
     static async checkUsuarioOcupado(carne_usuario, id_ciclo, id_jornada) {
         return await Asignacion.findOne({
             where: {
                 carne_usuario: carne_usuario,
+                id_ciclo: id_ciclo,
+                id_jornada: id_jornada,
+                AS_Estado: 1
+            }
+        });
+    }
+
+    static async getById(id) {
+        return await Asignacion.findByPk(id);
+    }
+
+    static async updateEspacio(id, nuevo_espacio) {
+        const asignacion = await Asignacion.findByPk(id);
+        if (!asignacion) return null;
+        await asignacion.update({ ES_Espacio: nuevo_espacio });
+        return asignacion;
+    }
+
+    static async getOcupadosPorJornada(id_ciclo, id_jornada) {
+        return await Asignacion.findAll({
+            where: {
                 id_ciclo: id_ciclo,
                 id_jornada: id_jornada,
                 AS_Estado: 1

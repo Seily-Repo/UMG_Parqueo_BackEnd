@@ -144,6 +144,26 @@ class EspacioStore {
             throw new Error("Error al contar espacios ocupados: " + error.message);
         }
     }
+static async getLibres(idsOcupados) {
+        const queryOptions = {
+            where: {
+                ES_Estado: 1 
+            },
+            include: [{ model: TipoEspacio }], 
+            order: [['ES_Numero', 'ASC']]
+        };
+
+        if (idsOcupados && idsOcupados.length > 0) {
+            queryOptions.where.ES_Espacio = {
+                [Op.notIn]: idsOcupados
+            };
+        }
+
+        return await Espacio.findAll(queryOptions);
+    }
+
+
+
 }
 
 module.exports = EspacioStore;

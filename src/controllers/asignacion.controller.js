@@ -10,25 +10,23 @@ exports.createAsignacion = async (req, res) => {
         success: false,
         status: 400,
         message: "Faltan datos obligatorios para la asignación.",
-        details:
-          "Se requiere ES_Espacio, id_ciclo, id_jornada y carne_usuario.",
+        details: "Se requiere ES_Espacio, id_ciclo, id_jornada y carne_usuario.",
       });
     }
 
-  const numeroRegex = /^[0-9]+$/;
-
-if (
-  !numeroRegex.test(String(ES_Espacio)) ||
-  !numeroRegex.test(String(id_ciclo)) ||
-  !numeroRegex.test(String(id_jornada))
-) {
-  return res.status(400).json({
-    success: false,
-    status: 400,
-    message: "Error: Datos inválidos.",
-    details: "Los campos de Espacio, Ciclo y Jornada deben ser estrictamente números (0-9)."
-  });
-}
+    const numeroRegex = /^[0-9]+$/;
+    if (
+      !numeroRegex.test(String(ES_Espacio)) ||
+      !numeroRegex.test(String(id_ciclo)) ||
+      !numeroRegex.test(String(id_jornada))
+    ) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        message: "Error: Datos inválidos.",
+        details: "Los campos de Espacio, Ciclo y Jornada deben ser estrictamente números (0-9)."
+      });
+    }
 
     if (ES_Espacio <= 0 || id_ciclo <= 0 || id_jornada <= 0) {
       return res.status(400).json({
@@ -39,7 +37,7 @@ if (
       });
     }
 
-const carneRegex = /^[0-9]{4}-[0-9]{2}-[0-9]{3}$/;
+    const carneRegex = /^[0-9]{4}-[0-9]{2}-[0-9]{3,5}$/;
     if (!carneRegex.test(carne_usuario)) {
       return res.status(400).json({
         success: false,
@@ -48,7 +46,15 @@ const carneRegex = /^[0-9]{4}-[0-9]{2}-[0-9]{3}$/;
         details: "El carné solo debe contener números y guiones.",
       });
     }
-    
+
+    if (req.usuarioAuth && req.usuarioAuth.carne !== carne_usuario) {
+      return res.status(403).json({
+        success: false,
+        status: 403,
+        message: "Acción no permitida.",
+        details: "No puedes solicitar una asignación de parqueo para un carné distinto al de tu sesión actual."
+      });
+    }
 
     const espacioFisico = await EspacioStore.getById(ES_Espacio);
     if (!espacioFisico) {
@@ -59,16 +65,17 @@ const carneRegex = /^[0-9]{4}-[0-9]{2}-[0-9]{3}$/;
         details: null,
       });
     }
-    const estado = Number(espacioFisico.ES_Estado);
 
-if (estado === 0) {
-  return res.status(409).json({
-    success: false,
-    status: 409,
-    message: "El espacio ya está ocupado.",
-    details: null,
-  });
-}
+    const estado = Number(espacioFisico.ES_Estado);
+    if (estado === 0) {
+      return res.status(409).json({
+        success: false,
+        status: 409,
+        message: "El espacio ya está ocupado o inhabilitado.",
+        details: null,
+      });
+    }
+
     const usuarioOcupado = await AsignacionStore.checkUsuarioOcupado(
       carne_usuario,
       id_ciclo,
@@ -78,8 +85,7 @@ if (estado === 0) {
       return res.status(409).json({
         success: false,
         status: 409,
-        message:
-          "El usuario ya cuenta con un espacio asignado para este ciclo y jornada.",
+        message: "El usuario ya cuenta con un espacio asignado para este ciclo y jornada.",
         details: null,
       });
     }
@@ -93,14 +99,14 @@ if (estado === 0) {
       return res.status(409).json({
         success: false,
         status: 409,
-        message:
-          "Operación rechazada: El espacio ya está ocupado por otra persona.",
+        message: "Operación rechazada: El espacio ya está ocupado por otra persona.",
         details: { disponible: false },
       });
     }
 
     req.body.AS_Estado = 1;
     await AsignacionStore.create(req.body);
+    
     const io = req.app.get("socketio");
     if (io) {
       io.emit("espacioOcupado", {
@@ -116,6 +122,15 @@ if (estado === 0) {
       details: { disponible: true },
     });
   } catch (error) {
+    if (error.message.includes('ORA-02291') && error.message.includes('FK_ASIG_USUARIO')) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        message: "Usuario no encontrado.",
+        details: "El carné proporcionado no existe en el registro principal de usuarios."
+      });
+    }
+
     res.status(500).json({
       success: false,
       status: 500,
@@ -148,24 +163,31 @@ exports.getAllAsignaciones = async (req, res) => {
 
 exports.anularAsignacion = async (req, res) => {
   try {
+    if (req.usuarioAuth && req.usuarioAuth.id_rol !== 1) {
+      return res.status(403).json({
+        success: false,
+        status: 403,
+        message: "Permisos insuficientes.",
+        details: "Esta acción está restringida únicamente para usuarios con rol de Administrador."
+      });
+    }
+
     const asignacion = await AsignacionStore.anular(req.params.id);
 
-if (!asignacion) {
-  return res.status(404).json({
-    success: false,
-    status: 404,
-    message: "Asignación no encontrada.",
-    details: null,
-  });
-}
-
-    
+    if (!asignacion) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        message: "Asignación no encontrada.",
+        details: null,
+      });
+    }
 
     const io = req.app.get("socketio");
     if (io) {
       io.emit("espacioLiberado", {
-        AS_Asignacion: req.params.id,
-        mensaje: `Una asignación fue anulada. Revisa el mapa de disponibilidad.`,
+        ES_Espacio: asignacion.ES_Espacio, 
+        mensaje: `El espacio ${asignacion.ES_Espacio} acaba de ser liberado.`,
       });
     }
 
@@ -180,6 +202,187 @@ if (!asignacion) {
       success: false,
       status: 500,
       message: "Error al anular asignación.",
+      details: error.message,
+    });
+  }
+};
+
+exports.updateAsignacion = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ES_Espacio } = req.body; 
+
+    if (!id || !ES_Espacio) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        message: "Datos incompletos.",
+        details: "Se requiere el ID de la asignación y el nuevo ES_Espacio.",
+      });
+    }
+
+    const numeroRegex = /^[0-9]+$/;
+    if (!numeroRegex.test(String(id)) || !numeroRegex.test(String(ES_Espacio))) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        message: "Error: Datos inválidos.",
+        details: "Los IDs deben ser estrictamente numéricos.",
+      });
+    }
+
+    const asignacionActual = await AsignacionStore.getById(id);
+    if (!asignacionActual) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        message: "Asignación no encontrada.",
+        details: null,
+      });
+    }
+
+    if (asignacionActual.AS_Estado === 0) {
+      return res.status(409).json({
+        success: false,
+        status: 409,
+        message: "Operación rechazada.",
+        details: "No puedes modificar una asignación que ya fue anulada.",
+      });
+    }
+
+    if (Number(asignacionActual.ES_Espacio) === Number(ES_Espacio)) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        message: "Operación redundante.",
+        details: "El nuevo espacio solicitado es el mismo que ya tienes asignado.",
+      });
+    }
+
+    const espacioNuevoFisico = await EspacioStore.getById(ES_Espacio);
+    if (!espacioNuevoFisico) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        message: "El nuevo espacio de parqueo indicado no existe.",
+        details: null,
+      });
+    }
+
+    if (Number(espacioNuevoFisico.ES_Estado) === 0) {
+      return res.status(409).json({
+        success: false,
+        status: 409,
+        message: "El nuevo espacio se encuentra inhabilitado.",
+        details: null,
+      });
+    }
+
+    const espacioOcupado = await AsignacionStore.checkDisponibilidad(
+      ES_Espacio,
+      asignacionActual.id_ciclo,
+      asignacionActual.id_jornada
+    );
+
+    if (espacioOcupado) {
+      return res.status(409).json({
+        success: false,
+        status: 409,
+        message: "Operación rechazada: El nuevo espacio ya está ocupado.",
+        details: { disponible: false },
+      });
+    }
+
+    const espacioViejo = asignacionActual.ES_Espacio;
+    await AsignacionStore.updateEspacio(id, ES_Espacio);
+
+    const io = req.app.get("socketio");
+    if (io) {
+      io.emit("espacioLiberado", {
+        ES_Espacio: espacioViejo,
+        mensaje: `El espacio ${espacioViejo} acaba de ser liberado por cambio de parqueo.`,
+      });
+      io.emit("espacioOcupado", {
+        ES_Espacio: ES_Espacio,
+        mensaje: `El espacio ${ES_Espacio} acaba de ser reservado por cambio de parqueo.`,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      status: 200,
+      message: "¡Cambio de parqueo realizado exitosamente!",
+      details: { espacio_anterior: espacioViejo, nuevo_espacio: ES_Espacio },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      status: 500,
+      message: "Error interno al procesar el cambio de parqueo.",
+      details: error.message,
+    });
+  }
+};
+
+exports.getEspaciosOcupados = async (req, res) => {
+  try {
+    const { id_ciclo, id_jornada } = req.query;
+
+    if (!id_ciclo || !id_jornada) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        message: "Faltan parámetros de búsqueda.",
+        details: "Debes enviar id_ciclo e id_jornada por la URL (query params)."
+      });
+    }
+
+    const ocupados = await AsignacionStore.getOcupadosPorJornada(id_ciclo, id_jornada);
+
+    res.status(200).json({
+      success: true,
+      status: 200,
+      message: `Se encontraron ${ocupados.length} espacios ocupados.`,
+      details: ocupados
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      status: 500,
+      message: "Error al obtener espacios ocupados.",
+      details: error.message,
+    });
+  }
+};
+
+exports.getEspaciosLibres = async (req, res) => {
+  try {
+    const { id_ciclo, id_jornada } = req.query;
+
+    if (!id_ciclo || !id_jornada) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        message: "Faltan parámetros de búsqueda.",
+        details: "Debes enviar id_ciclo e id_jornada por la URL (query params)."
+      });
+    }
+
+    const ocupados = await AsignacionStore.getOcupadosPorJornada(id_ciclo, id_jornada);
+    const idsOcupados = ocupados.map(a => Number(a.ES_Espacio));
+    const libres = await EspacioStore.getLibres(idsOcupados);
+
+    res.status(200).json({
+      success: true,
+      status: 200,
+      message: `Se encontraron ${libres.length} espacios disponibles.`,
+      details: libres
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      status: 500,
+      message: "Error al obtener espacios libres.",
       details: error.message,
     });
   }

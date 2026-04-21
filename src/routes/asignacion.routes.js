@@ -4,6 +4,9 @@ const asignacionController = require('../controllers/asignacion.controller');
 
 router.get('/', asignacionController.getAllAsignaciones);
 router.post('/', asignacionController.createAsignacion);
-router.put('/anular/:id', asignacionController.anularAsignacion);
+router.delete('/anular/:id', asignacionController.anularAsignacion);
+router.put('/asignacion/cambiar/:id',  asignacionController.updateAsignacion);
+router.get('/disponibilidad/ocupados', asignacionController.getEspaciosOcupados);
+router.get('/disponibilidad/libres', asignacionController.getEspaciosLibres);
 
 module.exports = router;
