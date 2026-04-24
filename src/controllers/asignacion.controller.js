@@ -1,16 +1,17 @@
 const AsignacionStore = require("../store/asignacion.store");
 const EspacioStore = require("../store/espacio.store");
+const PagoStore = require("../store/pago.store");
 
 exports.createAsignacion = async (req, res) => {
   try {
-    const { ES_Espacio, id_ciclo, id_jornada, carne_usuario } = req.body;
+    const { ES_Espacio, id_ciclo, id_jornada, carne_usuario, correlativo } = req.body;
 
-    if (!ES_Espacio || !id_ciclo || !id_jornada || !carne_usuario) {
+    if (!ES_Espacio || !id_ciclo || !id_jornada || !carne_usuario || !correlativo) {
       return res.status(400).json({
         success: false,
         status: 400,
         message: "Faltan datos obligatorios para la asignación.",
-        details: "Se requiere ES_Espacio, id_ciclo, id_jornada y carne_usuario.",
+        details: "Se requiere ES_Espacio, id_ciclo, id_jornada, carne_usuario y correlativo de pago.",
       });
     }
 
@@ -55,7 +56,40 @@ exports.createAsignacion = async (req, res) => {
         details: "No puedes solicitar una asignación de parqueo para un carné distinto al de tu sesión actual."
       });
     }
+    const infoPago = await PagoStore.getByCorrelativo(correlativo);
+    
+    if (!infoPago) {
+      return res.status(404).json({ 
+        success: false, 
+        status: 404, 
+        message: "Correlativo de pago no encontrado en el sistema." 
+      });
+    }
 
+    if (infoPago.LR_CARNE !== carne_usuario) {
+      return res.status(403).json({ 
+        success: false, 
+        status: 403, 
+        message: "Este recibo de pago pertenece a otro estudiante." 
+      });
+    }
+
+    if (infoPago.PAG_ESTADO !== 1) { 
+      return res.status(402).json({ 
+        success: false, 
+        status: 402, 
+        message: "El pago asociado a este correlativo no está aprobado." 
+      });
+    }
+
+    const reciboYaUsado = await AsignacionStore.checkPagoUsado(infoPago.PAG_PAGO);
+    if (reciboYaUsado) {
+      return res.status(409).json({ 
+        success: false, 
+        status: 409, 
+        message: "Este pago ya fue canjeado por un parqueo anteriormente." 
+      });
+    }
     const espacioFisico = await EspacioStore.getById(ES_Espacio);
     if (!espacioFisico) {
       return res.status(404).json({
@@ -105,7 +139,8 @@ exports.createAsignacion = async (req, res) => {
     }
 
     req.body.AS_Estado = 1;
-    await AsignacionStore.create(req.body);
+    req.body.PAG_PAGO = infoPago.PAG_PAGO;
+    const nuevaAsignacion = await AsignacionStore.create(req.body);
     
     const io = req.app.get("socketio");
     if (io) {
@@ -115,20 +150,43 @@ exports.createAsignacion = async (req, res) => {
       });
     }
 
+    const datosVoucher = {
+      id_asignacion: nuevaAsignacion.AS_Asignacion,
+      carne: carne_usuario,
+      espacio_asignado: ES_Espacio,
+      fecha_asignacion: new Date().toLocaleDateString(),
+      estado: "VALIDADO",
+      instrucciones: "Presente este comprobante en Secretaría de su Facultad para reclamar su TAG/Marbete."
+    };
+
     res.status(201).json({
       success: true,
       status: 201,
-      message: "¡Asignación creada exitosamente!",
-      details: { disponible: true },
+      message: "¡Asignación creada exitosamente! Presente su voucher en Secretaría.",
+      details: { 
+        disponible: true, 
+        voucher: datosVoucher 
+      },
     });
+
   } catch (error) {
-    if (error.message.includes('ORA-02291') && error.message.includes('FK_ASIG_USUARIO')) {
-      return res.status(404).json({
-        success: false,
-        status: 404,
-        message: "Usuario no encontrado.",
-        details: "El carné proporcionado no existe en el registro principal de usuarios."
-      });
+    if (error.message.includes('ORA-02291')) {
+      if (error.message.includes('FK_ASIG_USUARIO')) {
+        return res.status(404).json({
+          success: false,
+          status: 404,
+          message: "Usuario no encontrado.",
+          details: "El carné proporcionado no existe en el registro principal de usuarios."
+        });
+      }
+      if (error.message.includes('FK_ASIG_PAGO')) {
+        return res.status(404).json({
+          success: false,
+          status: 404,
+          message: "Pago no válido.",
+          details: "El ID de pago proporcionado no existe en la base de datos."
+        });
+      }
     }
 
     res.status(500).json({

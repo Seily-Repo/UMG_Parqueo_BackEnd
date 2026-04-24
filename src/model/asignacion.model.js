@@ -18,7 +18,8 @@ const Asignacion = sequelize.define('Asignacion', {
     carne_usuario: { type: DataTypes.STRING },
     ES_Espacio: { type: DataTypes.BIGINT },
     id_ciclo: { type: DataTypes.INTEGER },
-    id_jornada: { type: DataTypes.INTEGER }
+    id_jornada: { type: DataTypes.INTEGER },
+    PAG_PAGO: { type: DataTypes.BIGINT }
 }, {
     tableName: 'DP_ASIGNACION',
     freezeTableName: true,

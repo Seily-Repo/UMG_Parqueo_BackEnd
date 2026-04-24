@@ -71,9 +71,9 @@ const options = {
             TES_ESPACIO: { type: 'integer', example: 1 }
           }
         },
-        Asignacion: {
+       Asignacion: {
           type: 'object',
-          required: ['carne_usuario', 'ES_Espacio', 'id_ciclo', 'id_jornada'],
+          required: ['carne_usuario', 'ES_Espacio', 'id_ciclo', 'id_jornada', 'correlativo'],
           properties: {
             AS_Asignacion: { type: 'integer', readOnly: true },
             AS_FechaAsignacion: { type: 'string', format: 'date-time', readOnly: true },
@@ -81,7 +81,8 @@ const options = {
             carne_usuario: { type: 'string', example: '2026-01-001' },
             ES_Espacio: { type: 'integer', example: 1 },
             id_ciclo: { type: 'integer', example: 1 },
-            id_jornada: { type: 'integer', example: 1 }
+            id_jornada: { type: 'integer', example: 1 },
+            correlativo: { type: 'string', example: 'pi_3M2X...', description: 'El código de recibo generado por el módulo de pagos.' }
           }
         }
       }

@@ -18,7 +18,8 @@ class AsignacionStore {
             ES_Espacio: data.ES_Espacio,
             id_ciclo: data.id_ciclo,
             id_jornada: data.id_jornada,
-            AS_Estado: data.AS_Estado
+            AS_Estado: data.AS_Estado,
+            PAG_PAGO: data.PAG_PAGO 
         });
     }
 
@@ -77,6 +78,12 @@ class AsignacionStore {
                 id_jornada: id_jornada,
                 AS_Estado: 1
             }
+        });
+    }
+
+    static async checkPagoUsado(pag_pago) {
+        return await Asignacion.findOne({
+            where: { PAG_PAGO: pag_pago, AS_Estado: 1 } 
         });
     }
 }
