@@ -37,7 +37,7 @@ const PlanParqueo = sequelize.define('PlanParqueo', {
 
 
 }, {
-    tableName: 'PAR_PLAN_PARQUEO',
+    tableName: 'CB_PLAN_PARQUEO',
     timestamps: false
 });
 
