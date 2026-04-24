@@ -107,11 +107,11 @@ class PlanParqueoController {
                 });
             }
 
-            const monedasValidas = ['GTQ', 'USD', 'EUR'];
+            const monedasValidas = ['GTQ'];
 
             if (!monedasValidas.includes(PLN_MONEDA)) {
                 return res.status(400).json({
-                    message: 'La moneda debe ser GTQ, USD o USD o EUR'
+                    message: 'La moneda debe ser GTQ.'
                 });
             }
 
@@ -202,11 +202,11 @@ class PlanParqueoController {
                 });
             }
 
-            const monedasValidas = ['GTQ', 'USD', 'EUR'];
+            const monedasValidas = ['GTQ'];
 
             if (!monedasValidas.includes(PLN_MONEDA)) {
                 return res.status(400).json({
-                    message: 'La moneda debe ser GTQ, USD o EUR'
+                    message: 'La moneda debe ser GTQ.'
                 });
             }
 
