@@ -13,48 +13,81 @@ const options = {
     // Componentes
     components: {
       schemas: {
-        // PlanParqueo
+       // PlanParqueo
         PlanParqueo: {
-          type: "object",
-          required: [
-            "PLN_NAME",
-            "PLN_DESCRIPCION",
-            "PLN_PRECIO",
-            "PLN_ESTADO",
-            "PLN_MONEDA",
-          ],
-          properties: {
-            PLN_NAME: {
-              type: "string",
-              description: "Nombre del plan",
-            },
-            PLN_PRECIO: {
+        type: "object",
+        required: [
+          "PLN_NOMBRE_PLAN",
+          "PLN_DESCRIPCION",
+          "PLN_PRECIO",
+          "PLN_ESTADO_REGISTRO",
+          "PLN_MONEDA",
+            ],
+
+           properties: {
+
+           PLN_NOMBRE_PLAN: {
+           type: "string",
+           description: "Nombre del plan",
+           enum: [
+              "VESPERTINA",
+              "NOCTURNA",
+              "SÁBADO",
+              "DOMINGO"
+              ],
+              example: "VESPERTINA"
+              },
+
+              PLN_PRECIO: {
               type: "number",
               format: "decimal",
               description: "Precio del plan",
-            },
-            PLN_DESCRIPCION: {
+              minimum: 0.01,
+              example: 150.00
+              },
+
+              PLN_DESCRIPCION: {
               type: "string",
-              description: "Descripción del plan",
-            },
-            PLN_ESTADO: {
+              description: "Tipo de vehículo",
+              enum: [
+              "CARRO",
+              "MOTO"
+              ],
+
+              example: "CARRO"
+              },
+
+              PLN_ESTADO_REGISTRO: {
               type: "string",
               description: "Estado del plan",
-            },
-            PLN_MONEDA: {
+              enum: [
+                "A",
+                "I"
+               ],
+                example: "A"
+              },
+
+              PLN_MONEDA: {
               type: "string",
               description: "Moneda del plan",
-            },
-          },
+              enum: [
+              "GTQ"
+              ],
+              example: "GTQ"
+              }
 
-          example: {
-            PLN_NAME: "Plan Prueba",
-            PLN_PRECIO: 150.0,
-            PLN_DESCRIPCION: "Plan de prueba",
-            PLN_ESTADO: "A",
-            PLN_MONEDA: "GTQ",
-          },
-        },
+             },
+
+              example: {
+              PLN_NOMBRE_PLAN: "VESPERTINA",
+              PLN_PRECIO: 150.00,
+              PLN_DESCRIPCION: "CARRO",
+              PLN_ESTADO_REGISTRO: "A",
+             PLN_MONEDA: "GTQ"
+             }
+
+            },
+
         // Estudiante
         Estudiante: {
           type: "object",
@@ -349,107 +382,204 @@ const options = {
     },
 
     paths: {
-      // Rutas de Plan Parqueo
-      "/api/plan_parqueo": {
-        get: {
-          tags: ["Plan Parqueo"],
-          summary: "Obtiene todos los planes de parqueo",
-          responses: {
-            200: {
-              description: "Lista obtenida correctamente",
-              content: {
-                "application/json": {
-                  schema: {
-                    type: "array",
-                    items: {
-                      $ref: "#/components/schemas/PlanParqueo",
-                    },
-                  },
+
+  // Rutas de Plan Parqueo
+  "/api/CB_plan_parqueo": {
+
+    get: {
+      tags: ["Plan Parqueo"],
+      summary: "Obtiene todos los planes de parqueo",
+
+      responses: {
+        200: {
+          description: "Lista obtenida correctamente",
+          content: {
+            "application/json": {
+              schema: {
+                type: "array",
+                items: {
+                  $ref: "#/components/schemas/PlanParqueo",
                 },
               },
             },
           },
         },
 
-        post: {
-          tags: ["Plan Parqueo"],
-          summary: "Crea un nuevo plan de parqueo",
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/PlanParqueo",
-                },
-              },
-            },
-          },
-          responses: {
-            201: {
-              description: "Plan creado correctamente",
+        500: {
+          description: "Error del servidor",
+        },
+
+      },
+
+    },
+
+    post: {
+      tags: ["Plan Parqueo"],
+      summary: "Crea un nuevo plan de parqueo",
+
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              $ref: "#/components/schemas/PlanParqueo",
             },
           },
         },
       },
 
-      // Rutas de Plan Parqueo por ID
-      "/api/plan_parqueo/{id}": {
-        get: {
-          tags: ["Plan Parqueo"],
-          summary: "Obtiene un plan por ID",
-          parameters: [
-            {
-              name: "id",
-              in: "path",
-              required: true,
+      responses: {
+
+        201: {
+          description: "Plan creado correctamente",
+        },
+
+        400: {
+          description: "Datos inválidos",
+        },
+
+        500: {
+          description: "Error del servidor",
+        },
+
+      },
+
+    },
+
+  },
+
+  // Rutas de Plan Parqueo por ID
+  "/api/CB_plan_parqueo/{id}": {
+
+    get: {
+      tags: ["Plan Parqueo"],
+      summary: "Obtiene un plan por ID",
+
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          description: "ID del plan de parqueo",
+          required: true,
+          schema: {
+            type: "integer",
+          },
+        },
+      ],
+
+      responses: {
+
+        200: {
+          description: "Plan encontrado",
+          content: {
+            "application/json": {
               schema: {
-                type: "integer",
-              },
-            },
-          ],
-          responses: {
-            200: {
-              description: "Plan encontrado",
-              content: {
-                "application/json": {
-                  schema: {
-                    $ref: "#/components/schemas/PlanParqueo",
-                  },
-                },
+                $ref: "#/components/schemas/PlanParqueo",
               },
             },
           },
         },
-        put: {
-          tags: ["Plan Parqueo"],
-          summary: "Actualiza un plan",
-          parameters: [
-            {
-              name: "id",
-              in: "path",
-              required: true,
-              schema: {
-                type: "integer",
-              },
-            },
-          ],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/PlanParqueo",
-                },
-              },
-            },
+
+        404: {
+          description: "Plan no encontrado",
+        },
+
+        500: {
+          description: "Error del servidor",
+        },
+
+      },
+
+    },
+
+    put: {
+      tags: ["Plan Parqueo"],
+      summary: "Actualiza un plan",
+
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          description: "ID del plan de parqueo",
+          required: true,
+          schema: {
+            type: "integer",
           },
-          responses: {
-            200: {
-              description: "Plan actualizado",
+        },
+      ],
+
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              $ref: "#/components/schemas/PlanParqueo",
             },
           },
         },
       },
+
+      responses: {
+
+        200: {
+          description: "Plan actualizado correctamente",
+        },
+
+        400: {
+          description: "Datos inválidos",
+        },
+
+        404: {
+          description: "Plan no encontrado",
+        },
+
+        500: {
+          description: "Error del servidor",
+        },
+
+      },
+
+    },
+
+    delete: {
+      tags: ["Plan Parqueo"],
+      summary: "Elimina un plan",
+
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          description: "ID del plan de parqueo",
+          required: true,
+          schema: {
+            type: "integer",
+          },
+        },
+      ],
+
+      responses: {
+
+        200: {
+          description: "Plan eliminado correctamente",
+        },
+
+        404: {
+          description: "Plan no encontrado",
+        },
+
+        500: {
+          description: "Error del servidor",
+        },
+
+      },
+
+    },
+
+  },
+
+}
+
+
 
       // Rutas de Estudiantes
       "/api/estudiantes": {
