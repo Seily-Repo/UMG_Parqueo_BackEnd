@@ -1,10 +1,10 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/db");
 
-const EstudianteMulta = sequelize.define(
-  "EstudianteMulta",
+const UsuarioMulta = sequelize.define(
+  "UsuarioMulta",
   {
-    EMU_ESTUDIANTE_MULTA: {
+    EMU_USUARIO_MULTA: {
       type: DataTypes.BIGINT,
       primaryKey: true,
       allowNull: false,
@@ -14,17 +14,13 @@ const EstudianteMulta = sequelize.define(
       type: DataTypes.BIGINT,
       allowNull: false,
       references: {
-        model: "PAR_MULTA",
+        model: "CB_MULTA",
         key: "MUL_MULTA",
       },
     },
-    EST_CARNE: {
-      type: DataTypes.STRING(20),
+    VEH_ID_VEHICULO: {
+      type: DataTypes.STRING(15),
       allowNull: false,
-      references: {
-        model: "PAR_ESTUDIANTE",
-        key: "EST_CARNE",
-      },
     },
     EMU_ESTADO_MULTA: {
       type: DataTypes.CHAR(1),
@@ -33,10 +29,12 @@ const EstudianteMulta = sequelize.define(
     EMU_CREADO_POR: {
       type: DataTypes.STRING(50),
       allowNull: true,
+      defaultValue: 'ADMIN',
     },
     EMU_FECHA_CREACION: {
       type: DataTypes.DATE,
       allowNull: true,
+      defaultValue: DataTypes.NOW,
     },
     EMU_MODIFICADO_POR: {
       type: DataTypes.STRING(50),
@@ -46,11 +44,16 @@ const EstudianteMulta = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    EMU_ESTADO_REGISTRO: {
+      type: DataTypes.CHAR(1),
+      allowNull: false,
+      defaultValue: 'A',
+    },
   },
   {
-    tableName: "PAR_ESTUDIANTE_MULTA",
+    tableName: "CB_USUARIO_MULTA",
     timestamps: false,
   },
 );
 
-module.exports = EstudianteMulta;
+module.exports = UsuarioMulta;
