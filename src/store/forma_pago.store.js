@@ -13,28 +13,20 @@ class FormaPagoStore {
 
   static async create(data) {
     return await FormaPago.create({
-      FPG_FORMA_PAGO: data.FPG_FORMA_PAGO,
       FPG_NOMBRE_FORMA: data.FPG_NOMBRE_FORMA,
-      FPG_ESTADO: data.FPG_ESTADO,
+      FPG_ESTADO_REGISTRO: 'A',
     });
   }
 
-  static async update(id, data) {
+  static async updateEstado(id, nuevoEstado) {
     return await FormaPago.update(
       {
-        FPG_NOMBRE_FORMA: data.FPG_NOMBRE_FORMA,
-        FPG_ESTADO: data.FPG_ESTADO,
+        FPG_ESTADO_REGISTRO: nuevoEstado,
       },
       {
         where: { FPG_FORMA_PAGO: id },
-      },
+      }
     );
-  }
-
-  static async delete(id) {
-    return await FormaPago.destroy({
-      where: { FPG_FORMA_PAGO: id },
-    });
   }
 }
 

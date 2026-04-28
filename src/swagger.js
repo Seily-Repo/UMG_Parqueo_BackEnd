@@ -94,72 +94,69 @@ const options = {
         Multa: {
           type: "object",
           required: [
-            "MUL_MULTA",
             "MUL_MONTO_TOTAL",
             "MUL_DESCRIPCION",
-            "MUL_FECHA",
-            "MUL_FECHA_VENCIMIENTO",
-            "MUL_CREADO_POR",
-            "MUL_MODIFICADO_POR",
-            "MUL_FECHA_MODIFICACION",
+            "MUL_DIAS_VENCIMIENTO",
+            "MUL_ESTADO_REGISTRO"
           ],
           properties: {
             MUL_MULTA: {
               type: "integer",
               format: "int64",
-              description: "ID único de la multa",
+              description: "ID único de la multa (Generado automáticamente por Oracle)",
+              readOnly: true,
             },
             MUL_MONTO_TOTAL: {
               type: "number",
               format: "decimal",
-              description: "Monto total de la multa",
+              description: "Monto total de la multa (NUMBER 10,2)",
             },
             MUL_DESCRIPCION: {
               type: "string",
               maxLength: 100,
               description: "Descripción de la multa",
             },
-            MUL_FECHA: {
-              type: "string",
-              format: "date-time",
-              description: "Fecha de la multa",
-            },
-            MUL_FECHA_VENCIMIENTO: {
-              type: "string",
-              format: "date",
-              description: "Fecha de vencimiento de la multa",
+            MUL_DIAS_VENCIMIENTO: {
+              type: "integer",
+              description: "Cantidad de días para el vencimiento de la multa",
             },
             MUL_CREADO_POR: {
               type: "string",
               maxLength: 50,
-              description: "Usuario que creó la multa",
+              description: "Usuario que creó el registro",
+              default: "ADMIN"
             },
             MUL_FECHA_CREACION: {
               type: "string",
               format: "date-time",
-              description: "Fecha de creación de la multa",
+              description: "Fecha y hora de creación",
             },
             MUL_MODIFICADO_POR: {
               type: "string",
               maxLength: 50,
-              description: "Usuario que modificó la multa",
+              description: "Usuario que realizó la última modificación",
+              nullable: true
             },
             MUL_FECHA_MODIFICACION: {
               type: "string",
               format: "date-time",
-              description: "Fecha de modificación de la multa",
+              description: "Fecha de la última modificación",
+              nullable: true
+            },
+            MUL_ESTADO_REGISTRO: {
+              type: "string",
+              maxLength: 1,
+              description: "Estado del registro (A = Activo, I = Inactivo)",
+              enum: ["A", "I"],
+              default: "A"
             },
           },
           example: {
-            MUL_MULTA: 1,
-            MUL_MONTO_TOTAL: 150.0,
-            MUL_DESCRIPCION: "Multa por estacionamiento indebido",
-            MUL_FECHA: "2023-10-01T10:00:00Z",
-            MUL_FECHA_VENCIMIENTO: "2023-10-15",
-            MUL_CREADO_POR: "admin",
-            MUL_FECHA_CREACION: "2023-10-01T10:00:00Z",
-            MUL_MODIFICADO_POR: "admin",
-            MUL_FECHA_MODIFICACION: "2023-10-01T10:00:00Z",
+            MUL_MONTO_TOTAL: "250.50",
+            MUL_DESCRIPCION: "Vehículo obstruyendo rampa de acceso",
+            MUL_DIAS_VENCIMIENTO: "15",
+            MUL_CREADO_POR: "ADMIN",
+            MUL_ESTADO_REGISTRO: "A"
           },
         },
         // EstudianteMulta
@@ -269,27 +266,30 @@ const options = {
         // FormaPago
         FormaPago: {
           type: "object",
-          required: ["FPG_FORMA_PAGO", "FPG_NOMBRE_FORMA", "FPG_ESTADO"],
+          required: ["FPG_NOMBRE_FORMA", "FPG_ESTADO_REGISTRO"],
           properties: {
             FPG_FORMA_PAGO: {
               type: "integer",
-              description: "ID único de la forma de pago",
+              format: "int64",
+              description: "ID único de la forma de pago (Generado por secuencia en Oracle)",
+              readOnly: true,
             },
             FPG_NOMBRE_FORMA: {
               type: "string",
               maxLength: 50,
-              description: "Nombre de la forma de pago",
+              description: "Nombre descriptivo de la forma de pago (Ej: Efectivo, Tarjeta)",
             },
-            FPG_ESTADO: {
+            FPG_ESTADO_REGISTRO: {
               type: "string",
               maxLength: 1,
-              description: "Estado de la forma de pago (A=Activo, I=Inactivo)",
+              description: "Estado del registro (A = Activo, I = Inactivo)",
+              enum: ["A", "I"],
+              default: "A",
             },
           },
           example: {
-            FPG_FORMA_PAGO: 1,
             FPG_NOMBRE_FORMA: "Efectivo",
-            FPG_ESTADO: "A",
+            FPG_ESTADO_REGISTRO: "A",
           },
         },
         // Pago

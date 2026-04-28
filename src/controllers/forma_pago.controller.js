@@ -13,14 +13,16 @@ exports.getAllFormasPago = async (req, res) => {
 };
 
 exports.getFormaPagoById = async (req, res) => {
+  //console.log("dato", req.params);
   try {
-    const id = req.params.FPG_FORMA_PAGO;
-    if (!/^\d+$/.test(id)) {
+    const { FPG_FORMA_PAGO } = req.params; 
+    
+    if (!/^\d+$/.test(FPG_FORMA_PAGO)) {
       return res.status(400).json({ 
         message: "No se permiten letras o caracteres especiales, solo números" 
       });
     }
-    const forma = await FormaPagoStore.getById(id);
+    const forma = await FormaPagoStore.getById(FPG_FORMA_PAGO);
 
     if (!forma) {
       return res.status(404).json({ message: "Forma de pago no encontrada" });
@@ -37,29 +39,11 @@ exports.getFormaPagoById = async (req, res) => {
 
 exports.createFormaPago = async (req, res) => {
   try {
-    /*
-    Estados de Forma de Pago:
-      A: Activo
-      I: Inactivo
-    */
-    const { FPG_FORMA_PAGO, FPG_NOMBRE_FORMA, FPG_ESTADO } = req.body;
+    const { FPG_NOMBRE_FORMA } = req.body;
 
-    if (!FPG_FORMA_PAGO || !FPG_NOMBRE_FORMA || !FPG_ESTADO) {
+    if (!FPG_NOMBRE_FORMA) {
       return res.status(400).json({ 
-        message: "Todos los campos son obligatorios (ID, Nombre y Estado)" 
-      });
-    }
-
-    if (!/^\d+$/.test(FPG_FORMA_PAGO)) {
-      return res.status(400).json({ 
-        message: "El ID debe ser exclusivamente numérico" 
-      });
-    }
-
-    const existeId = await FormaPagoStore.getById(FPG_FORMA_PAGO);
-    if (existeId) {
-      return res.status(400).json({ 
-        message: "El ID de forma de pago ya existe" 
+        message: "El nombre de la forma de pago es obligatorio." 
       });
     }
 
@@ -71,13 +55,6 @@ exports.createFormaPago = async (req, res) => {
     if (nombreDuplicado) {
       return res.status(400).json({ 
         message: `Ya existe una forma de pago con el nombre: ${FPG_NOMBRE_FORMA}` 
-      });
-    }
-
-    const estadosPermitidos = ['A', 'I'];
-    if (!estadosPermitidos.includes(FPG_ESTADO)) {
-      return res.status(400).json({ 
-        message: "Estado no válido. Solo se permite 'A' (Activo) o 'I' (Inactivo) en mayúsculas." 
       });
     }
 
@@ -97,30 +74,39 @@ exports.createFormaPago = async (req, res) => {
 };
 
 exports.updateFormaPago = async (req, res) => {
+  //console.log("datos ", req.params);
   try {
-    const id = req.params.FPG_FORMA_PAGO;
-    const estado = req.body.FPG_ESTADO || req.body.FPG_estado;
+    const { FPG_FORMA_PAGO } = req.params;
+    const { FPG_ESTADO_REGISTRO } = req.body;
 
-    if (estado !== undefined) {
-      const estadosPermitidos = ['A', 'I'];
-      if (!estadosPermitidos.includes(estado)) {
-        return res.status(400).json({ 
-          message: "Estado no válido. Solo se permite 'A' (Activo) o 'I' (Inactivo)." 
-        });
-      }
+    if (!/^\d+$/.test(FPG_FORMA_PAGO)) {
+        return res.status(400).json({ message: "El ID debe ser numérico" });
     }
 
-    const [rowsAffected] = await FormaPagoStore.update(id, req.body);
+    if (FPG_ESTADO_REGISTRO === undefined) {
+      return res.status(400).json({ 
+        message: "Debe proporcionar el campo FPG_ESTADO_REGISTRO para actualizar." 
+      });
+    }
+
+    const estadosPermitidos = ['A', 'I'];
+    if (!estadosPermitidos.includes(FPG_ESTADO_REGISTRO)) {
+      return res.status(400).json({ 
+        message: "Estado no válido. Solo se permite 'A' (Activo) o 'I' (Inactivo)." 
+      });
+    }
+
+    const [rowsAffected] = await FormaPagoStore.updateEstado(FPG_FORMA_PAGO, FPG_ESTADO_REGISTRO);
 
     if (rowsAffected === 0) {
-      return res.status(404).json({ message: "No encontrado para actualizar" });
+      return res.status(404).json({ message: "Forma de pago no encontrada para actualizar o el estado es el mismo" });
     }
 
-    res.status(200).json({ message: "Actualizado correctamente" });
+    res.status(200).json({ message: "Estado actualizado correctamente" });
 
   } catch (error) {
     res.status(500).json({ 
-      message: "Error al actualizar", 
+      message: "Error al actualizar el estado", 
       error: error.message 
     });
   }
