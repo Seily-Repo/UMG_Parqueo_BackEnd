@@ -225,45 +225,57 @@ const options = {
             EMU_FECHA_MODIFICACION: "2023-10-05T15:30:00Z",
           },
         },
-        // EstudianteMoroso
-        EstudianteMoroso: {
+        // UsuarioMoroso
+        UsuarioMoroso: {
           type: "object",
-          required: ["EST_CARNE", "MOR_MOTIVO", "MOR_ESTADO"],
+          required: ["LR_CARNE", "MOR_MOTIVO"],
           properties: {
-            MOR_BLACKLIST_LOG: {
+            MOR_USUARIO_MOROSO: {
               type: "integer",
               format: "int64",
-              description:
-                "ID único del registro de estudiante moroso (autogenerado)",
+              description: "ID único del registro de usuario moroso (autogenerado)",
             },
-            EST_CARNE: {
+            LR_CARNE: {
               type: "string",
               maxLength: 20,
-              description: "Carné del estudiante",
+              description: "Carné del usuario",
             },
             MOR_FECHA_AGREGADO: {
               type: "string",
-              description:
-                "Fecha y hora en que se añadió a la lista de morosos (DD/MM/YYYY HH:mm:ss)",
+              description: "Fecha y hora en que se añadió a la lista de morosos (DD/MM/YYYY HH:mm:ss)",
             },
             MOR_MOTIVO: {
               type: "string",
               maxLength: 100,
-              description:
-                "Motivo por el cual el estudiante fue marcado como moroso",
+              description: "Motivo por el cual el usuario fue marcado como moroso",
             },
-            MOR_ESTADO: {
+            MOR_MODIFICADO_POR: {
+              type: "string",
+              maxLength: 50,
+              description: "Usuario que realizó la última modificación",
+            },
+            MOR_FECHA_MODIFICACION: {
+              type: "string",
+              description: "Fecha y hora de la última modificación",
+            },
+            MOR_ESTADO_MOROSO: {
               type: "string",
               maxLength: 1,
               enum: ["A", "I", "S"],
-              description:
-                "Estado del registro de morosidad (A=Activo, I=Inactivo, S=Suspendido)",
+              description: "Estado del registro de morosidad (A=Activo, I=Inactivo, S=Suspendido)",
+            },
+            MOR_ESTADO_REGISTRO: {
+              type: "string",
+              maxLength: 1,
+              enum: ["A", "I", "S"],
+              description: "Estado del registro (A=Activo, I=Inactivo, S=Suspendido)",
             },
           },
           example: {
-            EST_CARNE: "5190-23-202034",
+            LR_CARNE: "5190-23-202034",
             MOR_MOTIVO: "Pago atrasado",
-            MOR_ESTADO: "A",
+            MOR_ESTADO_MOROSO: "A",
+            MOR_ESTADO_REGISTRO: "A",
           },
         },
         // FormaPago
@@ -562,68 +574,67 @@ const options = {
         },
       },
 
-      // Rutas de Estudiante Moroso
-      "/api/estudiante_moroso": {
+      // Rutas de Usuario Moroso
+      "/api/usuario_moroso": {
         get: {
-          tags: ["Estudiante Moroso"],
-          summary: "Obtiene todos los estudiantes morosos",
+          tags: ["Usuario Moroso"],
+          summary: "Obtiene todos los usuarios morosos",
           responses: {
             200: {
-              description:
-                "Lista de estudiantes morosos obtenida correctamente",
+              description: "Lista de usuarios morosos obtenida correctamente",
               content: {
                 "application/json": {
                   schema: {
                     type: "array",
-                    items: { $ref: "#/components/schemas/EstudianteMoroso" },
+                    items: { $ref: "#/components/schemas/UsuarioMoroso" },
                   },
                 },
               },
             },
-            500: { description: "Error al obtener los estudiantes morosos" },
+            500: { description: "Error al obtener los usuarios morosos" },
           },
         },
         post: {
-          tags: ["Estudiante Moroso"],
-          summary: "Crea un nuevo registro de estudiante moroso",
+          tags: ["Usuario Moroso"],
+          summary: "Crea un nuevo registro de usuario moroso",
           requestBody: {
             required: true,
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/EstudianteMoroso" },
+                schema: { $ref: "#/components/schemas/UsuarioMoroso" },
                 example: {
-                  EST_CARNE: "5190-23-202034",
+                  LR_CARNE: "5190-23-202034",
                   MOR_MOTIVO: "Pago atrasado",
-                  MOR_ESTADO: "A",
+                  MOR_ESTADO_MOROSO: "A",
+                  MOR_ESTADO_REGISTRO: "A",
                 },
               },
             },
           },
           responses: {
             201: {
-              description: "Registro de estudiante moroso creado exitosamente",
+              description: "Registro de usuario moroso creado exitosamente",
             },
             400: {
-              description:
-                "Faltan campos obligatorios o el formato es incorrecto",
+              description: "Faltan campos obligatorios o el formato es incorrecto",
             },
             500: {
-              description: "Error al crear el registro de estudiante moroso",
+              description: "Error al crear el registro de usuario moroso",
             },
           },
         },
       },
 
-      "/api/estudiante_moroso/carne/{carne}": {
+      "/api/usuario_moroso/carne/{carne}": {
         get: {
-          tags: ["Estudiante Moroso"],
-          summary: "Obtiene los registros morosos de un estudiante por carné",
+          tags: ["Usuario Moroso"],
+          summary: "Obtiene los registros morosos de un usuario por carné",
           parameters: [
             {
               name: "carne",
               in: "path",
               required: true,
-              description: "Carné del estudiante",
+              description: "Carné del usuario",
               schema: { type: "string" },
             },
           ],
@@ -634,7 +645,7 @@ const options = {
                 "application/json": {
                   schema: {
                     type: "array",
-                    items: { $ref: "#/components/schemas/EstudianteMoroso" },
+                    items: { $ref: "#/components/schemas/UsuarioMoroso" },
                   },
                 },
               },
@@ -645,16 +656,16 @@ const options = {
         },
       },
 
-      "/api/estudiante_moroso/{MOR_BLACKLIST_LOG}": {
+      "/api/usuario_moroso/{MOR_USUARIO_MOROSO}": {
         put: {
-          tags: ["Estudiante Moroso"],
-          summary: "Actualiza un registro de estudiante moroso",
+          tags: ["Usuario Moroso"],
+          summary: "Actualiza un registro de usuario moroso",
           parameters: [
             {
-              name: "MOR_BLACKLIST_LOG",
+              name: "MOR_USUARIO_MOROSO",
               in: "path",
               required: true,
-              description: "ID del registro de estudiante moroso",
+              description: "ID del registro de usuario moroso",
               schema: { type: "integer", format: "int64" },
             },
           ],
@@ -666,7 +677,13 @@ const options = {
                   type: "object",
                   properties: {
                     MOR_MOTIVO: { type: "string", maxLength: 100 },
-                    MOR_ESTADO: {
+                    MOR_MODIFICADO_POR: { type: "string", maxLength: 50 },
+                    MOR_ESTADO_MOROSO: {
+                      type: "string",
+                      maxLength: 1,
+                      enum: ["A", "I", "S"],
+                    },
+                    MOR_ESTADO_REGISTRO: {
                       type: "string",
                       maxLength: 1,
                       enum: ["A", "I", "S"],
@@ -674,7 +691,9 @@ const options = {
                   },
                   example: {
                     MOR_MOTIVO: "Pago parcial recibido",
-                    MOR_ESTADO: "A",
+                    MOR_MODIFICADO_POR: "admin",
+                    MOR_ESTADO_MOROSO: "A",
+                    MOR_ESTADO_REGISTRO: "A",
                   },
                 },
               },
