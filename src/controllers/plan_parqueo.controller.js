@@ -1,4 +1,3 @@
-
 const PlanParqueoStore = require('../store/plan_parqueo.store');
 
 class PlanParqueoController {
@@ -49,29 +48,23 @@ class PlanParqueoController {
     // Crear plan
     static async crearPlan(req, res) {
 
-
         try {
-
 
             const {
                 PLN_PLAN,
-                PLN_NAME,
+                PLN_NOMBRE_PLAN,
                 PLN_DESCRIPCION,
                 PLN_PRECIO,
-                PLN_ESTADO,
+                PLN_ESTADO_REGISTRO,
                 PLN_MONEDA
             } = req.body;
+
             // Se elimina el campo PLN_PLAN porque es autogenerado
             delete req.body.PLN_PLAN;
-            /* VALIDACIONES */
 
-/*             if (!PLN_PLAN) {
-                return res.status(400).json({
-                    message: 'El ID del plan es obligatorio'
-                });
-            } */
+            /* VALIDACIONES BASICAS */
 
-            if (!PLN_NAME || PLN_NAME.trim() === '') {
+            if (!PLN_NOMBRE_PLAN || PLN_NOMBRE_PLAN.trim() === '') {
                 return res.status(400).json({
                     message: 'El nombre del plan es obligatorio'
                 });
@@ -89,13 +82,13 @@ class PlanParqueoController {
                 });
             }
 
-            if (!PLN_ESTADO) {
+            if (!PLN_ESTADO_REGISTRO) {
                 return res.status(400).json({
                     message: 'El estado es obligatorio'
                 });
             }
 
-            if (PLN_ESTADO !== 'A' && PLN_ESTADO !== 'I') {
+            if (PLN_ESTADO_REGISTRO !== 'A' && PLN_ESTADO_REGISTRO !== 'I') {
                 return res.status(400).json({
                     message: 'El estado debe ser A o I'
                 });
@@ -107,24 +100,53 @@ class PlanParqueoController {
                 });
             }
 
+            /* NORMALIZAR A MAYÚSCULAS */
+
+            const nombrePlan = PLN_NOMBRE_PLAN.toUpperCase();
+            const descripcion = PLN_DESCRIPCION.toUpperCase();
+            const moneda = PLN_MONEDA.toUpperCase();
+
+            /* VALIDACIONES PERSONALIZADAS */
+
+            const nombresValidos = [
+                'VESPERTINA',
+                'NOCTURNA',
+                'SÁBADO',
+                'DOMINGO'
+            ];
+
+            if (!nombresValidos.includes(nombrePlan)) {
+                return res.status(400).json({
+                    message: 'Estas son las únicas datos que puede colocar: VESPERTINA, NOCTURNA, SÁBADO y DOMINGO.'
+                });
+            }
+
+            const descripcionesValidas = [
+                'CARRO',
+                'MOTO'
+            ];
+
+            if (!descripcionesValidas.includes(descripcion)) {
+                return res.status(400).json({
+                    message: 'Solo estos valores serán aceptados: CARRO o MOTO.'
+                });
+            }
+
             const monedasValidas = ['GTQ'];
 
-            if (!monedasValidas.includes(PLN_MONEDA)) {
+            if (!monedasValidas.includes(moneda)) {
                 return res.status(400).json({
                     message: 'La moneda debe ser GTQ.'
                 });
             }
 
-            /* VERIFICAR SI YA EXISTE */
+            /* REEMPLAZAR VALORES NORMALIZADOS */
 
-            const existe = await PlanParqueoStore.getById(PLN_PLAN);
+            req.body.PLN_NOMBRE_PLAN = nombrePlan;
+            req.body.PLN_DESCRIPCION = descripcion;
+            req.body.PLN_MONEDA = moneda;
 
-            if (existe) {
-                return res.status(400).json({
-                    message: 'El plan ya existe'
-                });
-            }
-            
+            /* CREAR REGISTRO */
 
             const nuevoPlan = await PlanParqueoStore.create(req.body);
 
@@ -149,10 +171,10 @@ class PlanParqueoController {
             const id = req.params.id;
 
             const {
-                PLN_NAME,
+                PLN_NOMBRE_PLAN,
                 PLN_DESCRIPCION,
                 PLN_PRECIO,
-                PLN_ESTADO,
+                PLN_ESTADO_REGISTRO,
                 PLN_MONEDA
             } = req.body;
 
@@ -164,9 +186,9 @@ class PlanParqueoController {
                 });
             }
 
-            /* VALIDACIONES */
+            /* VALIDACIONES BASICAS */
 
-            if (!PLN_NAME || PLN_NAME.trim() === '') {
+            if (!PLN_NOMBRE_PLAN || PLN_NOMBRE_PLAN.trim() === '') {
                 return res.status(400).json({
                     message: 'El nombre del plan es obligatorio'
                 });
@@ -184,13 +206,13 @@ class PlanParqueoController {
                 });
             }
 
-            if (!PLN_ESTADO) {
+            if (!PLN_ESTADO_REGISTRO) {
                 return res.status(400).json({
                     message: 'El estado es obligatorio'
                 });
             }
 
-            if (PLN_ESTADO !== 'A' && PLN_ESTADO !== 'I') {
+            if (PLN_ESTADO_REGISTRO !== 'A' && PLN_ESTADO_REGISTRO !== 'I') {
                 return res.status(400).json({
                     message: 'El estado debe ser A o I'
                 });
@@ -202,9 +224,41 @@ class PlanParqueoController {
                 });
             }
 
+            /* NORMALIZAR A MAYÚSCULAS */
+
+            const nombrePlan = PLN_NOMBRE_PLAN.toUpperCase();
+            const descripcion = PLN_DESCRIPCION.toUpperCase();
+            const moneda = PLN_MONEDA.toUpperCase();
+
+            /* VALIDACIONES PERSONALIZADAS */
+
+            const nombresValidos = [
+                'VESPERTINA',
+                'NOCTURNA',
+                'SÁBADO',
+                'DOMINGO'
+            ];
+
+            if (!nombresValidos.includes(nombrePlan)) {
+                return res.status(400).json({
+                    message: 'Estas son las únicas datos que puede colocar: VESPERTINA, NOCTURNA, SÁBADO y DOMINGO.'
+                });
+            }
+
+            const descripcionesValidas = [
+                'CARRO',
+                'MOTO'
+            ];
+
+            if (!descripcionesValidas.includes(descripcion)) {
+                return res.status(400).json({
+                    message: 'Solo estos valores serán aceptados: CARRO o MOTO.'
+                });
+            }
+
             const monedasValidas = ['GTQ'];
 
-            if (!monedasValidas.includes(PLN_MONEDA)) {
+            if (!monedasValidas.includes(moneda)) {
                 return res.status(400).json({
                     message: 'La moneda debe ser GTQ.'
                 });
@@ -219,6 +273,12 @@ class PlanParqueoController {
                     message: 'Plan no encontrado'
                 });
             }
+
+            /* REEMPLAZAR VALORES NORMALIZADOS */
+
+            req.body.PLN_NOMBRE_PLAN = nombrePlan;
+            req.body.PLN_DESCRIPCION = descripcion;
+            req.body.PLN_MONEDA = moneda;
 
             const rowsAffected = await PlanParqueoStore.update(id, req.body);
 
