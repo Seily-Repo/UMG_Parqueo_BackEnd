@@ -5,33 +5,31 @@ const Multa = sequelize.define(
   "Multa",
   {
     MUL_MULTA: {
-      type: DataTypes.BIGINT,
+      type: DataTypes.INTEGER,
       primaryKey: true,
+      autoIncrement: true,
       allowNull: false,
     },
     MUL_MONTO_TOTAL: {
-      type: DataTypes.DECIMAL(12, 2),
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
     },
     MUL_DESCRIPCION: {
       type: DataTypes.STRING(100),
       allowNull: false,
     },
-    MUL_FECHA: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
-    MUL_FECHA_VENCIMIENTO: {
-      type: DataTypes.DATEONLY,
+    MUL_DIAS_VENCIMIENTO: { 
+      type: DataTypes.INTEGER,
       allowNull: false,
     },
     MUL_CREADO_POR: {
       type: DataTypes.STRING(50),
-      allowNull: false,
+      allowNull: true,
+      defaultValue: 'ADMIN',
     },
     MUL_FECHA_CREACION: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
       defaultValue: DataTypes.NOW,
     },
     MUL_MODIFICADO_POR: {
@@ -42,11 +40,16 @@ const Multa = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    MUL_ESTADO_REGISTRO: {
+      type: DataTypes.CHAR(1),
+      allowNull: false,
+      defaultValue: 'A',
+    },
   },
   {
-    tableName: "PAR_MULTA",
+    tableName: "CB_MULTA",
     timestamps: false,
-  },
+  }
 );
 
 module.exports = Multa;

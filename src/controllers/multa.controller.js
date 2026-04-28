@@ -14,19 +14,19 @@ exports.getAllMultas = async (req, res) => {
 
 exports.getMultaById = async (req, res) => {
   try {
-    const { MUL_MULTA } = req.params;
-    //console.log("este es el valor de id para obtener una multa: ", id);
-    if (isNaN(Number(MUL_MULTA))) {
+    const { id } = req.params;
+
+    if (isNaN(Number(id))) {
       return res.status(400).json({
         message: "Error de validación: El ID debe ser un valor numérico.",
       });
     }
 
-    const multa = await MultaStore.getById(MUL_MULTA);
+    const multa = await MultaStore.getById(id);
 
     if (!multa) {
       return res.status(404).json({
-        message: "Multa no encontrada",
+        message: "Multa no encontrada o está inactiva",
       });
     }
     res.status(200).json(multa);
@@ -40,27 +40,23 @@ exports.getMultaById = async (req, res) => {
 
 exports.createMulta = async (req, res) => {
   try {
-    const { MUL_MULTA, MUL_DESCRIPCION } = req.body;
+    const { MUL_DESCRIPCION, MUL_MONTO_TOTAL, MUL_DIAS_VENCIMIENTO } = req.body;
 
-    if (isNaN(Number(MUL_MULTA))) {
+    if (!MUL_DESCRIPCION || !MUL_MONTO_TOTAL || MUL_DIAS_VENCIMIENTO === undefined) {
       return res.status(400).json({
-        message:
-          "Error de validación: El ID de la multa debe ser un número válido.",
+        message: "La descripción, el monto y los días de vencimiento son obligatorios.",
       });
     }
 
-    const existente = await MultaStore.getById(MUL_MULTA);
-    if (existente) {
-      return res.status(400).json({
-        message: "El ID de la multa ya existe en el sistema",
-      });
-    }
-
+    
     const existeDesc = await MultaStore.getByDescripcion(MUL_DESCRIPCION);
-    if (existeDesc) {
-      return res.status(400).json({
-        message: "Ya existe una multa con esa misma descripción",
-      });
+    if (existeDesc && existeDesc.length > 0) {
+        const exacta = existeDesc.find(m => m.MUL_DESCRIPCION.toUpperCase() === MUL_DESCRIPCION.toUpperCase());
+        if (exacta) {
+            return res.status(400).json({
+                message: "Ya existe una multa con esa misma descripción exacta",
+            });
+        }
     }
 
     const multa = await MultaStore.create(req.body);
@@ -79,24 +75,24 @@ exports.createMulta = async (req, res) => {
 exports.getMultaByDescripcion = async (req, res) => {
   try {
     const { descripcion } = req.params;
-    //console.log("este es el valor de descripcion para obtener una multa: ", MUL_DESCRIPCION);
-    const multa = await MultaStore.getByDescripcion(descripcion);
-    if (isNaN(Number(descripcion)) || !descripcion) {
+
+    if (!descripcion || descripcion.trim() === "") {
       return res.status(400).json({
-        message:
-          "Error de validación: La descripción debe ser un valor de texto",
+        message: "Error de validación: Debe proporcionar una descripción para buscar",
       });
     }
 
-    if (!multa) {
+    const multas = await MultaStore.getByDescripcion(descripcion);
+
+    if (!multas || multas.length === 0) {
       return res.status(404).json({
-        message: "Multa no encontrada",
+        message: "No se encontraron multas con esa descripción",
       });
     }
-    res.status(200).json(multa);
+    res.status(200).json(multas);
   } catch (error) {
     res.status(500).json({
-      message: "Error al obtener la multa",
+      message: "Error al buscar la multa",
       error: error.message,
     });
   }
@@ -105,7 +101,7 @@ exports.getMultaByDescripcion = async (req, res) => {
 exports.updateMulta = async (req, res) => {
   try {
     const { id } = req.params;
-    const { MUL_DESCRIPCION, MUL_MONTO_TOTAL } = req.body;
+    const { MUL_DESCRIPCION, MUL_MONTO_TOTAL, MUL_DIAS_VENCIMIENTO, MUL_MODIFICADO_POR } = req.body;
 
     if (isNaN(Number(id))) {
       return res.status(400).json({
@@ -120,36 +116,28 @@ exports.updateMulta = async (req, res) => {
       });
     }
 
-    if (MUL_DESCRIPCION) {
-      const multaConMismoNombre =
-        await MultaStore.getByDescripcion(MUL_DESCRIPCION);
-
-      if (multaConMismoNombre && multaConMismoNombre.MUL_id_multa != id) {
+    if (MUL_DESCRIPCION && MUL_DESCRIPCION !== multaExistente.MUL_DESCRIPCION) {
+      const coincidencias = await MultaStore.getByDescripcion(MUL_DESCRIPCION);
+      const duplicada = coincidencias.find(m => 
+        m.MUL_DESCRIPCION.toUpperCase() === MUL_DESCRIPCION.toUpperCase() && m.MUL_MULTA != id
+      );
+      
+      if (duplicada) {
         return res.status(400).json({
-          message: "Error: Ya existe otra multa con esa misma descripción",
+          message: "Error: Ya existe otra multa activa con esa misma descripción",
         });
       }
     }
 
-    //validar monto total
     if (MUL_MONTO_TOTAL && isNaN(Number(MUL_MONTO_TOTAL))) {
-      return res
-        .status(400)
-        .json({ message: "El monto total debe ser numérico" });
+      return res.status(400).json({ message: "El monto total debe ser numérico" });
     }
 
-    const dataUpdate = {
-      ...req.body,
-      MUL_MODIFICADO_POR: req.body.MUL_MODIFICADO_POR || "system",
-      MUL_FECHA_MODIFICACION: req.body.MUL_FECHA_MODIFICACION || new Date(),
-    };
-
-    const rowsAffected = await MultaStore.update(id, dataUpdate);
+    const rowsAffected = await MultaStore.update(id, req.body);
 
     if (rowsAffected[0] === 0) {
-      return res.status(400).json({
-        message:
-          "No se realizaron cambios en la multa o los datos son idénticos",
+      return res.status(200).json({
+        message: "No se realizaron cambios (los datos son idénticos a los actuales)",
       });
     }
 
