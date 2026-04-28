@@ -31,7 +31,6 @@ const formatMulta = (record) => {
   };
 };
 
-// GET /api/usuario_multa
 exports.getAllUsuarioMulta = async (req, res) => {
   try {
     const registros = await UsuarioMultaStore.getAll();
@@ -47,7 +46,6 @@ exports.getAllUsuarioMulta = async (req, res) => {
   }
 };
 
-// GET /api/usuario_multa/vehiculo/:VEH_ID_VEHICULO
 exports.getUsuarioMultaByVehiculo = async (req, res) => {
   try {
     const { VEH_ID_VEHICULO } = req.params;
@@ -78,7 +76,6 @@ exports.getUsuarioMultaByVehiculo = async (req, res) => {
   }
 };
 
-// POST /api/usuario_multa
 exports.createUsuarioMulta = async (req, res) => {
   try {
     const { MUL_MULTA, VEH_ID_VEHICULO, EMU_ESTADO_MULTA, EMU_CREADO_POR } = req.body;
@@ -112,7 +109,6 @@ exports.createUsuarioMulta = async (req, res) => {
   }
 };
 
-// PUT /api/usuario_multa/:EMU_USUARIO_MULTA
 exports.updateUsuarioMulta = async (req, res) => {
   try {
     const { EMU_USUARIO_MULTA } = req.params;
