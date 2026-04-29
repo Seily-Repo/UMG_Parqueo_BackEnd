@@ -159,108 +159,128 @@ const options = {
             MUL_ESTADO_REGISTRO: "A"
           },
         },
-        // EstudianteMulta
-        EstudianteMulta: {
+        // UsuarioMulta
+        UsuarioMulta: {
           type: "object",
           required: [
-            "EMU_ESTUDIANTE_MULTA",
             "MUL_MULTA",
-            "EST_CARNE",
-            "EMU_CREADO_POR",
+            "VEH_ID_VEHICULO",
+            "EMU_ESTADO_MULTA",
           ],
           properties: {
-            EMU_ESTUDIANTE_MULTA: {
+            EMU_USUARIO_MULTA: {
               type: "integer",
               format: "int64",
-              description: "ID único del registro de estudiante-multa",
+              description: "ID único del registro (autogenerado por la BD)",
             },
             MUL_MULTA: {
               type: "integer",
               format: "int64",
-              description: "ID de la multa",
+              description: "ID de la multa (FK a CB_MULTA)",
             },
-            EST_CARNE: {
+            VEH_ID_VEHICULO: {
               type: "string",
-              maxLength: 20,
-              description: "Carné del estudiante",
+              maxLength: 15,
+              description: "Identificador del vehículo (FK a CB_VEHICULO)",
             },
             EMU_ESTADO_MULTA: {
-              type: "char",
+              type: "string",
               maxLength: 1,
-              description:
-                'Estado de la multa para el estudiante (Ej: "A"=Activa, "C"=Cancelada, "P"=Pagada)',
+              enum: ["A", "P", "C"],
+              description: "Estado de la multa (A=Activa, P=Pendiente, C=Cancelada)",
             },
             EMU_CREADO_POR: {
               type: "string",
               maxLength: 50,
-              description: "Usuario que creó el registro de estudiante-multa",
+              default: "ADMIN",
+              description: "Usuario que creó el registro",
             },
             EMU_FECHA_CREACION: {
               type: "string",
               format: "date-time",
-              description: "Fecha de creación del registro",
+              description: "Fecha de creación del registro (automático)",
             },
             EMU_MODIFICADO_POR: {
               type: "string",
               maxLength: 50,
-              description: "Usuario que modificó el registro",
+              description: "Usuario que realizó la última modificación",
             },
             EMU_FECHA_MODIFICACION: {
               type: "string",
               format: "date-time",
-              description: "Fecha de última modificación del registro",
+              description: "Fecha de última modificación del registro (automático)",
+            },
+            EMU_ESTADO_REGISTRO: {
+              type: "string",
+              maxLength: 1,
+              enum: ["A", "I"],
+              default: "A",
+              description: "Estado del registro (A=Activo, I=Inactivo)",
             },
           },
           example: {
-            EMU_ESTUDIANTE_MULTA: 1,
+            EMU_USUARIO_MULTA: 1,
             MUL_MULTA: 1,
-            EST_CARNE: "51902321585",
+            VEH_ID_VEHICULO: "P-123ABC",
             EMU_ESTADO_MULTA: "A",
-            EMU_CREADO_POR: "Daniel",
-            EMU_FECHA_CREACION: "2023-10-01T10:00:00Z",
-            EMU_MODIFICADO_POR: "Luis",
-            EMU_FECHA_MODIFICACION: "2023-10-05T15:30:00Z",
+            EMU_CREADO_POR: "ADMIN",
+            EMU_FECHA_CREACION: "2024-01-01T10:00:00Z",
+            EMU_MODIFICADO_POR: "admin",
+            EMU_FECHA_MODIFICACION: "2024-01-05T15:30:00Z",
+            EMU_ESTADO_REGISTRO: "A",
           },
         },
-        // EstudianteMoroso
-        EstudianteMoroso: {
+        // UsuarioMoroso
+        UsuarioMoroso: {
           type: "object",
-          required: ["EST_CARNE", "MOR_MOTIVO", "MOR_ESTADO"],
+          required: ["LR_CARNE", "MOR_MOTIVO"],
           properties: {
-            MOR_BLACKLIST_LOG: {
+            MOR_USUARIO_MOROSO: {
               type: "integer",
               format: "int64",
-              description:
-                "ID único del registro de estudiante moroso (autogenerado)",
+              description: "ID único del registro de usuario moroso (autogenerado)",
             },
-            EST_CARNE: {
+            LR_CARNE: {
               type: "string",
               maxLength: 20,
-              description: "Carné del estudiante",
+              description: "Carné del usuario",
             },
             MOR_FECHA_AGREGADO: {
               type: "string",
-              description:
-                "Fecha y hora en que se añadió a la lista de morosos (DD/MM/YYYY HH:mm:ss)",
+              description: "Fecha y hora en que se añadió a la lista de morosos (DD/MM/YYYY HH:mm:ss)",
             },
             MOR_MOTIVO: {
               type: "string",
               maxLength: 100,
-              description:
-                "Motivo por el cual el estudiante fue marcado como moroso",
+              description: "Motivo por el cual el usuario fue marcado como moroso",
             },
-            MOR_ESTADO: {
+            MOR_MODIFICADO_POR: {
+              type: "string",
+              maxLength: 50,
+              description: "Usuario que realizó la última modificación",
+            },
+            MOR_FECHA_MODIFICACION: {
+              type: "string",
+              description: "Fecha y hora de la última modificación",
+            },
+            MOR_ESTADO_MOROSO: {
               type: "string",
               maxLength: 1,
               enum: ["A", "I", "S"],
-              description:
-                "Estado del registro de morosidad (A=Activo, I=Inactivo, S=Suspendido)",
+              description: "Estado del registro de morosidad (A=Activo, I=Inactivo, S=Suspendido)",
+            },
+            MOR_ESTADO_REGISTRO: {
+              type: "string",
+              maxLength: 1,
+              enum: ["A", "I", "S"],
+              description: "Estado del registro (A=Activo, I=Inactivo, S=Suspendido)",
             },
           },
           example: {
-            EST_CARNE: "5190-23-202034",
+            LR_CARNE: "5190-23-202034",
             MOR_MOTIVO: "Pago atrasado",
-            MOR_ESTADO: "A",
+            MOR_ESTADO_MOROSO: "A",
+            MOR_ESTADO_REGISTRO: "A",
           },
         },
         // FormaPago
@@ -562,68 +582,67 @@ const options = {
         },
       },
 
-      // Rutas de Estudiante Moroso
-      "/api/estudiante_moroso": {
+      // Rutas de Usuario Moroso
+      "/api/usuario_moroso": {
         get: {
-          tags: ["Estudiante Moroso"],
-          summary: "Obtiene todos los estudiantes morosos",
+          tags: ["Usuario Moroso"],
+          summary: "Obtiene todos los usuarios morosos",
           responses: {
             200: {
-              description:
-                "Lista de estudiantes morosos obtenida correctamente",
+              description: "Lista de usuarios morosos obtenida correctamente",
               content: {
                 "application/json": {
                   schema: {
                     type: "array",
-                    items: { $ref: "#/components/schemas/EstudianteMoroso" },
+                    items: { $ref: "#/components/schemas/UsuarioMoroso" },
                   },
                 },
               },
             },
-            500: { description: "Error al obtener los estudiantes morosos" },
+            500: { description: "Error al obtener los usuarios morosos" },
           },
         },
         post: {
-          tags: ["Estudiante Moroso"],
-          summary: "Crea un nuevo registro de estudiante moroso",
+          tags: ["Usuario Moroso"],
+          summary: "Crea un nuevo registro de usuario moroso",
           requestBody: {
             required: true,
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/EstudianteMoroso" },
+                schema: { $ref: "#/components/schemas/UsuarioMoroso" },
                 example: {
-                  EST_CARNE: "5190-23-202034",
+                  LR_CARNE: "5190-23-202034",
                   MOR_MOTIVO: "Pago atrasado",
-                  MOR_ESTADO: "A",
+                  MOR_ESTADO_MOROSO: "A",
+                  MOR_ESTADO_REGISTRO: "A",
                 },
               },
             },
           },
           responses: {
             201: {
-              description: "Registro de estudiante moroso creado exitosamente",
+              description: "Registro de usuario moroso creado exitosamente",
             },
             400: {
-              description:
-                "Faltan campos obligatorios o el formato es incorrecto",
+              description: "Faltan campos obligatorios o el formato es incorrecto",
             },
             500: {
-              description: "Error al crear el registro de estudiante moroso",
+              description: "Error al crear el registro de usuario moroso",
             },
           },
         },
       },
 
-      "/api/estudiante_moroso/carne/{carne}": {
+      "/api/usuario_moroso/carne/{carne}": {
         get: {
-          tags: ["Estudiante Moroso"],
-          summary: "Obtiene los registros morosos de un estudiante por carné",
+          tags: ["Usuario Moroso"],
+          summary: "Obtiene los registros morosos de un usuario por carné",
           parameters: [
             {
               name: "carne",
               in: "path",
               required: true,
-              description: "Carné del estudiante",
+              description: "Carné del usuario",
               schema: { type: "string" },
             },
           ],
@@ -634,7 +653,7 @@ const options = {
                 "application/json": {
                   schema: {
                     type: "array",
-                    items: { $ref: "#/components/schemas/EstudianteMoroso" },
+                    items: { $ref: "#/components/schemas/UsuarioMoroso" },
                   },
                 },
               },
@@ -645,16 +664,16 @@ const options = {
         },
       },
 
-      "/api/estudiante_moroso/{MOR_BLACKLIST_LOG}": {
+      "/api/usuario_moroso/{MOR_USUARIO_MOROSO}": {
         put: {
-          tags: ["Estudiante Moroso"],
-          summary: "Actualiza un registro de estudiante moroso",
+          tags: ["Usuario Moroso"],
+          summary: "Actualiza un registro de usuario moroso",
           parameters: [
             {
-              name: "MOR_BLACKLIST_LOG",
+              name: "MOR_USUARIO_MOROSO",
               in: "path",
               required: true,
-              description: "ID del registro de estudiante moroso",
+              description: "ID del registro de usuario moroso",
               schema: { type: "integer", format: "int64" },
             },
           ],
@@ -666,7 +685,13 @@ const options = {
                   type: "object",
                   properties: {
                     MOR_MOTIVO: { type: "string", maxLength: 100 },
-                    MOR_ESTADO: {
+                    MOR_MODIFICADO_POR: { type: "string", maxLength: 50 },
+                    MOR_ESTADO_MOROSO: {
+                      type: "string",
+                      maxLength: 1,
+                      enum: ["A", "I", "S"],
+                    },
+                    MOR_ESTADO_REGISTRO: {
                       type: "string",
                       maxLength: 1,
                       enum: ["A", "I", "S"],
@@ -674,7 +699,9 @@ const options = {
                   },
                   example: {
                     MOR_MOTIVO: "Pago parcial recibido",
-                    MOR_ESTADO: "A",
+                    MOR_MODIFICADO_POR: "admin",
+                    MOR_ESTADO_MOROSO: "A",
+                    MOR_ESTADO_REGISTRO: "A",
                   },
                 },
               },
@@ -1070,48 +1097,64 @@ const options = {
         },
       },
 
-      // Rutas de Estudiante-Multa
-      "/api/estudiante_multa": {
+      // Rutas de Usuario Multa
+      "/api/usuario_multa": {
         get: {
-          tags: ["Estudiante-Multa"],
-          summary: "Obtiene todas las relaciones estudiante-multa",
+          tags: ["Usuario Multa"],
+          summary: "Obtiene todos los registros de usuario-multa",
           responses: {
             200: {
-              description:
-                "Lista de relaciones estudiante-multa obtenida correctamente",
+              description: "Lista de registros de usuario-multa obtenida correctamente",
               content: {
                 "application/json": {
                   schema: {
                     type: "array",
-                    items: {
-                      $ref: "#/components/schemas/EstudianteMulta",
-                    },
+                    items: { $ref: "#/components/schemas/UsuarioMulta" },
                   },
                 },
               },
             },
-            500: { description: "Error al obtener los registros" },
+            500: { description: "Error al obtener los registros de usuario-multa" },
           },
         },
         post: {
-          tags: ["Estudiante-Multa"],
-          summary: "Crea una nueva relación estudiante-multa",
+          tags: ["Usuario Multa"],
+          summary: "Crea un nuevo registro de usuario-multa",
           requestBody: {
             required: true,
             content: {
               "application/json": {
                 schema: {
                   type: "object",
-                  required: ["MUL_MULTA", "EST_CARNE", "EMU_CREADO_POR"],
+                  required: ["MUL_MULTA", "VEH_ID_VEHICULO", "EMU_ESTADO_MULTA"],
                   properties: {
-                    MUL_MULTA: { type: "integer", format: "int64" },
-                    EST_CARNE: { type: "string", maxLength: 20 },
-                    EMU_CREADO_POR: { type: "string", maxLength: 50 },
-                    EMU_ESTADO_MULTA: { type: "char", maxLength: 1 },
+                    MUL_MULTA: {
+                      type: "integer",
+                      format: "int64",
+                      description: "ID de la multa (FK a CB_MULTA)",
+                    },
+                    VEH_ID_VEHICULO: {
+                      type: "string",
+                      maxLength: 15,
+                      description: "Identificador del vehículo (FK a CB_VEHICULO)",
+                    },
+                    EMU_ESTADO_MULTA: {
+                      type: "string",
+                      maxLength: 1,
+                      enum: ["A", "P", "C"],
+                      description: "Estado de la multa (A=Activa, P=Pendiente, C=Cancelada)",
+                    },
+                    EMU_CREADO_POR: {
+                      type: "string",
+                      maxLength: 50,
+                      description: "Usuario que crea el registro (por defecto: ADMIN)",
+                    },
                   },
                   example: {
                     MUL_MULTA: 1,
-                    EST_CARNE: "5190-23-10007",
+                    VEH_ID_VEHICULO: "P-123ABC",
+                    EMU_ESTADO_MULTA: "A",
+                    EMU_CREADO_POR: "ADMIN",
                   },
                 },
               },
@@ -1120,51 +1163,105 @@ const options = {
           responses: {
             201: {
               description:
-                "Relación estudiante-multa creada exitosamente. EMU_FECHA_CREACION se asigna automáticamente. El estado se asigna automáticamente como Activa",
+                "Registro de usuario-multa creado exitosamente. EMU_FECHA_CREACION y EMU_ESTADO_REGISTRO se asignan automáticamente.",
               content: {
                 "application/json": {
-                  schema: {
-                    $ref: "#/components/schemas/EstudianteMulta",
-                  },
+                  schema: { $ref: "#/components/schemas/UsuarioMulta" },
                 },
               },
             },
-            400: { description: "Faltan campos obligatorios" },
-            500: { description: "Error al crear el registro" },
+            400: { description: "Faltan campos obligatorios o EMU_ESTADO_MULTA inválido" },
+            500: { description: "Error al crear el registro de usuario-multa" },
           },
         },
       },
 
-      // Rutas de Estudiante-Multa por Carne
-      "/api/estudiante_multa/carne/{EST_CARNE}": {
-        get: {
-          tags: ["Estudiante-Multa"],
-          summary: "Obtiene todas las multas de un estudiante por carné",
+      // Rutas de Usuario Multa por ID
+      "/api/usuario_multa/{EMU_USUARIO_MULTA}": {
+        put: {
+          tags: ["Usuario Multa"],
+          summary: "Actualiza el estado de un registro de usuario-multa",
           parameters: [
             {
-              name: "EST_CARNE",
+              name: "EMU_USUARIO_MULTA",
               in: "path",
               required: true,
-              description: "Carné del estudiante",
-              schema: { type: "string" },
+              description: "ID del registro de usuario-multa",
+              schema: { type: "integer", format: "int64" },
             },
           ],
-          responses: {
-            200: {
-              description:
-                "Lista de multas del estudiante obtenida correctamente",
-              content: {
-                "application/json": {
-                  schema: {
-                    type: "array",
-                    items: {
-                      $ref: "#/components/schemas/EstudianteMulta",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["EMU_MODIFICADO_POR"],
+                  properties: {
+                    EMU_ESTADO_MULTA: {
+                      type: "string",
+                      maxLength: 1,
+                      enum: ["A", "P", "C"],
+                      description: "Nuevo estado de la multa (A=Activa, P=Pendiente, C=Cancelada)",
                     },
+                    EMU_MODIFICADO_POR: {
+                      type: "string",
+                      maxLength: 50,
+                      description: "Usuario que realiza la modificación",
+                    },
+                    EMU_ESTADO_REGISTRO: {
+                      type: "string",
+                      maxLength: 1,
+                      enum: ["A", "I"],
+                      description: "Estado del registro (A=Activo, I=Inactivo)",
+                    },
+                  },
+                  example: {
+                    EMU_ESTADO_MULTA: "C",
+                    EMU_MODIFICADO_POR: "admin",
+                    EMU_ESTADO_REGISTRO: "A",
                   },
                 },
               },
             },
-            500: { description: "Error al obtener por carné" },
+          },
+          responses: {
+            200: { description: "Registro de usuario-multa actualizado correctamente" },
+            400: { description: "Campos requeridos faltantes o EMU_ESTADO_MULTA inválido" },
+            404: { description: "Registro de usuario-multa no encontrado para actualizar" },
+            500: { description: "Error al actualizar el registro" },
+          },
+        },
+      },
+
+      // Ruta de Usuario Multa por Vehículo
+      "/api/usuario_multa/vehiculo/{VEH_ID_VEHICULO}": {
+        get: {
+          tags: ["Usuario Multa"],
+          summary: "Obtiene todas las multas asociadas a un vehículo",
+          parameters: [
+            {
+              name: "VEH_ID_VEHICULO",
+              in: "path",
+              required: true,
+              description: "Identificador del vehículo",
+              schema: { type: "string", maxLength: 15 },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Lista de multas del vehículo obtenida correctamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/UsuarioMulta" },
+                  },
+                },
+              },
+            },
+            404: { description: "No se encontraron multas para el vehículo indicado" },
+            500: { description: "Error al obtener los registros por vehículo" },
           },
         },
       },
