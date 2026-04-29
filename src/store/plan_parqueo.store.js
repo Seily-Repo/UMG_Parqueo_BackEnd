@@ -18,10 +18,10 @@ class PlanParqueoStore {
     static async create(data) {
         return await PlanParqueo.create({
             PLN_PLAN: data.PLN_PLAN,
-            PLN_NAME: data.PLN_NAME,
+            PLN_NOMBRE_PLAN: data.PLN_NOMBRE_PLAN,
             PLN_DESCRIPCION: data.PLN_DESCRIPCION,
             PLN_PRECIO: data.PLN_PRECIO,
-            PLN_ESTADO: data.PLN_ESTADO,
+            PLN_ESTADO_REGISTRO: data.PLN_ESTADO_REGISTRO,
             PLN_MONEDA: data.PLN_MONEDA
         });
     }
@@ -29,10 +29,10 @@ class PlanParqueoStore {
     // Actualizar un PLAN existente
     static async update(id, data) {
         return await PlanParqueo.update({
-            PLN_NAME: data.PLN_NAME,
+            PLN_NOMBRE_PLAN: data.PLN_NOMBRE_PLAN,
             PLN_DESCRIPCION: data.PLN_DESCRIPCION,
             PLN_PRECIO: data.PLN_PRECIO,
-            PLN_ESTADO: data.PLN_ESTADO,
+            PLN_ESTADO_REGISTRO: data.PLN_ESTADO_REGISTRO,
             PLN_MONEDA: data.PLN_MONEDA
         }, {
             where: { PLN_PLAN: id }

@@ -10,8 +10,8 @@ const PlanParqueo = sequelize.define('PlanParqueo', {
         field: 'PLN_PLAN'
     },
 
-    PLN_NAME: {
-        type: DataTypes.STRING(255),
+    PLN_NOMBRE_PLAN: {
+        type: DataTypes.STRING(50),
         allowNull: false
     },
 
@@ -25,7 +25,7 @@ const PlanParqueo = sequelize.define('PlanParqueo', {
         allowNull: false
     },
 
-    PLN_ESTADO: {
+    PLN_ESTADO_REGISTRO: {
         type: DataTypes.CHAR(1),
         allowNull: false
     },
@@ -37,7 +37,7 @@ const PlanParqueo = sequelize.define('PlanParqueo', {
 
 
 }, {
-    tableName: 'PAR_PLAN_PARQUEO',
+    tableName: 'CB_PLAN_PARQUEO',
     timestamps: false
 });
 
