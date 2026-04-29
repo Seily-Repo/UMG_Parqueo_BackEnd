@@ -1,6 +1,6 @@
 const AsignacionStore = require("../store/asignacion.store");
 const EspacioStore = require("../store/espacio.store");
-const PagoStore = require("../store/pago.store");
+const PagoServices = require("../services/pago.services");
 
 exports.createAsignacion = async (req, res) => {
   try {
@@ -56,7 +56,7 @@ exports.createAsignacion = async (req, res) => {
         details: "No puedes solicitar una asignación de parqueo para un carné distinto al de tu sesión actual."
       });
     }
-    const infoPago = await PagoStore.getByCorrelativo(correlativo);
+    const infoPago = await PagoServices.validarPagoEnAPI(correlativo);
     
     if (!infoPago) {
       return res.status(404).json({ 
