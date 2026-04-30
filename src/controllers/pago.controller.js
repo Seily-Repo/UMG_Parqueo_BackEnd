@@ -2,13 +2,22 @@ const PagoStore = require("../store/pago.store");
 const PlanParqueoStore = require("../store/plan_parqueo.store");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const FormaPagoStore = require("../store/forma_pago.store");
-const EstudianteStore = require("../store/estudiante.store");
+const usuarioStore = require("../store/usuario.store");
 const emailUtil = require("../utils/email.util");
+const UsuarioMultaStore = require("../store/usuario_multa.store");
+const MultaStore = require("../store/multa.store");
 
 // Obtener todos los pagos
 exports.getAllPagos = async (req, res) => {
   try {
     const pagos = await PagoStore.getAll();
+
+    if (!pagos) {
+      return res.status(404).json({
+        message: "No se encontraron pagos",
+      });
+    }
+
     res.status(200).json(pagos);
   } catch (error) {
     res.status(500).json({
@@ -29,7 +38,20 @@ exports.getPagoById = async (req, res) => {
       });
     }
 
-    res.status(200).json(pago);
+    let pagoResponse = pago.toJSON ? pago.toJSON() : pago;
+
+    if (pagoResponse.STRIPE_PAYMENT_INTENT_ID && pagoResponse.STRIPE_PAYMENT_INTENT_ID.startsWith('pi_')) {
+      try {
+        const paymentIntent = await stripe.paymentIntents.retrieve(pagoResponse.STRIPE_PAYMENT_INTENT_ID);
+        if (paymentIntent && paymentIntent.metadata) {
+          pagoResponse.metadatos = paymentIntent.metadata;
+        }
+      } catch (stripeErr) {
+        console.log("Error al obtener metadata de Stripe", stripeErr.message);
+      }
+    }
+
+    res.status(200).json(pagoResponse);
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener el pago",
@@ -80,49 +102,51 @@ exports.createPago = async (req, res) => {
   try {
     // VALIDACIONES
     const {
-      EST_CARNE,
-      EST_NOMBRE_COMPLETO,
-      EST_EMAIL,
+      LR_CARNE,
+      LR_NOMBRE_COMPLETO,
+      LR_CORREO_INSTITUCIONAL,
       PLN_PLAN,
       FPG_FORMA_PAGO,
     } = req.body;
 
+    console.log(LR_CARNE)
     // Validación 1: campos obligatorios
-    if (!EST_CARNE || !PLN_PLAN || !FPG_FORMA_PAGO) {
+    if (!LR_CARNE || !FPG_FORMA_PAGO) {
       return res.status(400).json({
         message: "Faltan campos obligatorios",
       });
     }
 
     // Upsert (Crear o Actualizar) Estudiante localmente
-    const estudianteExistente = await EstudianteStore.getByCarne(EST_CARNE);
-    let nombreEstudiante = EST_NOMBRE_COMPLETO || "Estudiante";
+    const estudianteExistente = await usuarioStore.getByCarne(LR_CARNE);
+    let nombreEstudiante = LR_NOMBRE_COMPLETO || "Estudiante";
+
 
     if (estudianteExistente) {
       // Usar los valores recibidos o los que ya estaban
       nombreEstudiante =
-        EST_NOMBRE_COMPLETO || estudianteExistente.EST_NOMBRE_COMPLETO;
-      const correoEstudiante = EST_EMAIL || estudianteExistente.EST_EMAIL;
+        LR_NOMBRE_COMPLETO || estudianteExistente.LR_NOMBRE_COMPLETO;
+      const correoEstudiante =
+        LR_CORREO_INSTITUCIONAL || estudianteExistente.LR_CORREO_INSTITUCIONAL;
 
       // Actualizar si mandaron datos nuevos
-      if (EST_NOMBRE_COMPLETO || EST_EMAIL) {
-        await EstudianteStore.update(EST_CARNE, {
-          EST_NOMBRE_COMPLETO: nombreEstudiante,
-          EST_EMAIL: correoEstudiante,
+      if (LR_NOMBRE_COMPLETO || LR_CORREO_INSTITUCIONAL) {
+        await usuarioStore.update(LR_CARNE, {
+          LR_NOMBRE_COMPLETO: nombreEstudiante,
+          LR_CORREO_INSTITUCIONAL: correoEstudiante,
         });
       }
     } else {
       // Si no existe lo creamos obligatorio
-      if (!EST_NOMBRE_COMPLETO || !EST_EMAIL) {
+      if (!LR_NOMBRE_COMPLETO || !LR_CORREO_INSTITUCIONAL) {
         return res.status(400).json({
-          message:
-            "Para estudiantes nuevos, es obligatorio enviar EST_NOMBRE_COMPLETO y EST_EMAIL",
+          message: "Para estudiantes nuevos, es obligatorio enviar LR_NOMBRE_COMPLETO y LR_CORREO_INSTITUCIONAL",
         });
       }
-      await EstudianteStore.create({
-        EST_CARNE,
-        EST_NOMBRE_COMPLETO,
-        EST_EMAIL,
+      await usuarioStore.create({
+        LR_CARNE,
+        LR_NOMBRE_COMPLETO,
+        LR_CORREO_INSTITUCIONAL,
         EST_FECHA_CREACION: new Date(),
       });
     }
@@ -157,10 +181,22 @@ exports.createPago = async (req, res) => {
     const formaPago = await FormaPagoStore.getById(FPG_FORMA_PAGO);
 
     const metadatos = {
-      EST_NOMBRE_COMPLETO: nombreEstudiante,
-      PLN_NAME: plan.PLN_NAME,
-      FPG_DESCRIPCION: formaPago.FPG_DESCRIPCION,
+      LR_NOMBRE_COMPLETO: nombreEstudiante,
+      PLN_NOMBRE_PLAN: plan.PLN_NOMBRE_PLAN,
+      FPG_NOMBRE_FORMA: formaPago.NOMBRE_FORMA,
+      PAG_MONTO_TOTAL: PAG_MONTO_TOTAL,
     };
+
+    if (req.body.EMU_USUARIO_MULTA) {
+      const usuarioMulta = await UsuarioMultaStore.getById(req.body.EMU_USUARIO_MULTA);
+      if (usuarioMulta) {
+        metadatos.MUL_PLACAS = usuarioMulta.VEH_ID_VEHICULO;
+        const multa = await MultaStore.getById(usuarioMulta.MUL_MULTA);
+        if (multa) {
+          metadatos.MUL_DESCRIPCION = multa.MUL_DESCRIPCION;
+        }
+      }
+    }
 
     // 3. Crear el Payment Intent en Stripe
     const paymentIntent = await stripe.paymentIntents.create({
@@ -168,7 +204,7 @@ exports.createPago = async (req, res) => {
       currency: "GTQ",
       metadata: {
         PAG_PAGO: pago.PAG_PAGO.toString(),
-        EST_CARNE: EST_CARNE.toString(),
+        LR_CARNE: LR_CARNE.toString(),
         ...metadatos,
       },
     });
@@ -225,28 +261,6 @@ exports.updatePago = async (req, res) => {
   }
 };
 
-// Eliminar pago
-exports.deletePago = async (req, res) => {
-  try {
-    const rowsDeleted = await PagoStore.delete(req.params.id);
-
-    if (rowsDeleted === 0) {
-      return res.status(404).json({
-        message: "Pago no encontrado para eliminar",
-      });
-    }
-
-    res.status(200).json({
-      message: "Pago eliminado exitosamente",
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: "Error al eliminar el pago",
-      error: error.message,
-    });
-  }
-};
-
 // Webhook de Stripe para confirmar el pago asíncronamente
 exports.stripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -280,15 +294,15 @@ exports.stripeWebhook = async (req, res) => {
         );
 
         // Enviar correo electrónico
-        const carnetStripe = paymentIntent.metadata.EST_CARNE;
+        const carnetStripe = paymentIntent.metadata.LR_CARNE;
         if (carnetStripe) {
-          const estud = await EstudianteStore.getByCarne(carnetStripe);
-          if (estud && estud.EST_EMAIL) {
+          const estud = await usuarioStore.getByCarne(carnetStripe);
+          if (estud && estud.LR_CORREO_INSTITUCIONAL) {
             await emailUtil.enviarCorreoPago(
-              estud.EST_EMAIL,
-              estud.EST_CARNE,
-              estud.EST_NOMBRE_COMPLETO,
-              paymentIntent.metadata.PLN_NAME || "Plan UMG",
+              estud.LR_CORREO_INSTITUCIONAL,
+              estud.LR_CARNE,
+              estud.LR_NOMBRE_COMPLETO,
+              paymentIntent.metadata.PLN_NOMBRE_PLAN,
               paymentIntent.amount / 100, // Stripe devuelve el monto en centavos
               paymentIntent.id,
             );

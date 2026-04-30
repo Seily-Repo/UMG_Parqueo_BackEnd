@@ -14,6 +14,12 @@ class UsuarioMultaStore {
     });
   }
 
+  static async getById(EMU_USUARIO_MULTA) {
+    return await UsuarioMulta.findOne({
+      where: { EMU_USUARIO_MULTA },
+    });
+  }
+
   static async create(data) {
     return await UsuarioMulta.create({
       MUL_MULTA: data.MUL_MULTA,

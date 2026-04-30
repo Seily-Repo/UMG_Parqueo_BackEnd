@@ -8,6 +8,5 @@ router.get("/verify/:pi", pagoController.verifyPayment);
 router.get("/:id", pagoController.getPagoById);
 router.post("/", pagoController.createPago);
 router.put("/:id", pagoController.updatePago);
-router.delete("/:id", pagoController.deletePago);
 
 module.exports = router;

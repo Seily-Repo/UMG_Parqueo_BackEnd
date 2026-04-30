@@ -89,38 +89,38 @@ const options = {
             },
 
         // Estudiante
-        Estudiante: {
+        Usuario: {
           type: "object",
           required: [
-            "EST_CARNE",
-            "EST_NOMBRE_COMPLETO",
-            "EST_EMAIL",
-            "EST_FECHA_CREACION",
+            "LR_CARNE",
+            "LR_NOMBRE_COMPLETO",
+            "LR_CORREO_INSTITUCIONAL",
+            "LR_FECHA_CREACION",
           ],
           properties: {
-            EST_CARNE: {
+            LR_CARNE: {
               type: "string",
               description: "Carné del estudiante (único)",
             },
-            EST_NOMBRE_COMPLETO: {
+            LR_NOMBRE_COMPLETO: {
               type: "string",
               description: "Nombre completo del estudiante",
             },
-            EST_EMAIL: {
+            LR_CORREO_INSTITUCIONAL: {
               type: "string",
               description: "Correo electrónico del estudiante",
             },
-            EST_FECHA_CREACION: {
+            LR_FECHA_CREACION: {
               type: "string",
               format: "date-time",
               description: "Fecha de creación del estudiante",
             },
           },
           example: {
-            EST_CARNE: "5190-23-202034",
-            EST_NOMBRE_COMPLETO: "Juan Pérez García",
-            EST_EMAIL: "[EMAIL_ADDRESS]",
-            EST_FECHA_CREACION: "2024-01-01T10:00:00Z",
+            LR_CARNE: "5190-23-202034",
+            LR_NOMBRE_COMPLETO: "Juan Pérez García",
+            LR_CORREO_INSTITUCIONAL: "[EMAIL_ADDRESS]",
+            LR_FECHA_CREACION: "2024-01-01T10:00:00Z",
           },
         },
         // Multa
@@ -348,9 +348,9 @@ const options = {
         // Pago
         Pago: {
           type: "object",
-          required: ["EST_CARNE", "PLN_PLAN", "FPG_FORMA_PAGO"],
+          required: ["LR_CARNE", "PLN_PLAN", "FPG_FORMA_PAGO"],
           properties: {
-            EST_CARNE: {
+            LR_CARNE: {
               type: "string",
               description: "Carné del estudiante",
             },
@@ -362,7 +362,7 @@ const options = {
               type: "integer",
               description: "ID de la forma de pago",
             },
-            MUL_MULTA: {
+            EMU_USUARIO_MULTA: {
               type: "integer",
               description: "ID de la multa (opcional)",
             },
@@ -390,12 +390,18 @@ const options = {
               type: "string",
               description: "ID de la transacción de Stripe (Automático)",
             },
+            PAG_ESTADO_REGISTRO: {
+              type: "string",
+              maxLength: 1,
+              description: "Estado del registro",
+            },
           },
           example: {
-            EST_CARNE: "5190-23-202034",
+            LR_CARNE: "5190-23-202034",
             PLN_PLAN: 1,
             FPG_FORMA_PAGO: 1,
-            MUL_MULTA: null,
+            EMU_USUARIO_MULTA: null,
+            PAG_ESTADO_REGISTRO: "A",
           },
         },
       },
@@ -403,247 +409,208 @@ const options = {
 
     paths: {
 
-  // Rutas de Plan Parqueo
-  "/api/CB_plan_parqueo": {
+      // Rutas de Plan Parqueo
+      "/api/plan_parqueo": {
 
-    get: {
-      tags: ["Plan Parqueo"],
-      summary: "Obtiene todos los planes de parqueo",
+        get: {
+          tags: ["Plan Parqueo"],
+          summary: "Obtiene todos los planes de parqueo",
 
-      responses: {
-        200: {
-          description: "Lista obtenida correctamente",
-          content: {
-            "application/json": {
-              schema: {
-                type: "array",
-                items: {
+          responses: {
+            200: {
+              description: "Lista obtenida correctamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      $ref: "#/components/schemas/PlanParqueo",
+                    },
+                  },
+                },
+              },
+            },
+
+            500: {
+              description: "Error del servidor",
+            },
+
+          },
+
+        },
+
+        post: {
+          tags: ["Plan Parqueo"],
+          summary: "Crea un nuevo plan de parqueo",
+
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
                   $ref: "#/components/schemas/PlanParqueo",
                 },
               },
             },
           },
-        },
 
-        500: {
-          description: "Error del servidor",
-        },
+          responses: {
 
-      },
-
-    },
-
-    post: {
-      tags: ["Plan Parqueo"],
-      summary: "Crea un nuevo plan de parqueo",
-
-      requestBody: {
-        required: true,
-        content: {
-          "application/json": {
-            schema: {
-              $ref: "#/components/schemas/PlanParqueo",
+            201: {
+              description: "Plan creado correctamente",
             },
+
+            400: {
+              description: "Datos inválidos",
+            },
+
+            500: {
+              description: "Error del servidor",
+            },
+
           },
-        },
-      },
 
-      responses: {
-
-        201: {
-          description: "Plan creado correctamente",
-        },
-
-        400: {
-          description: "Datos inválidos",
-        },
-
-        500: {
-          description: "Error del servidor",
         },
 
       },
 
-    },
+      // Rutas de Plan Parqueo por ID
+      "/api/plan_parqueo/{id}": {
 
-  },
+        get: {
+          tags: ["Plan Parqueo"],
+          summary: "Obtiene un plan por ID",
 
-  // Rutas de Plan Parqueo por ID
-  "/api/CB_plan_parqueo/{id}": {
-
-    get: {
-      tags: ["Plan Parqueo"],
-      summary: "Obtiene un plan por ID",
-
-      parameters: [
-        {
-          name: "id",
-          in: "path",
-          description: "ID del plan de parqueo",
-          required: true,
-          schema: {
-            type: "integer",
-          },
-        },
-      ],
-
-      responses: {
-
-        200: {
-          description: "Plan encontrado",
-          content: {
-            "application/json": {
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              description: "ID del plan de parqueo",
+              required: true,
               schema: {
-                $ref: "#/components/schemas/PlanParqueo",
+                type: "integer",
               },
             },
-          },
-        },
+          ],
 
-        404: {
-          description: "Plan no encontrado",
-        },
-
-        500: {
-          description: "Error del servidor",
-        },
-
-      },
-
-    },
-
-    put: {
-      tags: ["Plan Parqueo"],
-      summary: "Actualiza un plan",
-
-      parameters: [
-        {
-          name: "id",
-          in: "path",
-          description: "ID del plan de parqueo",
-          required: true,
-          schema: {
-            type: "integer",
-          },
-        },
-      ],
-
-      requestBody: {
-        required: true,
-        content: {
-          "application/json": {
-            schema: {
-              $ref: "#/components/schemas/PlanParqueo",
-            },
-          },
-        },
-      },
-
-      responses: {
-
-        200: {
-          description: "Plan actualizado correctamente",
-        },
-
-        400: {
-          description: "Datos inválidos",
-        },
-
-        404: {
-          description: "Plan no encontrado",
-        },
-
-        500: {
-          description: "Error del servidor",
-        },
-
-      },
-
-    },
-
-    delete: {
-      tags: ["Plan Parqueo"],
-      summary: "Elimina un plan",
-
-      parameters: [
-        {
-          name: "id",
-          in: "path",
-          description: "ID del plan de parqueo",
-          required: true,
-          schema: {
-            type: "integer",
-          },
-        },
-      ],
-
-      responses: {
-
-        200: {
-          description: "Plan eliminado correctamente",
-        },
-
-        404: {
-          description: "Plan no encontrado",
-        },
-
-        500: {
-          description: "Error del servidor",
-        },
-
-      },
-
-    },
-
-  },
-
-}
-
-
-
-      // Rutas de Estudiantes
-      "/api/estudiantes": {
-        get: {
-          tags: ["Estudiantes"],
-          summary: "Obtiene todos los estudiantes",
           responses: {
+
             200: {
-              description: "Lista de estudiantes obtenida correctamente",
+              description: "Plan encontrado",
               content: {
                 "application/json": {
                   schema: {
-                    type: "array",
-                    items: { $ref: "#/components/schemas/Estudiante" },
+                    $ref: "#/components/schemas/PlanParqueo",
                   },
                 },
               },
             },
-            500: { description: "Error al obtener los estudiantes" },
+
+            404: {
+              description: "Plan no encontrado",
+            },
+
+            500: {
+              description: "Error del servidor",
+            },
+
           },
+
         },
-        post: {
-          tags: ["Estudiantes"],
-          summary: "Crea un nuevo estudiante",
+
+        put: {
+          tags: ["Plan Parqueo"],
+          summary: "Actualiza un plan",
+
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              description: "ID del plan de parqueo",
+              required: true,
+              schema: {
+                type: "integer",
+              },
+            },
+          ],
+
           requestBody: {
             required: true,
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/Estudiante" },
+                schema: {
+                  $ref: "#/components/schemas/PlanParqueo",
+                },
+              },
+            },
+          },
+
+          responses: {
+
+            200: {
+              description: "Plan actualizado correctamente",
+            },
+
+            400: {
+              description: "Datos inválidos",
+            },
+
+            404: {
+              description: "Plan no encontrado",
+            },
+
+            500: {
+              description: "Error del servidor",
+            },
+
+          },
+
+        },
+
+      },
+      // Rutas de Estudiantes
+      "/api/usuario": {
+        get: {
+          tags: ["Usuario"],
+          summary: "Obtiene todos los usuarios",
+          responses: {
+            200: {
+              description: "Lista de usuarios obtenida correctamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/Usuario" },
+                  },
+                },
+              },
+            },
+            500: { description: "Error al obtener los usuarios" },
+          },
+        },
+        post: {
+          tags: ["Usuario"],
+          summary: "Crea un nuevo usuario",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Usuario" },
               },
             },
           },
           responses: {
-            201: { description: "Estudiante creado exitosamente" },
+            201: { description: "Usuario creado exitosamente" },
             400: { description: "La carné del estudiante ya existe" },
             500: { description: "Error al crear el estudiante" },
           },
         },
       },
       // Rutas de Estudiantes por Carne
-      "/api/estudiantes/carne/{carne}": {
+      "/api/usuario/carne/{carne}": {
         get: {
-          tags: ["Estudiantes"],
-          summary: "Obtiene un estudiante por carné",
+          tags: ["Usuario"],
+          summary: "Obtiene un usuario por carné",
           parameters: [
             {
               name: "carne",
@@ -658,7 +625,7 @@ const options = {
               description: "Estudiante obtenido correctamente",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/Estudiante" },
+                  schema: { $ref: "#/components/schemas/Usuario" },
                 },
               },
             },
@@ -667,8 +634,8 @@ const options = {
           },
         },
         put: {
-          tags: ["Estudiantes"],
-          summary: "Actualiza un estudiante",
+          tags: ["Usuario"],
+          summary: "Actualiza un usuario",
           parameters: [
             {
               name: "carne",
@@ -682,32 +649,14 @@ const options = {
             required: true,
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/Estudiante" },
+                schema: { $ref: "#/components/schemas/Usuario" },
               },
             },
           },
           responses: {
-            200: { description: "Estudiante actualizado exitosamente" },
+            200: { description: "Usuario actualizado exitosamente" },
             404: { description: "Estudiante no encontrado" },
             500: { description: "Error al actualizar el estudiante" },
-          },
-        },
-        delete: {
-          tags: ["Estudiantes"],
-          summary: "Elimina un estudiante",
-          parameters: [
-            {
-              name: "carne",
-              in: "path",
-              required: true,
-              description: "Carné del estudiante",
-              schema: { type: "string" },
-            },
-          ],
-          responses: {
-            200: { description: "Estudiante eliminado exitosamente" },
-            404: { description: "Estudiante no encontrado" },
-            500: { description: "Error al eliminar el estudiante" },
           },
         },
       },
@@ -1205,24 +1154,6 @@ const options = {
             200: { description: "Pago actualizado exitosamente" },
             404: { description: "Pago no encontrado para actualizar" },
             500: { description: "Error al actualizar el pago" },
-          },
-        },
-        delete: {
-          tags: ["Pagos"],
-          summary: "Elimina un pago",
-          parameters: [
-            {
-              name: "id",
-              in: "path",
-              required: true,
-              description: "ID del pago",
-              schema: { type: "integer" },
-            },
-          ],
-          responses: {
-            200: { description: "Pago eliminado exitosamente" },
-            404: { description: "Pago no encontrado para eliminar" },
-            500: { description: "Error al eliminar el pago" },
           },
         },
       },

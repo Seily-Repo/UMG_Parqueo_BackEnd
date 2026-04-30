@@ -5,26 +5,26 @@ const Pago = sequelize.define(
   "Pago",
   {
     PAG_PAGO: {
-      type: DataTypes.BIGINT,
+      type: DataTypes.NUMBER(15),
       primaryKey: true,
       allowNull: false,
       autoIncrement: true,
-      field: 'PAG_PAGO'
+      field: "PAG_PAGO",
     },
-    EST_CARNE: {
+    LR_CARNE: {
       type: DataTypes.STRING(20),
       allowNull: false,
     },
     PLN_PLAN: {
-      type: DataTypes.STRING(20),
+      type: DataTypes.NUMBER(10),
       allowNull: false,
     },
     FPG_FORMA_PAGO: {
-      type: DataTypes.STRING(20),
+      type: DataTypes.NUMBER(10),
       allowNull: false,
     },
-    MUL_MULTA: {
-      type: DataTypes.STRING(20),
+    EMU_USUARIO_MULTA: {
+      type: DataTypes.NUMBER(15),
       allowNull: true,
     },
     PAG_FECHA_PAGO: {
@@ -32,11 +32,11 @@ const Pago = sequelize.define(
       allowNull: false,
     },
     PAG_MONTO_TOTAL: {
-      type: DataTypes.DECIMAL(12, 2),
+      type: DataTypes.NUMBER(12, 2),
       allowNull: false,
     },
     PAG_ESTADO: {
-      type: DataTypes.STRING(20),
+      type: DataTypes.CHAR(1),
       allowNull: false,
     },
     PAG_FECHA_CREACION: {
@@ -46,10 +46,16 @@ const Pago = sequelize.define(
     STRIPE_PAYMENT_INTENT_ID: {
       type: DataTypes.STRING(255),
       allowNull: false,
+      unique: true,
+    },
+    PAG_ESTADO_REGISTRO: {
+      type: DataTypes.CHAR(1),
+      allowNull: false,
+      field: "PAG_ESTADO_REGISTRO",
     },
   },
   {
-    tableName: "PAR_PAGO",
+    tableName: "CB_PAGO",
     timestamps: false,
   },
 );
