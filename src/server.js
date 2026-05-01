@@ -17,7 +17,7 @@ async function startServer() {
   try {
     await db.initialize();
 
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`http://localhost:${PORT}`);
       console.log(`http://localhost:${PORT}/api-docs`);
     });
