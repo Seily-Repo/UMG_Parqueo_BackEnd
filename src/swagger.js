@@ -8,7 +8,16 @@ const options = {
       version: "1.0.0",
       description: "API REST para gestión de cobros a estudiantes",
     },
-    servers: [{ url: "http://localhost:3000", description: "Servidor local" }],
+    servers: [
+      { 
+        url: "/api/cobros", 
+        description: "Servidor Dev (vía Nginx)" 
+      },
+      { 
+        url: "http://localhost:3000", 
+        description: "Ejecución Local" 
+      }
+    ],
 
     // Componentes
     components: {
