@@ -83,10 +83,7 @@ exports.verifyPayment = async (req, res) => {
     res.status(200).json({
       id: paymentIntent.id,
       status: paymentIntent.status,
-      amount: paymentIntent.amount,
-      created: paymentIntent.created,
       metadata: paymentIntent.metadata,
-      amount_received: paymentIntent.amount_received,
     });
   } catch (error) {
     console.log(error);
@@ -103,13 +100,13 @@ exports.createPago = async (req, res) => {
     // VALIDACIONES
     const {
       LR_CARNE,
-      LR_NOMBRE_COMPLETO,
+      LR_NOMBRES,
+      LR_APELLIDOS,
       LR_CORREO_INSTITUCIONAL,
       PLN_PLAN,
       FPG_FORMA_PAGO,
     } = req.body;
 
-    console.log(LR_CARNE)
     // Validación 1: campos obligatorios
     if (!LR_CARNE || !FPG_FORMA_PAGO) {
       return res.status(400).json({
@@ -117,40 +114,18 @@ exports.createPago = async (req, res) => {
       });
     }
 
-    // Upsert (Crear o Actualizar) Estudiante localmente
-    const estudianteExistente = await usuarioStore.getByCarne(LR_CARNE);
-    let nombreEstudiante = LR_NOMBRE_COMPLETO || "Estudiante";
+    let nombreEstudiante = LR_NOMBRES;
+    let apellidosEstudiante = LR_APELLIDOS;
+    let correoEstudiante = LR_CORREO_INSTITUCIONAL;
 
-
-    if (estudianteExistente) {
-      // Usar los valores recibidos o los que ya estaban
-      nombreEstudiante =
-        LR_NOMBRE_COMPLETO || estudianteExistente.LR_NOMBRE_COMPLETO;
-      const correoEstudiante =
-        LR_CORREO_INSTITUCIONAL || estudianteExistente.LR_CORREO_INSTITUCIONAL;
-
-      // Actualizar si mandaron datos nuevos
-      if (LR_NOMBRE_COMPLETO || LR_CORREO_INSTITUCIONAL) {
-        await usuarioStore.update(LR_CARNE, {
-          LR_NOMBRE_COMPLETO: nombreEstudiante,
-          LR_CORREO_INSTITUCIONAL: correoEstudiante,
-        });
+    if (!LR_NOMBRES || !LR_APELLIDOS || !LR_CORREO_INSTITUCIONAL) {
+      const usuario = await usuarioStore.getByCarne(LR_CARNE);
+      if (usuario) {
+        nombreEstudiante = usuario.LR_NOMBRES;
+        apellidosEstudiante = usuario.LR_APELLIDOS;
+        correoEstudiante = usuario.LR_CORREO_INSTITUCIONAL;
       }
-    } else {
-      // Si no existe lo creamos obligatorio
-      if (!LR_NOMBRE_COMPLETO || !LR_CORREO_INSTITUCIONAL) {
-        return res.status(400).json({
-          message: "Para estudiantes nuevos, es obligatorio enviar LR_NOMBRE_COMPLETO y LR_CORREO_INSTITUCIONAL",
-        });
-      }
-      await usuarioStore.create({
-        LR_CARNE,
-        LR_NOMBRE_COMPLETO,
-        LR_CORREO_INSTITUCIONAL,
-        EST_FECHA_CREACION: new Date(),
-      });
     }
-
     // Obtener el precio del plan automáticamente
     const plan = await PlanParqueoStore.getById(PLN_PLAN);
     if (!plan) {
@@ -179,21 +154,31 @@ exports.createPago = async (req, res) => {
     // Obtener Metadatos para enviar a Stripe de otras tablas
     // Obtener Metadatos para enviar a Stripe de otras tablas
     const formaPago = await FormaPagoStore.getById(FPG_FORMA_PAGO);
+    
+    // Valida que la forma de pago sea tarjeta de debito o credito, si la forma de pago no tiene la palabra Tarjeta insertar en Stripe
+    if (!formaPago.FPG_NOMBRE_FORMA.includes("Tarjeta")){
+      return res.status(400).json({
+        message: "Forma de pago no valida",
+      });
+    }
 
+    // Stripe solo acepta strings en metadata; convertir todos los valores
     const metadatos = {
-      LR_NOMBRE_COMPLETO: nombreEstudiante,
-      PLN_NOMBRE_PLAN: plan.PLN_NOMBRE_PLAN,
-      FPG_NOMBRE_FORMA: formaPago.NOMBRE_FORMA,
-      PAG_MONTO_TOTAL: PAG_MONTO_TOTAL,
+      LR_NOMBRES: (nombreEstudiante ?? "").toString(),
+      LR_APELLIDOS: (apellidosEstudiante ?? "").toString(),
+      LR_CORREO_INSTITUCIONAL: (correoEstudiante ?? "").toString(),
+      PLN_NOMBRE_PLAN: (plan.PLN_NOMBRE_PLAN ?? "").toString(),
+      FPG_NOMBRE_FORMA: (formaPago.FPG_NOMBRE_FORMA ?? "").toString(),
+      PAG_MONTO_TOTAL: PAG_MONTO_TOTAL.toString(),
     };
 
     if (req.body.EMU_USUARIO_MULTA) {
       const usuarioMulta = await UsuarioMultaStore.getById(req.body.EMU_USUARIO_MULTA);
       if (usuarioMulta) {
-        metadatos.MUL_PLACAS = usuarioMulta.VEH_ID_VEHICULO;
+        metadatos.MUL_PLACAS = (usuarioMulta.VEH_ID_VEHICULO ?? "").toString();
         const multa = await MultaStore.getById(usuarioMulta.MUL_MULTA);
         if (multa) {
-          metadatos.MUL_DESCRIPCION = multa.MUL_DESCRIPCION;
+          metadatos.MUL_DESCRIPCION = (multa.MUL_DESCRIPCION ?? "").toString();
         }
       }
     }
@@ -205,7 +190,7 @@ exports.createPago = async (req, res) => {
       metadata: {
         PAG_PAGO: pago.PAG_PAGO.toString(),
         LR_CARNE: LR_CARNE.toString(),
-        ...metadatos,
+        ...metadatos, // todos los valores ya son strings
       },
     });
 
@@ -301,7 +286,7 @@ exports.stripeWebhook = async (req, res) => {
             await emailUtil.enviarCorreoPago(
               estud.LR_CORREO_INSTITUCIONAL,
               estud.LR_CARNE,
-              estud.LR_NOMBRE_COMPLETO,
+              estud.LR_NOMBRES + " " + estud.LR_APELLIDOS,
               paymentIntent.metadata.PLN_NOMBRE_PLAN,
               paymentIntent.amount / 100, // Stripe devuelve el monto en centavos
               paymentIntent.id,

@@ -12,7 +12,7 @@ const Pago = sequelize.define(
       field: "PAG_PAGO",
     },
     LR_CARNE: {
-      type: DataTypes.STRING(20),
+      type: DataTypes.INTEGER,
       allowNull: false,
     },
     PLN_PLAN: {

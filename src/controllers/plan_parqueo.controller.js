@@ -51,7 +51,6 @@ class PlanParqueoController {
         try {
 
             const {
-                PLN_PLAN,
                 PLN_NOMBRE_PLAN,
                 PLN_DESCRIPCION,
                 PLN_PRECIO,

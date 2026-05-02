@@ -1,7 +1,5 @@
 const UsuarioStore = require("../store/usuario.store");
 
-const regexCarne = /^\d{4}-\d{2}-\d+$/;
-
 exports.getAllUsuarios = async (req, res) => {
   try {
     const usuarios = await UsuarioStore.getAll();
@@ -16,11 +14,6 @@ exports.getAllUsuarios = async (req, res) => {
 
 exports.getUsuarioByCarne = async (req, res) => {
   try {
-    if (!regexCarne.test(req.params.carne)) {
-      return res
-        .status(400)
-        .json({ message: "Formato de carné inválido. (ej. 5190-23-202034)" });
-    }
 
     const usuario = await UsuarioStore.getByCarne(req.params.carne);
     if (!usuario) {
@@ -56,11 +49,21 @@ exports.createUsuario = async (req, res) => {
 
     //Validar que el nombre no incluya numeros solo letras con espacios y acentos
     if (
-      !req.body.LR_NOMBRE_COMPLETO ||
-      !/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(req.body.LR_NOMBRE_COMPLETO)
+      !req.body.LR_NOMBRES ||
+      !/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(req.body.LR_NOMBRES)
     ) {
       return res.status(400).json({
         message: "El nombre del usuario es inválido",
+      });
+    }
+
+    //Validar que el apellido no incluya numeros solo letras con espacios y acentos
+    if (
+      !req.body.LR_APELLIDOS ||
+      !/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(req.body.LR_APELLIDOS)
+    ) {
+      return res.status(400).json({
+        message: "El apellido del usuario es inválido",
       });
     }
 
@@ -74,8 +77,6 @@ exports.createUsuario = async (req, res) => {
       });
     }
 
-    //Insertar fecha actual
-    req.body.LR_ESTADO_REGISTRO = "A";
 
     const usuario = await UsuarioStore.create(req.body);
     res.status(201).json({

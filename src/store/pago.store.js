@@ -1,4 +1,4 @@
-const Pago = require("../model/Pago.model");
+const Pago = require("../model/pago.model");
 
 class PagosStore {
   // Obtener todos los pagos

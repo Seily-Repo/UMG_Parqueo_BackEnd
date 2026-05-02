@@ -96,40 +96,38 @@ const options = {
              }
 
             },
-
         // Estudiante
         Usuario: {
           type: "object",
           required: [
             "LR_CARNE",
-            "LR_NOMBRE_COMPLETO",
+            "LR_NOMBRES",
+            "LR_APELLIDOS",
             "LR_CORREO_INSTITUCIONAL",
-            "LR_FECHA_CREACION",
           ],
           properties: {
             LR_CARNE: {
               type: "string",
               description: "Carné del estudiante (único)",
             },
-            LR_NOMBRE_COMPLETO: {
+            LR_NOMBRES: {
               type: "string",
-              description: "Nombre completo del estudiante",
+              description: "Nombres del estudiante",
+            },
+            LR_APELLIDOS: {
+              type: "string",
+              description: "Apellidos del estudiante",
             },
             LR_CORREO_INSTITUCIONAL: {
               type: "string",
               description: "Correo electrónico del estudiante",
             },
-            LR_FECHA_CREACION: {
-              type: "string",
-              format: "date-time",
-              description: "Fecha de creación del estudiante",
-            },
           },
           example: {
-            LR_CARNE: "5190-23-202034",
-            LR_NOMBRE_COMPLETO: "Juan Pérez García",
+            LR_CARNE: "519023202034",
+            LR_NOMBRES: "Juan",
+            LR_APELLIDOS: "Pérez García",
             LR_CORREO_INSTITUCIONAL: "[EMAIL_ADDRESS]",
-            LR_FECHA_CREACION: "2024-01-01T10:00:00Z",
           },
         },
         // Multa
@@ -360,7 +358,7 @@ const options = {
           required: ["LR_CARNE", "PLN_PLAN", "FPG_FORMA_PAGO"],
           properties: {
             LR_CARNE: {
-              type: "string",
+              type: "integer",
               description: "Carné del estudiante",
             },
             PLN_PLAN: {
@@ -406,7 +404,7 @@ const options = {
             },
           },
           example: {
-            LR_CARNE: "5190-23-202034",
+            LR_CARNE: "519023202034",
             PLN_PLAN: 1,
             FPG_FORMA_PAGO: 1,
             EMU_USUARIO_MULTA: null,
@@ -597,23 +595,6 @@ const options = {
             500: { description: "Error al obtener los usuarios" },
           },
         },
-        post: {
-          tags: ["Usuario"],
-          summary: "Crea un nuevo usuario",
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/Usuario" },
-              },
-            },
-          },
-          responses: {
-            201: { description: "Usuario creado exitosamente" },
-            400: { description: "La carné del estudiante ya existe" },
-            500: { description: "Error al crear el estudiante" },
-          },
-        },
       },
       // Rutas de Estudiantes por Carne
       "/api/usuario/carne/{carne}": {
@@ -640,32 +621,6 @@ const options = {
             },
             404: { description: "Estudiante no encontrado por carné" },
             500: { description: "Error al buscar el estudiante" },
-          },
-        },
-        put: {
-          tags: ["Usuario"],
-          summary: "Actualiza un usuario",
-          parameters: [
-            {
-              name: "carne",
-              in: "path",
-              required: true,
-              description: "Carné del estudiante",
-              schema: { type: "string" },
-            },
-          ],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/Usuario" },
-              },
-            },
-          },
-          responses: {
-            200: { description: "Usuario actualizado exitosamente" },
-            404: { description: "Estudiante no encontrado" },
-            500: { description: "Error al actualizar el estudiante" },
           },
         },
       },
@@ -1058,7 +1013,7 @@ const options = {
               name: "pi",
               in: "path",
               required: true,
-              description: "Payment ID de Stripe",
+              description: "Payment ID de Stripe devuelve metadatos del pago realizado, para verificar si el pago ya fue realizado con éxito debe estar en estado accepted, esta respuesta viene de Stripe directamente.",
               schema: { type: "string" },
             },
           ],

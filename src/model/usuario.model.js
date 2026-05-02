@@ -10,7 +10,11 @@ const Usuario = sequelize.define(
       allowNull: false,
       unique: true,
     },
-    LR_NOMBRE_COMPLETO: {
+    LR_NOMBRES: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+    },
+    LR_APELLIDOS: {
       type: DataTypes.STRING(100),
       allowNull: false,
     },
@@ -18,10 +22,6 @@ const Usuario = sequelize.define(
       type: DataTypes.STRING(100),
       allowNull: false,
       unique: true,
-    },
-    LR_ESTADO_REGISTRO: {
-      type: DataTypes.CHAR(1),
-      allowNull: false,
     },
   },
   {
