@@ -57,6 +57,7 @@ const Pago = sequelize.define(
   {
     tableName: "CB_PAGO",
     timestamps: false,
+    freezeTableName: true,
   },
 );
 
