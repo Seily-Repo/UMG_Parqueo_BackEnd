@@ -56,17 +56,17 @@ exports.createAsignacion = async (req, res) => {
         details: "No puedes solicitar una asignación de parqueo para un carné distinto al de tu sesión actual."
       });
     }
-    const infoPago = await PagoServices.validarPagoEnAPI(correlativo);
+  const infoPago = await PagoServices.validarPagoEnAPI(correlativo);
     
-    if (!infoPago) {
+    if (!infoPago || !infoPago.id) {
       return res.status(404).json({ 
         success: false, 
         status: 404, 
-        message: "Correlativo de pago no encontrado en el sistema." 
+        message: "Correlativo de pago no encontrado en el sistema de cobros." 
       });
     }
 
-    if (infoPago.LR_CARNE !== carne_usuario) {
+  if (infoPago.metadata.LR_CARNE !== carne_usuario) {
       return res.status(403).json({ 
         success: false, 
         status: 403, 
@@ -74,15 +74,15 @@ exports.createAsignacion = async (req, res) => {
       });
     }
 
-    if (infoPago.PAG_ESTADO !== 1) { 
+  if (infoPago.status !== 'succeeded') { 
       return res.status(402).json({ 
         success: false, 
         status: 402, 
-        message: "El pago asociado a este correlativo no está aprobado." 
+        message: `El pago asociado no está aprobado. Estado actual: ${infoPago.status}` 
       });
     }
 
-    const reciboYaUsado = await AsignacionStore.checkPagoUsado(infoPago.PAG_PAGO);
+   const reciboYaUsado = await AsignacionStore.checkPagoUsado(infoPago.id);
     if (reciboYaUsado) {
       return res.status(409).json({ 
         success: false, 
@@ -90,6 +90,7 @@ exports.createAsignacion = async (req, res) => {
         message: "Este pago ya fue canjeado por un parqueo anteriormente." 
       });
     }
+
     const espacioFisico = await EspacioStore.getById(ES_Espacio);
     if (!espacioFisico) {
       return res.status(404).json({
@@ -139,7 +140,7 @@ exports.createAsignacion = async (req, res) => {
     }
 
     req.body.AS_Estado = 1;
-    req.body.PAG_PAGO = infoPago.PAG_PAGO;
+    req.body.AS_Correlativo = infoPago.id;
     const nuevaAsignacion = await AsignacionStore.create(req.body);
     
     const io = req.app.get("socketio");

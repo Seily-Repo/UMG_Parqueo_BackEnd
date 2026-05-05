@@ -71,7 +71,7 @@ const options = {
             TES_ESPACIO: { type: 'integer', example: 1 }
           }
         },
-       Asignacion: {
+  Asignacion: {
           type: 'object',
           required: ['carne_usuario', 'ES_Espacio', 'id_ciclo', 'id_jornada', 'correlativo'],
           properties: {
@@ -82,7 +82,8 @@ const options = {
             ES_Espacio: { type: 'integer', example: 1 },
             id_ciclo: { type: 'integer', example: 1 },
             id_jornada: { type: 'integer', example: 1 },
-            correlativo: { type: 'string', example: 'pi_3M2X...', description: 'El código de recibo generado por el módulo de pagos.' }
+            correlativo: { type: 'string', example: 'pi_3RDXTm2eZvKY...', description: 'El código de recibo generado por el módulo de pagos.' },
+            AS_Correlativo: { type: 'string', readOnly: true, example: 'pi_3RDXTm2eZvKY...', description: 'El ID de Stripe guardado en la base de datos.' }
           }
         }
       }

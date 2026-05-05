@@ -19,7 +19,7 @@ class AsignacionStore {
             id_ciclo: data.id_ciclo,
             id_jornada: data.id_jornada,
             AS_Estado: data.AS_Estado,
-            PAG_PAGO: data.PAG_PAGO 
+            AS_Correlativo: data.AS_Correlativo 
         });
     }
 
@@ -81,9 +81,9 @@ class AsignacionStore {
         });
     }
 
-    static async checkPagoUsado(pag_pago) {
+    static async checkPagoUsado(AS_Correlativo) {
         return await Asignacion.findOne({
-            where: { PAG_PAGO: pag_pago, AS_Estado: 1 } 
+            where: { AS_Correlativo: AS_Correlativo, AS_Estado: 1 }
         });
     }
 }

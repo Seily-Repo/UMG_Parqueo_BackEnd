@@ -3,8 +3,9 @@ const axios = require('axios');
 class PagoService {
     static async validarPagoEnAPI(correlativo) {
         try {
-            const baseUrl = process.env.URL_PAGOS;
-            const urlpago = `${baseUrl}/${correlativo}`;
+            const baseUrl = process.env.COBROS_API_BASE_URL || process.env.URL_PAGOS; 
+            
+            const urlpago = `${baseUrl}/verify/${correlativo}`;
             
             const respuesta = await axios.get(urlpago);
             
