@@ -72,20 +72,58 @@ const options = {
           }
         },
   Asignacion: {
-          type: 'object',
-          required: ['carne_usuario', 'ES_Espacio', 'id_ciclo', 'id_jornada', 'correlativo'],
-          properties: {
-            AS_Asignacion: { type: 'integer', readOnly: true },
-            AS_FechaAsignacion: { type: 'string', format: 'date-time', readOnly: true },
-            AS_Estado: { type: 'integer', readOnly: true, example: 1, description: '1: Activa, 0: Anulada' },
-            carne_usuario: { type: 'string', example: '2026-01-001' },
-            ES_Espacio: { type: 'integer', example: 1 },
-            id_ciclo: { type: 'integer', example: 1 },
-            id_jornada: { type: 'integer', example: 1 },
-            correlativo: { type: 'string', example: 'pi_3RDXTm2eZvKY...', description: 'El código de recibo generado por el módulo de pagos.' },
-            AS_Correlativo: { type: 'string', readOnly: true, example: 'pi_3RDXTm2eZvKY...', description: 'El ID de Stripe guardado en la base de datos.' }
-          }
-        }
+  type: 'object',
+  required: ['carne_usuario', 'ES_Espacio', 'id_ciclo', 'id_jornada', 'correlativo'],
+  properties: {
+    AS_Asignacion: { 
+      type: 'integer', 
+      readOnly: true, 
+      description: 'ID autoincremental generado por Oracle.' 
+    },
+    AS_FechaAsignacion: { 
+      type: 'string', 
+      format: 'date-time', 
+      readOnly: true 
+    },
+    AS_Estado: { 
+      type: 'integer', 
+      readOnly: true, 
+      example: 1, 
+      description: '1: Activa, 0: Anulada' 
+    },
+    carne_usuario: { 
+      type: 'integer', 
+      example: 202601001, 
+      description: 'Carné del estudiante (Formato numérico sin guiones).' 
+    },
+    ES_Espacio: { 
+      type: 'integer', 
+      example: 1, 
+      description: 'ID del espacio físico en la tabla DP_ESPACIO.' 
+    },
+    id_ciclo: { 
+      type: 'integer', 
+      example: 1, 
+      description: 'ID del ciclo escolar (LR_ID_CICLO).' 
+    },
+    id_jornada: { 
+      type: 'integer', 
+      example: 1, 
+      description: 'ID de la jornada (LR_ID_JORNADA).' 
+    },
+    correlativo: { 
+      type: 'string', 
+      example: 'pi_3RDXTm2eZvKY1o2C1TjPKHmg', 
+      description: 'ID de Payment Intent de Stripe enviado para validación.' 
+    },
+    AS_Correlativo: { 
+      type: 'string', 
+      readOnly: true, 
+      example: 'pi_3RDXTm2eZvKY1o2C1TjPKHmg', 
+      description: 'ID de Stripe almacenado tras la validación exitosa.' 
+    }
+  }
+}
       }
     },
     paths: {
@@ -382,7 +420,6 @@ const options = {
         }
       },
 
-      // --- ASIGNACIONES ---
      // --- ASIGNACIONES ---
       '/api/asignacion': {
         get: { 

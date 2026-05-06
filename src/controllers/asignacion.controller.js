@@ -38,13 +38,13 @@ exports.createAsignacion = async (req, res) => {
       });
     }
 
-    const carneRegex = /^[0-9]{4}-[0-9]{2}-[0-9]{3,5}$/;
-    if (!carneRegex.test(carne_usuario)) {
+  const carneRegex = /^[0-9]+$/;
+    if (!carneRegex.test(String(carne_usuario))) {
       return res.status(400).json({
         success: false,
         status: 400,
         message: "Formato de carné inválido.",
-        details: "El carné solo debe contener números y guiones.",
+        details: "El carné debe enviarse sin guiones, solo números (ej. 202601001).",
       });
     }
 
@@ -66,7 +66,7 @@ exports.createAsignacion = async (req, res) => {
       });
     }
 
-  if (infoPago.metadata.LR_CARNE !== carne_usuario) {
+ if (Number(infoPago.metadata.LR_CARNE) !== Number(carne_usuario)) {
       return res.status(403).json({ 
         success: false, 
         status: 403, 

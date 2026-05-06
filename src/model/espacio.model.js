@@ -12,7 +12,7 @@ const Espacio = sequelize.define('Espacio', {
     ES_Numero: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        field: 'ES_NUMERO'
+        field: 'ES_NUMERICO'
     },
     ES_Estado: {
         type: DataTypes.INTEGER,

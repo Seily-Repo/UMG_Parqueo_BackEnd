@@ -17,7 +17,7 @@ const TipoEspacio = sequelize.define('TipoEspacio', {
     TES_CAPACIDAD_MAX_TIPO: {
         type: DataTypes.BIGINT,
         allowNull: false,
-        field: 'TES_CAPACIDAD_MAX_TIPO'
+     field: 'TEST_CAPACIDAD_MAX_TIPO'
     },
     TES_ESTADO: {
         type: DataTypes.INTEGER,
