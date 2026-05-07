@@ -1,0 +1,53 @@
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+});
+
+/**
+ * Envía el correo de bienvenida al registrar un usuario.
+ * @param {Object} datos - Datos del usuario registrado
+ * @param {boolean} esAdmin - Si el registro fue creado por un administrador
+ */
+async function enviarCorreoRegistro(datos, esAdmin) {
+  try {
+    const primerNombre = datos.nombres.split(' ')[0];
+
+    const mailOptions = {
+      from: `"Parqueo UMG" <${process.env.EMAIL_USER}>`,
+      to: datos.correo_electronico,
+      subject: '🚗 ¡Bienvenido al Sistema de Parqueo UMG!',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+          <div style="background-color: #002b5c; color: white; padding: 20px; text-align: center;">
+            <h2 style="margin: 0; font-size: 24px;">Parqueo UMG</h2>
+          </div>
+          <div style="padding: 20px; color: #333;">
+            <h3 style="color: #00529b; font-size: 20px;">¡Hola, ${primerNombre}!</h3>
+            <p style="font-size: 16px;">Tu cuenta para el <strong>Sistema de Control de Parqueo</strong> ha sido creada.</p>
+            
+            <div style="background-color: #f8f9fa; border-left: 4px solid #00b4d8; padding: 15px; margin-top: 20px; border-radius: 4px;">
+              <p style="margin: 5px 0; font-size: 16px;"><strong>Tu Carné de Acceso:</strong> <span style="color: #00529b;">${datos.carne}</span></p>
+              
+              ${esAdmin ? `
+              <p style="margin: 5px 0; font-size: 16px;"><strong>Contraseña Temporal:</strong> <span style="color: #d32f2f;">${datos.password}</span></p>
+              <p style="color: #666; font-size: 14px; margin-top: 10px;">(Por tu seguridad, te recomendamos cambiar esta contraseña al iniciar sesión por primera vez).</p>
+              ` : ''}
+              
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log("✉️ [REGISTRO] Correo HTML enviado con éxito");
+    return true;
+  } catch (errEmail) {
+    console.error("❌ [EMAIL ERROR] Falló el correo:", errEmail);
+    return false;
+  }
+}
+
+module.exports = { transporter, enviarCorreoRegistro };
