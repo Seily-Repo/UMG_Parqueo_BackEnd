@@ -29,7 +29,7 @@ const UsuarioMulta = sequelize.define(
     EMU_CREADO_POR: {
       type: DataTypes.STRING(50),
       allowNull: true,
-      defaultValue: 'ADMIN',
+      defaultValue: 'ADMINISTRADOR',
     },
     EMU_FECHA_CREACION: {
       type: DataTypes.DATE,

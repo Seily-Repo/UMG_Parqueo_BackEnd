@@ -22,6 +22,14 @@ class PagosStore {
     });
   }
 
+  // Obtener pagos por carné
+  static async getByCarne(carne) {
+    return await Pago.findAll({
+      where: { LR_CARNE: carne },
+      order: [["PAG_FECHA_CREACION", "DESC"]],
+    });
+  }
+
   // Crear pago
   static async create(data) {
     return await Pago.create({

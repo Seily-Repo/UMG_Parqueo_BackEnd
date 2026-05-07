@@ -76,6 +76,47 @@ exports.getUsuarioMultaByVehiculo = async (req, res) => {
   }
 };
 
+exports.getUsuarioMultaByCarne = async (req, res) => {
+  try {
+    const { carne } = req.params;
+
+    if (!carne) {
+      return res.status(400).json({
+        message: "El parámetro carne es requerido",
+      });
+    }
+
+    const { sequelize } = require("../config/db");
+    
+    // Consulta SQL pura para hacer JOIN con CB_VEHICULO ya que el modelo no lo tiene mapeado
+    const query = `
+      SELECT M.* 
+      FROM CB_USUARIO_MULTA M
+      INNER JOIN LR_VEHICULO V ON M.VEH_ID_VEHICULO = V.VEH_ID_VEHICULO
+      WHERE V.LR_CARNE = :carne
+    `;
+
+    const registros = await sequelize.query(query, {
+      replacements: { carne },
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    if (!registros || registros.length === 0) {
+      return res.status(404).json({
+        message: "No se encontraron multas para el estudiante indicado",
+      });
+    }
+
+    const result = registros.map(formatMulta);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al obtener los registros de Usuario Multa por carné",
+      error: error.message,
+    });
+  }
+};
+
 exports.createUsuarioMulta = async (req, res) => {
   try {
     const { MUL_MULTA, VEH_ID_VEHICULO, EMU_ESTADO_MULTA, EMU_CREADO_POR } = req.body;

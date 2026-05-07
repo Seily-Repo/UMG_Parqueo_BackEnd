@@ -5,7 +5,7 @@ const Usuario = sequelize.define(
   "Usuario",
   {
     LR_CARNE: {
-      type: DataTypes.STRING(20),
+      type: DataTypes.INTEGER,
       primaryKey: true,
       allowNull: false,
       unique: true,

@@ -60,6 +60,26 @@ exports.getPagoById = async (req, res) => {
   }
 };
 
+// Obtener pagos por carné (solo el suyo o si es ADMINISTRADOR)
+exports.getPagosByCarne = async (req, res) => {
+  try {
+    const pagos = await PagoStore.getByCarne(req.params.carne);
+
+    if (!pagos || pagos.length === 0) {
+      return res.status(404).json({
+        message: "No se encontraron pagos para este usuario",
+      });
+    }
+
+    res.status(200).json(pagos);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al obtener los pagos",
+      error: error.message,
+    });
+  }
+};
+
 // Verificar el estado de un pago en Stripe mediante su PI
 // GET /api/pagos/verify/:pi - Para que disponibilidad verifique si el pago.
 exports.verifyPayment = async (req, res) => {
@@ -97,35 +117,41 @@ exports.verifyPayment = async (req, res) => {
 // Crear pago
 exports.createPago = async (req, res) => {
   try {
-    // VALIDACIONES
+    // 1. EXTRAER CARNÉ DEL TOKEN JWT POR SEGURIDAD
+    // Si es ADMIN y quiere pagar por otro, permitimos que mande el LR_CARNE en el body, sino usamos el suyo.
+    let LR_CARNE = req.user.carne;
+    if (req.user.rol === "ADMININISTRADOR" && req.body.LR_CARNE) {
+      LR_CARNE = req.body.LR_CARNE;
+    }
+    
+    // Lo guardamos de vuelta en el body por si otras funciones lo necesitan
+    req.body.LR_CARNE = LR_CARNE;
+
     const {
-      LR_CARNE,
-      LR_NOMBRES,
-      LR_APELLIDOS,
-      LR_CORREO_INSTITUCIONAL,
       PLN_PLAN,
       FPG_FORMA_PAGO,
     } = req.body;
 
     // Validación 1: campos obligatorios
-    if (!LR_CARNE || !FPG_FORMA_PAGO) {
+    if (!LR_CARNE || !FPG_FORMA_PAGO || !PLN_PLAN) {
       return res.status(400).json({
-        message: "Faltan campos obligatorios",
+        message: "Faltan campos obligatorios (Plan y Forma de Pago)",
       });
     }
 
-    let nombreEstudiante = LR_NOMBRES;
-    let apellidosEstudiante = LR_APELLIDOS;
-    let correoEstudiante = LR_CORREO_INSTITUCIONAL;
-
-    if (!LR_NOMBRES || !LR_APELLIDOS || !LR_CORREO_INSTITUCIONAL) {
-      const usuario = await usuarioStore.getByCarne(LR_CARNE);
-      if (usuario) {
-        nombreEstudiante = usuario.LR_NOMBRES;
-        apellidosEstudiante = usuario.LR_APELLIDOS;
-        correoEstudiante = usuario.LR_CORREO_INSTITUCIONAL;
-      }
+    // 2. VALIDACIÓN CONTRA LA BASE DE DATOS COMPARTIDA
+    const usuario = await usuarioStore.getByCarne(LR_CARNE);
+    if (!usuario) {
+      return res.status(404).json({
+        message: "El usuario autenticado no existe en la base de datos compartida",
+      });
     }
+
+    // 3. Obtener datos para Stripe (priorizando lo de la BD compartida)
+    const nombreEstudiante = usuario.LR_NOMBRES;
+    const apellidosEstudiante = usuario.LR_APELLIDOS;
+    const correoEstudiante = usuario.LR_CORREO_INSTITUCIONAL;
+
     // Obtener el precio del plan automáticamente
     const plan = await PlanParqueoStore.getById(PLN_PLAN);
     if (!plan) {

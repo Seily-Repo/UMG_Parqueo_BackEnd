@@ -1004,6 +1004,36 @@ const options = {
 
       // Ruta Pago por Payment ID de Stripe
 
+      "/api/pago/{carne}": {
+        get: {
+          tags: ["Pagos"],
+          summary: "Obtiene un pago por su carné",
+          parameters: [
+            {
+              name: "carne",
+              in: "path",
+              required: true,
+              description: "ID del pago",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Pago obtenido exitosamente",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Pago" },
+                },
+              },
+            },
+            404: { description: "Pago no encontrado" },
+            500: { description: "Error al obtener el pago" },
+          },
+        },
+      },
+
+
+
       "/api/pago/verify/{pi}": {
         get: {
           tags: ["Pagos"],

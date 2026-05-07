@@ -9,7 +9,7 @@ const UsuarioMoroso = sequelize.define('UsuarioMoroso', {
         allowNull: false,
     },
     LR_CARNE: {
-        type: DataTypes.STRING(20),
+        type: DataTypes.INTEGER,
         allowNull: false,
         references: {
             model: 'LR_USUARIO',
