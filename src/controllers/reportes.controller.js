@@ -1,8 +1,8 @@
-const { QueryTypes } = require('sequelize');
-const { sequelize } = require('./db');
+const { QueryTypes } = require("sequelize");
+const { sequelize } = require("../config/db");
 
 exports.getReporteGerencial = async (req, res) => {
-   try {
+  try {
     const { fecha_inicio, fecha_fin } = req.query;
 
     let filtroAccesos = "";
@@ -40,7 +40,7 @@ exports.getReporteGerencial = async (req, res) => {
 
     const [result] = await sequelize.query(query, {
       replacements,
-      type: QueryTypes.SELECT
+      type: QueryTypes.SELECT,
     });
 
     const totalEspacios = Number(result.TOTAL_ESPACIOS) || 0;
@@ -55,36 +55,44 @@ exports.getReporteGerencial = async (req, res) => {
         total: totalUsuarios,
         activos: usuariosActivos,
         inactivos: Number(result.USUARIOS_INACTIVOS) || 0,
-        porcentaje_activos: totalUsuarios > 0 ? ((usuariosActivos / totalUsuarios) * 100).toFixed(1) : 0
+        porcentaje_activos:
+          totalUsuarios > 0
+            ? ((usuariosActivos / totalUsuarios) * 100).toFixed(1)
+            : 0,
       },
       vehiculos: {
         total: Number(result.TOTAL_VEHICULOS) || 0,
-        activos: Number(result.VEHICULOS_ACTIVOS) || 0
+        activos: Number(result.VEHICULOS_ACTIVOS) || 0,
       },
       espacios: {
         total: totalEspacios,
         ocupados: espaciosOcupados,
         libres: totalEspacios - espaciosOcupados,
-        porcentaje_ocupacion: totalEspacios > 0 ? ((espaciosOcupados / totalEspacios) * 100).toFixed(1) : 0
+        porcentaje_ocupacion:
+          totalEspacios > 0
+            ? ((espaciosOcupados / totalEspacios) * 100).toFixed(1)
+            : 0,
       },
       accesos: {
         total: totalAccesos,
         permitidos: accesosPermitidos,
         denegados: totalAccesos - accesosPermitidos,
-        tasa_exito: totalAccesos > 0 ? ((accesosPermitidos / totalAccesos) * 100).toFixed(1) : 0
+        tasa_exito:
+          totalAccesos > 0
+            ? ((accesosPermitidos / totalAccesos) * 100).toFixed(1)
+            : 0,
       },
       finanzas: {
         total_pagos: Number(result.TOTAL_PAGOS) || 0,
         total_ingresos: Number(result.TOTAL_INGRESOS) || 0,
-        total_multas: Number(result.TOTAL_MULTAS) || 0
+        total_multas: Number(result.TOTAL_MULTAS) || 0,
       },
       morosidad: {
-        usuarios_morosos: Number(result.USUARIOS_MOROSOS) || 0
-      }
+        usuarios_morosos: Number(result.USUARIOS_MOROSOS) || 0,
+      },
     };
 
     res.json({ success: true, data: dashboardData });
-
   } catch (error) {
     console.error("Error en dashboard:", error);
     res.status(500).json({ success: false, error: error.message });
@@ -92,7 +100,7 @@ exports.getReporteGerencial = async (req, res) => {
 };
 
 exports.getIngresosMensuales = async (req, res) => {
-try {
+  try {
     const query = `
       SELECT 
         TO_CHAR(PAG_FECHA_PAGO, 'YYYY-MM') AS mes,
@@ -106,17 +114,16 @@ try {
     `;
 
     const results = await sequelize.query(query, {
-      type: QueryTypes.SELECT
+      type: QueryTypes.SELECT,
     });
 
-    const ingresos = results.map(row => ({
+    const ingresos = results.map((row) => ({
       mes: row.MES,
       cantidad: Number(row.CANTIDAD),
-      total: Number(row.TOTAL)
+      total: Number(row.TOTAL),
     }));
 
     res.json({ success: true, data: ingresos });
-
   } catch (error) {
     console.error("Error en ingresos:", error);
     res.status(500).json({ success: false, error: error.message });
@@ -124,7 +131,7 @@ try {
 };
 
 exports.getDistribucionFacultades = async (req, res) => {
-try {
+  try {
     const query = `
       SELECT 
         F.FAC_NOMBRE_FACULTAD AS facultad,
@@ -136,21 +143,19 @@ try {
     `;
 
     const results = await sequelize.query(query, {
-      type: QueryTypes.SELECT
+      type: QueryTypes.SELECT,
     });
 
-    const distribucion = results.map(row => ({
+    const distribucion = results.map((row) => ({
       facultad: row.FACULTAD,
-      cantidad: Number(row.CANTIDAD)
+      cantidad: Number(row.CANTIDAD),
     }));
 
     res.json({ success: true, data: distribucion });
-
   } catch (error) {
     console.error("Error en distribución:", error);
     res.status(500).json({ success: false, error: error.message });
   }
-
 };
 
 exports.getReporteAdministrativo = async (req, res) => {
@@ -236,56 +241,64 @@ exports.getReporteAdministrativo = async (req, res) => {
 };
 
 exports.getReporteFinanciero = async (req, res) => {
-    try {
-    const { tipo, fecha } = req.query;
-
-    let filtro = "";
-
-    if (tipo === "dia") {
-  filtro = `
-    A.AS_FechaAsignacion >= TO_DATE('${fecha}','YYYY-MM-DD')
-    AND A.AS_FechaAsignacion < TO_DATE('${fecha}','YYYY-MM-DD') + 1
-  `;
-}
-
-    if (tipo === "mes") {
-      filtro = `EXTRACT(MONTH FROM A.AS_FechaAsignacion) = ${fecha.split("-")[1]} 
-                AND EXTRACT(YEAR FROM A.AS_FechaAsignacion) = ${fecha.split("-")[0]}`;
-    }
-
-    if (tipo === "anio") {
-      filtro = `EXTRACT(YEAR FROM A.AS_FechaAsignacion) = ${fecha}`;
-    }
-
-    if (tipo === "semana") {
-      filtro = `TRUNC(A.AS_FechaAsignacion, 'IW') = TRUNC(TO_DATE('${fecha}','YYYY-MM-DD'), 'IW')`;
-    }
-
+  try {
     const query = `
-      SELECT 
-        U.US_Nombre,
-        U.US_Apellido,
-        V.VH_Placa,
-        P.PQ_Nombre,
-        A.AS_FechaAsignacion
-      FROM DP_ASIGNACION A
-      JOIN DP_USUARIO U ON A.US_Identificacion = U.US_Identificacion
-      LEFT JOIN DP_VEHICULO V ON U.US_Identificacion = V.US_Identificacion
-      JOIN DP_ESPACIO E ON A.ES_Espacio = E.ES_Espacio
-      JOIN DP_PARQUEO P ON E.PQ_Parqueo = P.PQ_Parqueo
-      ${filtro ? "WHERE " + filtro : ""}
-      ORDER BY A.AS_FechaAsignacion DESC
-    `;
+           SELECT 
+                U.LR_NOMBRES AS NOMBRE,
+                U.LR_APELLIDOS AS APELLIDO,
+                V.VEH_PLACA AS PLACA,
+                P.PQ_NOMBRE AS PARQUEO,
+                E.ES_NUMERICO AS NUMERO_ESPACIO,
+                C.CIC_NOMBRE_CICLO AS CICLO,
+                PL.PLN_PRECIO AS MONTO,
+                PG.PAG_ESTADO AS ESTADO_PAGO
 
-    const conn = await conectar();
-    const result = await conn.execute(query, [], {
-      outFormat: require("oracledb").OUT_FORMAT_OBJECT,
+            FROM DP_ASIGNACION A
+
+            INNER JOIN LR_USUARIO U 
+                ON A.LR_CARNE_USUARIO = U.LR_CARNE
+
+            LEFT JOIN LR_VEHICULO V 
+                ON V.LR_CARNE = U.LR_CARNE
+
+            INNER JOIN DP_ESPACIO E 
+                ON A.ES_ESPACIO = E.ES_ESPACIO
+
+            INNER JOIN DP_TIPO_ESPACIO T 
+                ON E.TES_ESPACIO = T.TES_ESPACIO
+
+            INNER JOIN DP_PARQUEO P 
+                ON T.PQ_PARQUEO = P.PQ_PARQUEO
+
+            INNER JOIN LR_CICLO_SEMESTRE C 
+                ON A.LR_ID_CICLO = C.CIC_ID_CICLO
+
+            LEFT JOIN CB_PAGO PG 
+                ON A.PAG_PAGO = PG.PAG_PAGO
+
+            LEFT JOIN CB_PLAN_PARQUEO PL 
+                ON PG.PLN_PLAN = PL.PLN_PLAN;
+        `;
+
+    const rows = await sequelize.query(query, {
+      type: QueryTypes.SELECT,
     });
 
-    res.json(result.rows);
+    // 👇 opcional: normalizar nombres a camelCase (más usable en frontend)
+    const data = rows.map((row) => ({
+      nombre: row.NOMBRE,
+      apellido: row.APELLIDO,
+      placa: row.PLACA,
+      parqueo: row.PARQUEO,
+      numero_espacio: row.NUMERO_ESPACIO,
+      ciclo: row.CICLO,
+      monto: Number(row.MONTO),
+      estado_pago: row.ESTADO_PAGO,
+    }));
 
+    res.json({ success: true, data });
   } catch (error) {
-    console.error(error);
-    res.status(500).send("Error en reporte");
+    console.error("Error en DB:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
-}
+};
