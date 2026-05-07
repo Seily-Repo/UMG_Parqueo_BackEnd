@@ -10,7 +10,7 @@ const options = {
       description: 'Acá podras encontrar todos los endpoints necesarios para interactuar con el backend de UMG Parqueos.',
     },
     servers: [
-      { url: 'http://localhost:3001', description: 'Servidor local' },
+      { url: 'http://localhost:3000', description: 'Servidor local' },
       // Si tu app corre en otro host en producción cambia aquí o usa variable de entorno
     ],
   },
