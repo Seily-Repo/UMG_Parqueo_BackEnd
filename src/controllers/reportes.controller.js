@@ -1,5 +1,7 @@
 const { QueryTypes } = require("sequelize");
 const { sequelize } = require("../config/db");
+const excelJS = require("exceljs");
+const PDFDocument = require("pdfkit");
 
 exports.getReporteGerencial = async (req, res) => {
   try {
@@ -28,8 +30,8 @@ exports.getReporteGerencial = async (req, res) => {
         (SELECT COUNT(*) FROM DP_ASIGNACION WHERE AS_ESTADO = 1) AS espacios_ocupados,
         (SELECT COUNT(*) FROM LR_REGISTRO_ACCESOS WHERE 1=1 ${filtroAccesos}) AS total_accesos,
         (SELECT COUNT(*) FROM LR_REGISTRO_ACCESOS WHERE REA_PERMITIDO = 1 ${filtroAccesos}) AS accesos_permitidos,
-        (SELECT COUNT(*) FROM CB_PAGO WHERE PAG_ESTADO_REGISTRO = 'A') AS total_pagos,
-        (SELECT NVL(SUM(PAG_MONTO_TOTAL), 0) FROM CB_PAGO WHERE PAG_ESTADO_REGISTRO = 'A') AS total_ingresos,
+        (SELECT COUNT(*) FROM CB_PAGO WHERE PAG_ESTADO = 'A') AS total_pagos,
+        (SELECT NVL(SUM(PAG_MONTO_TOTAL), 0) FROM CB_PAGO WHERE PAG_ESTADO= 'A') AS total_ingresos,
         (SELECT COUNT(*) FROM CB_USUARIO_MOROSO WHERE MOR_ESTADO_REGISTRO = 'A') AS usuarios_morosos,
         (SELECT NVL(SUM(MUL_MONTO_TOTAL), 0)
          FROM CB_MULTA M 
@@ -158,85 +160,70 @@ exports.getDistribucionFacultades = async (req, res) => {
   }
 };
 
-exports.getReporteAdministrativo = async (req, res) => {
-  let connection;
+function filtro(q){
+    let f = "WHERE 1=1";
 
-  try {
-    const { fecha_inicio, fecha_fin } = req.query;
+    if(q.anio) f += ` AND EXTRACT(YEAR FROM A.AS_FECHAASIGNACION) = ${q.anio}`;
+    if(q.mes) f += ` AND EXTRACT(MONTH FROM A.AS_FECHAASIGNACION) = ${q.mes}`;
+    if(q.dia) f += ` AND EXTRACT(DAY FROM A.AS_FECHAASIGNACION) = ${q.dia}`;
 
-    connection = await db.getConnection(dbConfig);
+    return f;
+}
 
-    let filtroFecha = "WHERE 1=1";
-    let params = {};
+function queryBase(filtro = "") {
+  return `
+        SELECT 
+            U.LR_NOMBRES || ' ' || U.LR_APELLIDOS AS USUARIO,
+            V.VEH_PLACA AS PLACA,
+            V.VEH_MARCA || ' ' || V.VEH_MODELO AS VEHICULO,
+            J.JOR_NOMBRE_JORNADA AS JORNADA,
+            TO_CHAR(A.AS_FECHAASIGNACION, 'YYYY-MM-DD') AS FECHA
 
-    if (fecha_inicio && fecha_fin) {
-      filtroFecha += ` AND fecha_hora_entrada BETWEEN 
-        TO_TIMESTAMP(:fecha_inicio, 'YYYY-MM-DD"T"HH24:MI') 
-        AND 
-        TO_TIMESTAMP(:fecha_fin, 'YYYY-MM-DD"T"HH24:MI')`;
+        FROM DP_ASIGNACION A
 
-      params = { fecha_inicio, fecha_fin };
-    }
+        JOIN LR_USUARIO U 
+            ON A.LR_CARNE_USUARIO = U.LR_CARNE
 
-    const query = `
-      SELECT
-        -- Usuarios totales (no dependen de fecha)
-        (SELECT COUNT(*) FROM USUARIOS) AS total_usuarios,
+        LEFT JOIN LR_VEHICULO V 
+            ON U.LR_CARNE = V.LR_CARNE
 
-        -- Usuarios activos basados en accesos (RESPONDEN AL FILTRO)
-        (SELECT COUNT(DISTINCT carne_usuario)
-         FROM REGISTRO_ACCESOS
-         ${filtroFecha}
-         AND acceso_permitido = 1
-        ) AS usuarios_activos,
+        JOIN LR_JORNADA J 
+            ON A.LR_ID_JORNADA = J.JOR_ID_JORNADA
 
-        -- Usuarios inactivos (estado del sistema)
-        (SELECT COUNT(*) FROM USUARIOS WHERE activo = 0) AS usuarios_inactivos,
+        ${filtro}
 
-        -- Accesos
-        (SELECT COUNT(*) FROM REGISTRO_ACCESOS ${filtroFecha}) AS total_accesos,
-
-        (SELECT COUNT(*) FROM REGISTRO_ACCESOS 
-         ${filtroFecha}
-         AND acceso_permitido = 1
-        ) AS accesos_permitidos,
-
-        (SELECT COUNT(*) FROM REGISTRO_ACCESOS 
-         ${filtroFecha}
-         AND acceso_permitido = 0
-        ) AS accesos_denegados,
-
-        -- Otros datos
-        (SELECT COUNT(*) FROM VEHICULOS) AS total_vehiculos,
-        (SELECT COUNT(*) FROM TARJETAS_ACCESO) AS total_tarjetas,
-        (SELECT COUNT(*) FROM TARJETAS_ACCESO WHERE activa = 1) AS tarjetas_activas,
-
-        -- Último acceso filtrado
-        (SELECT MAX(fecha_hora_entrada) FROM REGISTRO_ACCESOS ${filtroFecha}) AS ultimo_acceso
-
-      FROM DUAL
+        ORDER BY A.AS_FECHAASIGNACION DESC
     `;
+}
 
-    const result = await connection.execute(query, params);
-    const data = result.rows[0];
+exports.getReporteAdministrativo = async (req, res) => {
+  try {
+    const query = queryBase(filtro(req.query));
+
+    const rows = await sequelize.query(query, {
+      type: QueryTypes.SELECT,
+    });
+
+    const datos = rows.map((row) => ({
+      usuario: row.USUARIO,
+      placa: row.PLACA,
+      vehiculo: row.VEHICULO,
+      jornada: row.JORNADA,
+      fecha: row.FECHA,
+    }));
 
     res.json({
-      total_usuarios: data[0],
-      usuarios_activos: data[1],
-      usuarios_inactivos: data[2],
-      total_accesos: data[3],
-      accesos_permitidos: data[4],
-      accesos_denegados: data[5],
-      total_vehiculos: data[6],
-      total_tarjetas: data[7],
-      tarjetas_activas: data[8],
-      ultimo_acceso: data[9],
+      success: true,
+      total: datos.length,
+      datos,
     });
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Error en el servidor");
-  } finally {
-    if (connection) await connection.close();
+  } catch (e) {
+    console.error("Error en reporte:", e);
+
+    res.status(500).json({
+      success: false,
+      error: e.message,
+    });
   }
 };
 
@@ -300,5 +287,180 @@ exports.getReporteFinanciero = async (req, res) => {
   } catch (error) {
     console.error("Error en DB:", error);
     res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.getPagosAceptados = async (req, res) => {
+  try {
+    const query = `
+            SELECT 
+                P.PAG_PAGO AS ID_PAGO,
+                U.LR_CARNE,
+
+                U.LR_NOMBRES || ' ' || U.LR_APELLIDOS AS USUARIO,
+
+                PL.PLN_NOMBRE_PLAN AS PLAN,
+                P.PAG_MONTO_TOTAL AS MONTO,
+                P.PAG_FECHA_PAGO AS FECHA_PAGO,
+
+                CASE 
+                    WHEN P.PAG_ESTADO = 'A' THEN 'ACEPTADO'
+                    WHEN P.PAG_ESTADO = 'P' THEN 'PENDIENTE'
+                    WHEN P.PAG_ESTADO = 'C' THEN 'CANCELADO'
+                    ELSE 'DESCONOCIDO'
+                END AS ESTADO
+
+            FROM CB_PAGO P
+
+            INNER JOIN LR_USUARIO U 
+                ON P.LR_CARNE = U.LR_CARNE
+
+            LEFT JOIN CB_PLAN_PARQUEO PL 
+            ON P.PLN_PLAN = PL.PLN_PLAN
+        `;
+
+    const rows = await sequelize.query(query, {
+      type: QueryTypes.SELECT,
+    });
+
+    const data = rows.map((row) => ({
+      id_pago: row.ID_PAGO,
+      carne: row.LR_CARNE,
+      usuario: row.USUARIO,
+      plan: row.PLAN,
+      monto: Number(row.MONTO),
+      fecha_pago: row.FECHA_PAGO,
+      estado: row.ESTADO,
+    }));
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error("Error obteniendo pagos:", error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+
+exports.createExcel = async (req, res) => {
+  try {
+    const query = queryBase(filtro(req.query));
+
+    const rows = await sequelize.query(query, {
+      type: QueryTypes.SELECT,
+    });
+
+    const wb = new excelJS.Workbook();
+
+    const ws = wb.addWorksheet("Reporte");
+
+    // HEADER
+    ws.addRow(["Nombre", "Placa", "Vehículo", "Jornada", "Fecha"]);
+
+    // DATA
+    rows.forEach((r) => {
+      ws.addRow([r.USUARIO, r.PLACA, r.VEHICULO, r.JORNADA, r.FECHA]);
+    });
+
+    // ESTILOS HEADER
+    ws.getRow(1).font = {
+      bold: true,
+    };
+
+    // AUTOWIDTH
+    ws.columns.forEach((column) => {
+      let maxLength = 20;
+
+      column.eachCell({ includeEmpty: true }, (cell) => {
+        const length = cell.value ? cell.value.toString().length : 10;
+
+        if (length > maxLength) {
+          maxLength = length;
+        }
+      });
+
+      column.width = maxLength + 2;
+    });
+
+    // HEADERS RESPONSE
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+
+    res.setHeader("Content-Disposition", "attachment; filename=reporte.xlsx");
+
+    // WRITE
+    await wb.xlsx.write(res);
+
+    res.end();
+  } catch (e) {
+    console.error("Error Excel:", e);
+
+    res.status(500).json({
+      success: false,
+      error: e.message,
+    });
+  }
+};
+
+// PDF
+exports.createPDF = async (req, res) => {
+  try {
+    const query = queryBase(filtro(req.query));
+
+    const rows = await sequelize.query(query, {
+      type: QueryTypes.SELECT,
+    });
+
+    // HEADERS
+    res.setHeader("Content-Type", "application/pdf");
+
+    res.setHeader("Content-Disposition", "attachment; filename=reporte.pdf");
+
+    // PDF
+    const doc = new PDFDocument({
+      margin: 40,
+      size: "A4",
+    });
+
+    doc.pipe(res);
+
+    // TITLE
+    doc.fontSize(18).text("Reporte Parqueo", {
+      align: "center",
+    });
+
+    doc.moveDown(2);
+
+    // TABLE HEADER
+    doc.fontSize(12).text("Nombre | Placa | Vehículo | Jornada | Fecha", {
+      underline: true,
+    });
+
+    doc.moveDown();
+
+    // ROWS
+    rows.forEach((r) => {
+      doc.text(
+        `${r.USUARIO} | ${r.PLACA || "-"} | ${r.VEHICULO || "-"} | ${r.JORNADA} | ${r.FECHA}`,
+      );
+    });
+
+    // END
+    doc.end();
+  } catch (e) {
+    console.error("Error PDF:", e);
+
+    res.status(500).json({
+      success: false,
+      error: e.message,
+    });
   }
 };
