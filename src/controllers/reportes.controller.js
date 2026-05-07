@@ -160,39 +160,106 @@ exports.getDistribucionFacultades = async (req, res) => {
   }
 };
 
-function filtro(q){
-    let f = "WHERE 1=1";
+function filtro(q) {
+  let f = "WHERE 1=1";
 
-    if(q.anio) f += ` AND EXTRACT(YEAR FROM A.AS_FECHAASIGNACION) = ${q.anio}`;
-    if(q.mes) f += ` AND EXTRACT(MONTH FROM A.AS_FECHAASIGNACION) = ${q.mes}`;
-    if(q.dia) f += ` AND EXTRACT(DAY FROM A.AS_FECHAASIGNACION) = ${q.dia}`;
+  // ============================================
+  // FILTROS POR FECHA DE REGISTRO DEL USUARIO
+  // ============================================
 
-    return f;
+  if (q.anio) {
+    f += ` 
+            AND EXTRACT(YEAR FROM U.LR_FECHA_REGISTRO) = ${q.anio}
+        `;
+  }
+
+  if (q.mes) {
+    f += ` 
+            AND EXTRACT(MONTH FROM U.LR_FECHA_REGISTRO) = ${q.mes}
+        `;
+  }
+
+  if (q.dia) {
+    f += ` 
+            AND EXTRACT(DAY FROM U.LR_FECHA_REGISTRO) = ${q.dia}
+        `;
+  }
+
+  return f;
 }
 
 function queryBase(filtro = "") {
   return `
+
         SELECT 
+
+            U.LR_CARNE AS CARNE,
+
             U.LR_NOMBRES || ' ' || U.LR_APELLIDOS AS USUARIO,
+
             V.VEH_PLACA AS PLACA,
+
             V.VEH_MARCA || ' ' || V.VEH_MODELO AS VEHICULO,
+
             J.JOR_NOMBRE_JORNADA AS JORNADA,
-            TO_CHAR(A.AS_FECHAASIGNACION, 'YYYY-MM-DD') AS FECHA
 
-        FROM DP_ASIGNACION A
+            TO_CHAR(U.LR_FECHA_REGISTRO, 'YYYY-MM-DD') AS FECHA_REGISTRO,
 
-        JOIN LR_USUARIO U 
-            ON A.LR_CARNE_USUARIO = U.LR_CARNE
+            -- ============================================
+            -- VALIDAR SI TIENE PAGO APROBADO
+            -- ============================================
 
-        LEFT JOIN LR_VEHICULO V 
+            CASE
+                WHEN P.PAG_PAGO IS NOT NULL 
+                     AND P.PAG_ESTADO = 'A'
+                THEN 'SI'
+                ELSE 'NO'
+            END AS PAGO_APROBADO,
+
+            -- ============================================
+            -- VALIDAR SI TIENE ESPACIO ASIGNADO
+            -- ============================================
+
+            CASE
+                WHEN A.AS_ASIGNACION IS NOT NULL
+                THEN 'SI'
+                ELSE 'NO'
+            END AS ESPACIO_ASIGNADO
+
+        FROM LR_USUARIO U
+
+        -- ============================================
+        -- VEHICULO
+        -- ============================================
+
+        LEFT JOIN LR_VEHICULO V
             ON U.LR_CARNE = V.LR_CARNE
 
-        JOIN LR_JORNADA J 
+        -- ============================================
+        -- ASIGNACION
+        -- ============================================
+
+        LEFT JOIN DP_ASIGNACION A
+            ON U.LR_CARNE = A.LR_CARNE_USUARIO
+
+        -- ============================================
+        -- JORNADA
+        -- ============================================
+
+        LEFT JOIN LR_JORNADA J
             ON A.LR_ID_JORNADA = J.JOR_ID_JORNADA
+
+        -- ============================================
+        -- PAGOS APROBADOS
+        -- ============================================
+
+        LEFT JOIN CB_PAGO P
+            ON U.LR_CARNE = P.LR_CARNE
+            AND P.PAG_ESTADO = 'A'
 
         ${filtro}
 
-        ORDER BY A.AS_FECHAASIGNACION DESC
+        ORDER BY U.LR_FECHA_REGISTRO DESC
     `;
 }
 
@@ -204,12 +271,22 @@ exports.getReporteAdministrativo = async (req, res) => {
       type: QueryTypes.SELECT,
     });
 
-    const datos = rows.map((row) => ({
-      usuario: row.USUARIO,
-      placa: row.PLACA,
-      vehiculo: row.VEHICULO,
-      jornada: row.JORNADA,
-      fecha: row.FECHA,
+    const datos = rows.map((r) => ({
+      carne: r.CARNE,
+
+      usuario: r.USUARIO,
+
+      placa: r.PLACA || "-",
+
+      vehiculo: r.VEHICULO || "-",
+
+      jornada: r.JORNADA || "-",
+
+      fecha_registro: r.FECHA_REGISTRO,
+
+      pago_aprobado: r.PAGO_APROBADO,
+
+      espacio_asignado: r.ESPACIO_ASIGNADO,
     }));
 
     res.json({
@@ -218,7 +295,7 @@ exports.getReporteAdministrativo = async (req, res) => {
       datos,
     });
   } catch (e) {
-    console.error("Error en reporte:", e);
+    console.error("Error reporte:", e);
 
     res.status(500).json({
       success: false,
@@ -347,7 +424,6 @@ exports.getPagosAceptados = async (req, res) => {
   }
 };
 
-
 exports.createExcel = async (req, res) => {
   try {
     const query = queryBase(filtro(req.query));
@@ -358,22 +434,40 @@ exports.createExcel = async (req, res) => {
 
     const wb = new excelJS.Workbook();
 
-    const ws = wb.addWorksheet("Reporte");
+    const ws = wb.addWorksheet("Reporte Administrativo");
 
     // HEADER
-    ws.addRow(["Nombre", "Placa", "Vehículo", "Jornada", "Fecha"]);
+    ws.addRow([
+      "Carné",
+      "Usuario",
+      "Placa",
+      "Vehículo",
+      "Jornada",
+      "Fecha Registro",
+      "Pago Aprobado",
+      "Espacio Asignado",
+    ]);
 
     // DATA
     rows.forEach((r) => {
-      ws.addRow([r.USUARIO, r.PLACA, r.VEHICULO, r.JORNADA, r.FECHA]);
+      ws.addRow([
+        r.CARNE,
+        r.USUARIO,
+        r.PLACA || "-",
+        r.VEHICULO || "-",
+        r.JORNADA || "-",
+        r.FECHA_REGISTRO,
+        r.PAGO_APROBADO,
+        r.ESPACIO_ASIGNADO,
+      ]);
     });
 
-    // ESTILOS HEADER
+    // STYLE HEADER
     ws.getRow(1).font = {
       bold: true,
     };
 
-    // AUTOWIDTH
+    // AUTO WIDTH
     ws.columns.forEach((column) => {
       let maxLength = 20;
 
@@ -388,15 +482,17 @@ exports.createExcel = async (req, res) => {
       column.width = maxLength + 2;
     });
 
-    // HEADERS RESPONSE
+    // RESPONSE
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
 
-    res.setHeader("Content-Disposition", "attachment; filename=reporte.xlsx");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=reporte_administrativo.xlsx",
+    );
 
-    // WRITE
     await wb.xlsx.write(res);
 
     res.end();
@@ -419,41 +515,47 @@ exports.createPDF = async (req, res) => {
       type: QueryTypes.SELECT,
     });
 
-    // HEADERS
     res.setHeader("Content-Type", "application/pdf");
 
-    res.setHeader("Content-Disposition", "attachment; filename=reporte.pdf");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=reporte_administrativo.pdf",
+    );
 
-    // PDF
     const doc = new PDFDocument({
-      margin: 40,
+      margin: 30,
       size: "A4",
+      layout: "landscape",
     });
 
     doc.pipe(res);
 
     // TITLE
-    doc.fontSize(18).text("Reporte Parqueo", {
+    doc.fontSize(18).text("Reporte Administrativo Parqueo", {
       align: "center",
     });
 
     doc.moveDown(2);
 
-    // TABLE HEADER
-    doc.fontSize(12).text("Nombre | Placa | Vehículo | Jornada | Fecha", {
-      underline: true,
-    });
+    // HEADER
+    doc
+      .fontSize(10)
+      .text(
+        "Carné | Usuario | Placa | Vehículo | Jornada | Fecha | Pago | Espacio",
+        {
+          underline: true,
+        },
+      );
 
     doc.moveDown();
 
     // ROWS
     rows.forEach((r) => {
       doc.text(
-        `${r.USUARIO} | ${r.PLACA || "-"} | ${r.VEHICULO || "-"} | ${r.JORNADA} | ${r.FECHA}`,
+        `${r.CARNE} | ${r.USUARIO} | ${r.PLACA || "-"} | ${r.VEHICULO || "-"} | ${r.JORNADA || "-"} | ${r.FECHA_REGISTRO} | ${r.PAGO_APROBADO} | ${r.ESPACIO_ASIGNADO}`,
       );
     });
 
-    // END
     doc.end();
   } catch (e) {
     console.error("Error PDF:", e);
