@@ -9,7 +9,11 @@ const options = {
       description: 'Backend para control de Disponibilidad, Tipos de Espacio y Asignaciones.\n\n**Nota sobre Tiempo Real:**\nEste servidor utiliza `socket.io`. El frontend puede conectarse a la raíz del servidor para escuchar actualizaciones del mapa en tiempo real.\n\n**Lógica de Capacidad:**\n1. Los tipos de espacio se crean basados en un porcentaje del parqueo.\n2. No se pueden crear más espacios físicos que los permitidos por el tipo.' 
     },
     servers: [
-      { 
+      {
+        url: `/api/disponibilidad`, 
+        description: 'Servidor DEV (Vía Nginx)' 
+      },
+      {
         url: `http://localhost:${PORT}`, 
         description: 'Servidor local' 
       },
