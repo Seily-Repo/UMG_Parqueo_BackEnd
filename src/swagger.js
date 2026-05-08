@@ -10,7 +10,7 @@ const options = {
     },
     servers: [
       {
-        url: `/api/disponibilidad`, 
+        url: `/disponibilidad`, 
         description: 'Servidor DEV (Vía Nginx)' 
       },
       {
