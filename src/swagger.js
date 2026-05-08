@@ -19,6 +19,14 @@ const options = {
       },
     ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Token JWT obtenido del endpoint /api/auth/login'
+        }
+      },
       schemas: {
         ApiResponse: {
           type: 'object',
