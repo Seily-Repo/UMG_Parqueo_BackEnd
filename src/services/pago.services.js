@@ -3,19 +3,7 @@ const axios = require('axios');
 class PagoService {
     static async validarPagoEnAPI(correlativo) {
         try {
-            /*
-            // Simulador MODO QUEMADO (MOCK) 
             
-            return {
-                "id": correlativo, 
-                "status": "succeeded", 
-                "metadata": {
-                    "LR_CARNE": "202601001" 
-                }
-            };
-            */
-
-        
             const baseUrl = process.env.COBROS_API_BASE_URL || 'http://localhost:3000'; 
             const urlpago = `${baseUrl}/verify/${correlativo}`;
             const respuesta = await axios.get(urlpago);

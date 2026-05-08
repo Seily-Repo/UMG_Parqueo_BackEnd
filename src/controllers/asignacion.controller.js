@@ -48,7 +48,7 @@ exports.createAsignacion = async (req, res) => {
       });
     }
 
-    if (req.usuarioAuth && req.usuarioAuth.carne !== carne_usuario) {
+    if (req.user.rol !== 'ADMINISTRADOR' && Number(req.user.carne) !== Number(carne_usuario)) {
       return res.status(403).json({
         success: false,
         status: 403,
@@ -203,7 +203,12 @@ exports.getAllAsignaciones = async (req, res) => {
   try {
     const { id_ciclo, estado } = req.query;
 
-    const asignaciones = await AsignacionStore.getAll(id_ciclo, estado);
+    let asignaciones = await AsignacionStore.getAll(id_ciclo, estado);
+
+    if (req.user.rol !== 'ADMINISTRADOR') {
+      asignaciones = asignaciones.filter(asig => Number(asig.carne_usuario) === Number(req.user.carne));
+    }
+
     res.status(200).json({
       success: true,
       status: 200,
@@ -219,10 +224,9 @@ exports.getAllAsignaciones = async (req, res) => {
     });
   }
 };
-
 exports.anularAsignacion = async (req, res) => {
   try {
-    if (req.usuarioAuth && req.usuarioAuth.id_rol !== 1) {
+   if (req.user.rol !== 'ADMINISTRADOR') {
       return res.status(403).json({
         success: false,
         status: 403,
@@ -230,7 +234,6 @@ exports.anularAsignacion = async (req, res) => {
         details: "Esta acción está restringida únicamente para usuarios con rol de Administrador."
       });
     }
-
     const asignacion = await AsignacionStore.anular(req.params.id);
 
     if (!asignacion) {
@@ -289,8 +292,6 @@ exports.updateAsignacion = async (req, res) => {
         details: "Los IDs deben ser estrictamente numéricos.",
       });
     }
-
-    const asignacionActual = await AsignacionStore.getById(id);
     if (!asignacionActual) {
       return res.status(404).json({
         success: false,
@@ -299,6 +300,18 @@ exports.updateAsignacion = async (req, res) => {
         details: null,
       });
     }
+
+    const asignacionActual = await AsignacionStore.getById(id);
+if (req.user.rol !== 'ADMINISTRADOR' && Number(asignacionActual.carne_usuario) !== Number(req.user.carne)) {
+      return res.status(403).json({
+        success: false,
+        status: 403,
+        message: "Acción no permitida.",
+        details: "No tienes permiso para modificar el parqueo de una asignación que no te pertenece."
+      });
+    }
+
+    
 
     if (asignacionActual.AS_Estado === 0) {
       return res.status(409).json({
