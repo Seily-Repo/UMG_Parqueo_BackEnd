@@ -12,7 +12,16 @@ const verifyToken = (req, res, next) => {
   try {
     const secret = process.env.JWT_SECRET;
     const decoded = jwt.verify(token, secret);
-    req.user = decoded;
+    
+    // El payload real viene envuelto en un objeto "usuario"
+    let userPayload = decoded.usuario || decoded;
+    
+    // Normalizamos el carné quitando los guiones (ej. "5190-23-17607" -> "51902317607")
+    if (userPayload.carne) {
+      userPayload = { ...userPayload, carne: userPayload.carne.replace(/-/g, '') };
+    }
+    
+    req.user = userPayload;
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Token inválido o expirado.', error: error.message });
@@ -49,7 +58,12 @@ const checkOwnership = (paramName = 'carne') => {
     }
     
     // Si es USUARIO, validamos que el parámetro solicitado coincida con su token
-    const requestedCarne = req.params[paramName];
+    let requestedCarne = req.params[paramName];
+    
+    if (requestedCarne) {
+      requestedCarne = requestedCarne.replace(/-/g, '');
+    }
+
     if (requestedCarne && requestedCarne === req.user.carne) {
       return next();
     }
