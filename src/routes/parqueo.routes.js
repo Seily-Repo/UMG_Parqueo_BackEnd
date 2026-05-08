@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const parqueoController = require('../controllers/parqueo.controller');
-const { verifyToken, checkRole } = require('../middlewares/jwt.middleware');
+const { verifyToken, checkRole } = require('../middleware/auth.middleware');
 
 router.get('/', verifyToken, checkRole(['ESTUDIANTE','ADMINISTRADOR']), parqueoController.getAllParqueos);
 router.get('/:id', verifyToken, checkRole(['ADMINISTRADOR']), parqueoController.getParqueoById);

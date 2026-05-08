@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const espacioController = require('../controllers/espacio.controller');
-const { verifyToken, checkRole } = require('../middlewares/jwt.middleware');
+const { verifyToken, checkRole } = require('../middleware/auth.middleware');
 
 // 1. Listados
 router.get('/', verifyToken, checkRole(['ADMINISTRADOR']), espacioController.getAllEspacios);

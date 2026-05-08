@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const tipoEspacioController = require('../controllers/tipo_espacio.controller');
-const { verifyToken, checkRole } = require('../middlewares/jwt.middleware');
+const { verifyToken, checkRole } = require('../middleware/auth.middleware');
 
 // 1. Obtener todos los tipos de espacio (General)
 router.get('/', verifyToken, checkRole(['ESTUDIANTE','ADMINISTRADOR']), tipoEspacioController.getAllTipos);

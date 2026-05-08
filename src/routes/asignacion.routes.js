@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const asignacionController = require('../controllers/asignacion.controller');
-const { verifyToken, checkRole } = require('../middlewares/jwt.middleware');
+const { verifyToken, checkRole } = require('../middleware/auth.middleware');
 
 router.get('/',verifyToken, checkRole(['ESTUDIANTE', 'ADMINISTRADOR']), asignacionController.getAllAsignaciones);
 router.post('/',verifyToken, checkRole(['ESTUDIANTE', 'ADMINISTRADOR']), asignacionController.createAsignacion);
