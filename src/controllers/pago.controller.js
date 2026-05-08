@@ -63,7 +63,8 @@ exports.getPagoById = async (req, res) => {
 // Obtener pagos por carné (solo el suyo o si es ADMINISTRADOR)
 exports.getPagosByCarne = async (req, res) => {
   try {
-    const pagos = await PagoStore.getByCarne(req.params.carne);
+    const carneNormalizado = req.params.carne ? req.params.carne.replace(/-/g, '') : null;
+    const pagos = await PagoStore.getByCarne(carneNormalizado);
 
     if (!pagos || pagos.length === 0) {
       return res.status(404).json({
@@ -120,22 +121,39 @@ exports.createPago = async (req, res) => {
     // 1. EXTRAER CARNÉ DEL TOKEN JWT POR SEGURIDAD
     // Si es ADMIN y quiere pagar por otro, permitimos que mande el LR_CARNE en el body, sino usamos el suyo.
     let LR_CARNE = req.user.carne;
-    if (req.user.rol === "ADMININISTRADOR" && req.body.LR_CARNE) {
+    if (req.user.rol === "ADMINISTRADOR" && req.body.LR_CARNE) {
       LR_CARNE = req.body.LR_CARNE;
     }
     
+    if (LR_CARNE) {
+      LR_CARNE = LR_CARNE.replace(/-/g, '');
+    }
+
     // Lo guardamos de vuelta en el body por si otras funciones lo necesitan
     req.body.LR_CARNE = LR_CARNE;
 
     const {
       PLN_PLAN,
       FPG_FORMA_PAGO,
+      EMU_USUARIO_MULTA
     } = req.body;
 
-    // Validación 1: campos obligatorios
-    if (!LR_CARNE || !FPG_FORMA_PAGO || !PLN_PLAN) {
+    // Validación 1: Mutuamente excluyentes y campos obligatorios
+    if (PLN_PLAN && EMU_USUARIO_MULTA) {
       return res.status(400).json({
-        message: "Faltan campos obligatorios (Plan y Forma de Pago)",
+        message: "No se puede pagar un plan y una multa al mismo tiempo. Proporcione solo uno.",
+      });
+    }
+
+    if (!PLN_PLAN && !EMU_USUARIO_MULTA) {
+      return res.status(400).json({
+        message: "Debe proporcionar un PLN_PLAN o un EMU_USUARIO_MULTA.",
+      });
+    }
+
+    if (!FPG_FORMA_PAGO) {
+      return res.status(400).json({
+        message: "La forma de pago (FPG_FORMA_PAGO) es obligatoria.",
       });
     }
 
@@ -152,14 +170,30 @@ exports.createPago = async (req, res) => {
     const apellidosEstudiante = usuario.LR_APELLIDOS;
     const correoEstudiante = usuario.LR_CORREO_INSTITUCIONAL;
 
-    // Obtener el precio del plan automáticamente
-    const plan = await PlanParqueoStore.getById(PLN_PLAN);
-    if (!plan) {
-      return res.status(404).json({
-        message: "Plan de parqueo no encontrado",
-      });
+    let PAG_MONTO_TOTAL = 0;
+    let plan = null;
+
+    // Obtener el precio según si es pago de multa o de plan
+    if (EMU_USUARIO_MULTA) {
+      const usuarioMulta = await UsuarioMultaStore.getById(EMU_USUARIO_MULTA);
+      if (!usuarioMulta) {
+        return res.status(404).json({ message: "Registro de multa de usuario no encontrado" });
+      }
+      const multa = await MultaStore.getById(usuarioMulta.MUL_MULTA);
+      if (!multa) {
+        return res.status(404).json({ message: "La multa especificada no existe" });
+      }
+      PAG_MONTO_TOTAL = multa.MUL_MONTO_TOTAL;
+    } else {
+      plan = await PlanParqueoStore.getById(PLN_PLAN);
+      if (!plan) {
+        return res.status(404).json({
+          message: "Plan de parqueo no encontrado",
+        });
+      }
+      PAG_MONTO_TOTAL = plan.PLN_PRECIO;
     }
-    const PAG_MONTO_TOTAL = plan.PLN_PRECIO;
+
     req.body.PAG_MONTO_TOTAL = PAG_MONTO_TOTAL;
     // Validación 2: monto mayor a 0
     if (PAG_MONTO_TOTAL <= 0) {
@@ -173,6 +207,7 @@ exports.createPago = async (req, res) => {
     req.body.PAG_FECHA_CREACION = new Date();
     req.body.PAG_FECHA_PAGO = new Date(); // Fecha temporal para poder insertar en BD, se actualizará luego
     req.body.STRIPE_PAYMENT_INTENT_ID = "P"; // Se actualizará luego con el ID de Stripe
+    req.body.PAG_ESTADO_REGISTRO = "A";
 
     // 2. Crear en base de datos para obtener el ID autogenerado
     const pago = await PagoStore.create(req.body);
@@ -193,10 +228,13 @@ exports.createPago = async (req, res) => {
       LR_NOMBRES: (nombreEstudiante ?? "").toString(),
       LR_APELLIDOS: (apellidosEstudiante ?? "").toString(),
       LR_CORREO_INSTITUCIONAL: (correoEstudiante ?? "").toString(),
-      PLN_NOMBRE_PLAN: (plan.PLN_NOMBRE_PLAN ?? "").toString(),
       FPG_NOMBRE_FORMA: (formaPago.FPG_NOMBRE_FORMA ?? "").toString(),
       PAG_MONTO_TOTAL: PAG_MONTO_TOTAL.toString(),
     };
+
+    if (plan) {
+      metadatos.PLN_NOMBRE_PLAN = (plan.PLN_NOMBRE_PLAN ?? "").toString();
+    }
 
     if (req.body.EMU_USUARIO_MULTA) {
       const usuarioMulta = await UsuarioMultaStore.getById(req.body.EMU_USUARIO_MULTA);

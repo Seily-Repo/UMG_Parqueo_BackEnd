@@ -22,10 +22,11 @@ const Multa = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    MUL_CREADO_POR: {
+    MUL_CREADOR_POR: {
       type: DataTypes.STRING(50),
       allowNull: true,
       defaultValue: 'ADMIN',
+      field: 'MUL_CREADOR_POR',
     },
     MUL_FECHA_CREACION: {
       type: DataTypes.DATE,

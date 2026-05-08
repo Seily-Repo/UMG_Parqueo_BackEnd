@@ -17,7 +17,7 @@ const Pago = sequelize.define(
     },
     PLN_PLAN: {
       type: DataTypes.NUMBER(10),
-      allowNull: false,
+      allowNull: true,
     },
     FPG_FORMA_PAGO: {
       type: DataTypes.NUMBER(10),

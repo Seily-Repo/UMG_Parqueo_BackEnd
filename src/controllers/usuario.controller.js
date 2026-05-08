@@ -14,8 +14,8 @@ exports.getAllUsuarios = async (req, res) => {
 
 exports.getUsuarioByCarne = async (req, res) => {
   try {
-
-    const usuario = await UsuarioStore.getByCarne(req.params.carne);
+    const carneNormalizado = req.params.carne ? req.params.carne.replace(/-/g, '') : null;
+    const usuario = await UsuarioStore.getByCarne(carneNormalizado);
     if (!usuario) {
       return res.status(404).json({
         message: "Usuario no encontrado por carné",

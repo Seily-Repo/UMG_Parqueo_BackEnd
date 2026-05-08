@@ -18,9 +18,25 @@ const options = {
         description: "Ejecución Local" 
       }
     ],
+    
+    // Configuración global de seguridad (Aplica el token a todas las rutas)
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
 
     // Componentes
     components: {
+      // Definición del esquema de seguridad (Botón "Authorize" en Swagger)
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+          description: "Ingresa el token JWT con el formato: Bearer <token>",
+        },
+      },
       schemas: {
        // PlanParqueo
         PlanParqueo: {
@@ -1004,7 +1020,7 @@ const options = {
 
       // Ruta Pago por Payment ID de Stripe
 
-      "/api/pago/{carne}": {
+      "/api/pago/carne/{carne}": {
         get: {
           tags: ["Pagos"],
           summary: "Obtiene un pago por su carné",
