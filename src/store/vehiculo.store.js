@@ -7,6 +7,23 @@ class VehiculoStore {
    * Retorna las llaves que espera Dashboard.tsx:
    * ID_VEHICULO, TIPO_VEHICULO, PLACA, MARCA, MODELO, COLOR, ACTIVO
    */
+  static async getByPlaca(placa) {
+    const placaLimpia = placa.trim().toUpperCase();
+    const row = await Vehiculo.findOne({
+      where: { VEH_PLACA: placaLimpia, VEH_ACTIVO: 1 },
+      raw: true,
+    });
+    if (!row) return null;
+    return {
+      ID_VEHICULO: row.VEH_ID_VEHICULO,
+      CARNE: row.LR_CARNE, // ¡Este es el dato de oro que necesitamos!
+      TIPO_VEHICULO: row.VEH_TIPO_VEHICULO,
+      PLACA: row.VEH_PLACA,
+      MARCA: row.VEH_MARCA,
+      MODELO: row.VEH_MODELO
+    };
+  }
+
   static async getByCarne(carne) {
     const carneLimpio = limpiarCarne(carne);
     const rows = await Vehiculo.findAll({

@@ -27,6 +27,7 @@ const vehiculoCtrl = require('../controllers/vehiculo.controller');
  *         description: Lista de vehículos del estudiante
  */
 router.get('/:carne', vehiculoCtrl.getByCarne);
+router.get('/placa/:placa', vehiculoCtrl.getByPlaca);
 
 /**
  * @swagger

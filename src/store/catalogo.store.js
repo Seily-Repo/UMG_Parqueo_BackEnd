@@ -92,7 +92,7 @@ class CatalogoStore {
 
   static async getMultasCatalogo() {
     return this.getWithCache('multasCatalogo', Multa,
-      { where: { MUL_ESTADO_REGISTRO: 'A' } },
+      {},
       null // Frontend usa MUL_MULTA, MUL_DESCRIPCION, MUL_MONTO_TOTAL directamente
     );
   }

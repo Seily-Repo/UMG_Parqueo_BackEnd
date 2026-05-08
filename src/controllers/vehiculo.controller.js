@@ -3,6 +3,16 @@ const VehiculoStore = require('../store/vehiculo.store');
 /**
  * GET /api/vehiculos/:carne
  */
+exports.getByPlaca = async (req, res) => {
+  try {
+    const vehiculo = await VehiculoStore.getByPlaca(req.params.placa);
+    if (!vehiculo) return res.status(404).json({ error: "Vehículo no encontrado" });
+    res.status(200).json(vehiculo);
+  } catch (err) {
+    res.status(500).json({ error: "Error de servidor", detalle: err.message });
+  }
+};
+
 exports.getByCarne = async (req, res) => {
   try {
     const vehiculos = await VehiculoStore.getByCarne(req.params.carne);
