@@ -10,7 +10,7 @@ const options = {
     },
     servers: [
       {
-        url: `/api/disponibilidad`, 
+        url: `/disponibilidad`, 
         description: 'Servidor DEV (Vía Nginx)' 
       },
       {
@@ -18,7 +18,22 @@ const options = {
         description: 'Servidor local' 
       },
     ],
+    // Configuración global de seguridad (Aplica el token a todas las rutas)
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
     components: {
+      // Definición del esquema de seguridad (Botón "Authorize" en Swagger)
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Ingresa el token JWT con el formato: Bearer <token>',
+        },
+      },
       schemas: {
         ApiResponse: {
           type: 'object',

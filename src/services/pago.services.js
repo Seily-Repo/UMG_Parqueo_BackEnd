@@ -1,4 +1,5 @@
 const axios = require('axios'); 
+require('dotenv').config();
 
 class PagoService {
     static async validarPagoEnAPI(correlativo,authHeader) {
