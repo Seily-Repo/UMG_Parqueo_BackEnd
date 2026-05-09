@@ -9,7 +9,7 @@ const options = {
       description: 'API para el Sistema de Control de Parqueo UMG. Gestiona usuarios, vehículos, catálogos, multas y administración.',
     },
     servers: [
-      { url: '/api/login', description: 'Servidor de Pruebas (Nginx)' },
+      { url: '/', description: 'Servidor de Pruebas (Nginx)' },
       { url: 'http://localhost:3001', description: 'Servidor Local (Desarrollo)' }
     ],
     components: {
