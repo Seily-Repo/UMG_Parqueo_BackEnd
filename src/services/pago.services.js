@@ -1,15 +1,15 @@
 const axios = require('axios'); 
 
 class PagoService {
-    static async validarPagoEnAPI(correlativo, authHeader) {
+    static async validarPagoEnAPI(correlativo, token) {
         try {
             const baseUrl = process.env.COBROS_API_BASE_URL || 'http://localhost:3000'; 
-           console.log(`Validando pago para correlativo: ${correlativo} con authHeader: ${authHeader}`);
+           console.log(`Validando pago para correlativo: ${correlativo} con token: ${token}`);
             const urlpago = `${baseUrl}/verify/${correlativo}`;
             console.log(`URL de pago construida: ${urlpago}`);
             const respuesta = await axios.get(urlpago, {
                 headers: {
-                    'Authorization': authHeader
+'Authorization': `Bearer ${token}`
                 }
             });
             console.log("Respuesta del módulo de pagos:", respuesta.data);

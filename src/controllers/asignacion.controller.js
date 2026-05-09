@@ -58,8 +58,19 @@ exports.createAsignacion = async (req, res) => {
     }
 
     const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
 
-  const infoPago = await PagoServices.validarPagoEnAPI(correlativo, authHeader);
+       if(!token) {
+        return res.status(401).json({
+          success: false,
+          status: 401,
+          message: "Token de autenticación faltante.",
+          details: "Se requiere un token válido en el encabezado Authorization para validar el pago."
+        });
+      }
+
+
+  const infoPago = await PagoServices.validarPagoEnAPI(correlativo, token);
     
     if (!infoPago || !infoPago.id) {
       return res.status(404).json({ 
