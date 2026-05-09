@@ -23,6 +23,7 @@ class PagoStore {
     // Deudas de PLAN: vehículos registrados que aún no tienen un pago 'C' (completado) en CB_PAGO
     const [deudaPlanes] = await sequelize.query(`
       SELECT 
+        pl.PLN_PLAN AS ID_A_PAGAR,
         pl.PLN_NOMBRE_PLAN AS DESCRIPCION,
         pl.PLN_PRECIO AS MONTO,
         'P' AS PAG_ESTADO,
@@ -43,6 +44,7 @@ class PagoStore {
     // Deudas de MULTA: multas asignadas que no tienen pago completado
     const [deudaMultas] = await sequelize.query(`
       SELECT 
+        um.EMU_USUARIO_MULTA AS ID_A_PAGAR,
         m.MUL_DESCRIPCION AS DESCRIPCION,
         m.MUL_MONTO_TOTAL AS MONTO,
         'P' AS PAG_ESTADO,
