@@ -56,7 +56,10 @@ exports.createAsignacion = async (req, res) => {
         details: "No puedes solicitar una asignación de parqueo para un carné distinto al de tu sesión actual."
       });
     }
-  const infoPago = await PagoServices.validarPagoEnAPI(correlativo);
+
+    const authHeader = req.headers['authorization'];
+
+  const infoPago = await PagoServices.validarPagoEnAPI(correlativo, authHeader);
     
     if (!infoPago || !infoPago.id) {
       return res.status(404).json({ 
@@ -65,7 +68,6 @@ exports.createAsignacion = async (req, res) => {
         message: "Correlativo de pago no encontrado en el sistema de cobros." 
       });
     }
-
  if (Number(infoPago.metadata.LR_CARNE) !== Number(carne_usuario)) {
       return res.status(403).json({ 
         success: false, 
@@ -292,7 +294,10 @@ exports.updateAsignacion = async (req, res) => {
         details: "Los IDs deben ser estrictamente numéricos.",
       });
     }
-    if (!asignacionActual) {
+   
+
+    const asignacionActual = await AsignacionStore.getById(id);
+ if (!asignacionActual) {
       return res.status(404).json({
         success: false,
         status: 404,
@@ -301,7 +306,6 @@ exports.updateAsignacion = async (req, res) => {
       });
     }
 
-    const asignacionActual = await AsignacionStore.getById(id);
 if (req.user.rol !== 'ADMINISTRADOR' && Number(asignacionActual.carne_usuario) !== Number(req.user.carne)) {
       return res.status(403).json({
         success: false,
