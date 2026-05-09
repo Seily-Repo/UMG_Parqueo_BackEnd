@@ -13,8 +13,9 @@ const routes = (app) => {
   // Catálogos (públicos)
   app.use('/api', catalogoRoutes);
 
-  // Autenticación
+  // Autenticación (Soporta ambas rutas para evitar problemas con Nginx)
   app.use('/api/auth', authRoutes);
+  app.use('/api/login', authRoutes);
 
   // Vehículos
   app.use('/api/vehiculos', vehiculoRoutes);
