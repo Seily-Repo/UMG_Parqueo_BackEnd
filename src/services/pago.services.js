@@ -2,14 +2,14 @@ const axios = require('axios');
 require('dotenv').config();
 
 class PagoService {
-    static async validarPagoEnAPI(correlativo,authHeader) {
+    static async validarPagoEnAPI(correlativo,) {
         try {
             
             const baseUrl = process.env.COBROS_API_BASE_URL || 'http://localhost:3000'; 
             const urlpago = `${baseUrl}/verify/${correlativo}`;
-            const respuesta = await axios.get(urlpago, {
+          const respuesta = await axios.get(urlpago, {
                 headers: {
-                    'Authorization': authHeader
+                    'Authorization': `Bearer ${process.env.COBROS_API_TOKEN}`
                 }
             });
             return respuesta.data; 
