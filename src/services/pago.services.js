@@ -1,4 +1,5 @@
 const axios = require('axios'); 
+require('dotenv').config();
 
 class PagoService {
     static async validarPagoEnAPI(correlativo) {
@@ -6,6 +7,7 @@ class PagoService {
             
             const baseUrl = process.env.COBROS_API_BASE_URL || 'http://localhost:3000'; 
             const urlpago = `${baseUrl}/verify/${correlativo}`;
+            console.log(urlpago)
             const respuesta = await axios.get(urlpago);
             return respuesta.data; 
             
