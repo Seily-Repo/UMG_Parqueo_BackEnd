@@ -33,6 +33,9 @@ async function enviarCorreoRegistro(datos, esAdmin) {
               ${esAdmin ? `
               <p style="margin: 5px 0; font-size: 16px;"><strong>Contraseña Temporal:</strong> <span style="color: #d32f2f;">${datos.password}</span></p>
               <p style="color: #666; font-size: 14px; margin-top: 10px;">(Por tu seguridad, te recomendamos cambiar esta contraseña al iniciar sesión por primera vez).</p>
+              <div style="text-align: center; margin-top: 25px;">
+                <a href="http://10.0.40.10/" style="background-color: #00b4d8; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Ir al Login</a>
+              </div>
               ` : ''}
               
             </div>

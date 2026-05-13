@@ -88,7 +88,7 @@ class UsuarioStore {
   static async cambiarPassword(carne, nuevaPasswordHash) {
     const carneLimpio = limpiarCarne(carne);
     await Usuario.update(
-      { LR_CONTRASENA: nuevaPasswordHash },
+      { LR_CONTRASENA: nuevaPasswordHash, LR_REQUIERE_CAMBIO_PASS: 0 },
       { where: { LR_CARNE: carneLimpio } }
     );
   }
