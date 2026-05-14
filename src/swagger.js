@@ -113,6 +113,66 @@ const options = {
 
             },
         // Estudiante
+        Vehiculo:
+        {
+          type: "object",
+          required: [
+            "VEH_PLACA",
+          ],
+          properties: {
+            ID_VEHICULO: {
+              type: "integer",
+              description: "ID del vehículo",
+            },
+            CARNE: {
+              type: "integer",
+              description: "Carné del dueño",
+            },
+            TIPO_VEHICULO: {
+              type: "string",
+              description: "Tipo de vehículo",
+            },
+            VEH_PLACA: {
+              type: "string",
+              description: "Placa del vehiculo (único)",
+            },
+            MARCA: {
+              type: "string",
+              description: "Marca del vehículo",
+            },
+            MODELO: {
+              type: "string",
+              description: "Modelo del vehículo",
+            },
+            ESTUDIANTE_NOMBRE: {
+              type: "string",
+              description: "Nombres del estudiante",
+              nullable: true,
+            },
+            ESTUDIANTE_APELLIDO: {
+              type: "string",
+              description: "Apellidos del estudiante",
+              nullable: true,
+            },
+            ESTUDIANTE_CORREO: {
+              type: "string",
+              description: "Correo institucional del estudiante",
+              nullable: true,
+            },
+          },
+          example: {
+            ID_VEHICULO: 2,
+            CARNE: 51902317607,
+            TIPO_VEHICULO: "AUTOMOVIL",
+            VEH_PLACA: "PABC123",
+            MARCA: "Toyota",
+            MODELO: "Corolla",
+            ESTUDIANTE_NOMBRES: "Juan",
+            ESTUDIANTE_APELLIDOS: "Perez",
+            ESTUDIANTE_CORREO: "jperez@miumg.edu.gt"
+          }
+        },
+
         Usuario: {
           type: "object",
           required: [
@@ -432,6 +492,7 @@ const options = {
 
     paths: {
 
+
       // Rutas de Plan Parqueo
       "/api/plan_parqueo": {
 
@@ -641,6 +702,34 @@ const options = {
         },
       },
 
+      "/api/usuario/vehiculo/placa/{placa}": {
+        get: {
+          tags: ["Vehiculo"],
+          summary: "Obtiene datos de un vehiculo por placa",
+          parameters: [
+            {
+              name: "placa",
+              in: "path",
+              required: true,
+              description: "Placa del vehículo",
+              schema: { type: "string" },
+            },
+          ],
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Vehiculo obtenido correctamente",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Vehiculo" },
+                },
+              },
+            },
+            404: { description: "Vehiculo no encontrado por placa" },
+            500: { description: "Error al buscar el vehiculo" },
+          },
+        },
+      },
       // Rutas de Usuario Moroso
       "/api/usuario_moroso": {
         get: {

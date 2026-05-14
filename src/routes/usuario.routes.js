@@ -7,4 +7,7 @@ const { checkRole, checkOwnership } = require('../middlewares/auth.middleware');
 // Permitimos que ADMIN y USUARIO entren, pero USUARIO solo puede ver su propio carné
 router.get("/carne/:carne", checkRole(['ADMINISTRADOR', 'USUARIO']), checkOwnership('carne'), usuarioController.getUsuarioByCarne);
 
+// Añadimos la consulta por placa
+router.get("/vehiculo/placa/:placa", checkRole(['ADMINISTRADOR']), usuarioController.getVehiculoByPlaca);
+
 module.exports = router;

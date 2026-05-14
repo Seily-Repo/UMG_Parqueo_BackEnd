@@ -1,4 +1,6 @@
 const UsuarioMultaStore = require("../store/usuario_multa.store");
+const { enviarCorreoMulta } = require("../utils/email_multa.util");
+const { sequelize } = require("../config/db");
 
 const estadoMap = {
   a: "A",
@@ -140,6 +142,41 @@ exports.createUsuarioMulta = async (req, res) => {
       EMU_ESTADO_MULTA: estado,
       EMU_CREADO_POR: EMU_CREADO_POR || "ADMIN",
     });
+
+    // Enviar notificación de multa por correo
+    try {
+      const query = `
+        SELECT V.VEH_PLACA, U.LR_CARNE, U.LR_NOMBRES, U.LR_APELLIDOS, U.LR_CORREO_INSTITUCIONAL, M.MUL_DESCRIPCION, M.MUL_MONTO_TOTAL
+        FROM LR_VEHICULO V
+        INNER JOIN LR_USUARIO U ON V.LR_CARNE = U.LR_CARNE
+        INNER JOIN CB_MULTA M ON M.MUL_MULTA = :mul_multa
+        WHERE V.VEH_ID_VEHICULO = :veh_id
+      `;
+      const [infoVehiculo] = await sequelize.query(query, {
+        replacements: { mul_multa: MUL_MULTA, veh_id: VEH_ID_VEHICULO },
+        type: sequelize.QueryTypes.SELECT
+      });
+
+      console.log("Datos del vehiculo obtenidos para el correo:", infoVehiculo);
+
+      if (infoVehiculo && infoVehiculo.LR_CORREO_INSTITUCIONAL) {
+        const nombreCompleto = `${infoVehiculo.LR_NOMBRES} ${infoVehiculo.LR_APELLIDOS}`;
+        console.log(`Intentando enviar correo a: ${infoVehiculo.LR_CORREO_INSTITUCIONAL}`);
+        
+        await enviarCorreoMulta(
+          infoVehiculo.LR_CORREO_INSTITUCIONAL,
+          infoVehiculo.LR_CARNE,
+          nombreCompleto,
+          infoVehiculo.VEH_PLACA,
+          infoVehiculo.MUL_DESCRIPCION,
+          infoVehiculo.MUL_MONTO_TOTAL
+        );
+      } else {
+        console.log("No se envió el correo: No se encontró información del vehículo o el usuario no tiene correo institucional.");
+      }
+    } catch (errCorreo) {
+      console.error("Error al obtener datos para el correo de multa:", errCorreo);
+    }
 
     res.status(201).json(formatMulta(registro));
   } catch (error) {

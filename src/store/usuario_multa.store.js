@@ -1,4 +1,6 @@
 const UsuarioMulta = require("../model/usuario_multa.model");
+const { sequelize } = require("../config/db");
+
 
 class UsuarioMultaStore {
   static async getAll() {
