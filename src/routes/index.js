@@ -2,6 +2,7 @@ const parqueoRoutes = require('./parqueo.routes');
 const espacioRoutes = require('./espacio.routes');
 const tipoEspacioRoutes = require('./tipo_espacio.routes'); 
 const asignacionRoutes = require('./asignacion.routes');
+const islaRoutes = require('./isla.routes');
 
 const routes = (app) => {
 
@@ -9,6 +10,7 @@ const routes = (app) => {
   app.use('/api/tipo-espacios', tipoEspacioRoutes); 
   app.use('/api/espacios', espacioRoutes);
   app.use('/api/asignacion', asignacionRoutes);
+  app.use('/api/islas', islaRoutes);
 };
 
 module.exports = routes;

@@ -1,12 +1,13 @@
 const swaggerJSDoc = require('swagger-jsdoc');
 const { PORT } = require('./config/config');
+
 const options = {
   definition: {
     openapi: '3.0.0',
     info: { 
       title: 'UMG Parqueos API - Sistema de Disponibilidad', 
-      version: '1.1.0', 
-      description: 'Backend para control de Disponibilidad, Tipos de Espacio y Asignaciones.\n\n**Nota sobre Tiempo Real:**\nEste servidor utiliza `socket.io`. El frontend puede conectarse a la raíz del servidor para escuchar actualizaciones del mapa en tiempo real.\n\n**Lógica de Capacidad:**\n1. Los tipos de espacio se crean basados en un porcentaje del parqueo.\n2. No se pueden crear más espacios físicos que los permitidos por el tipo.' 
+      version: '1.2.0', 
+      description: 'Backend para control de Disponibilidad, Tipos de Espacio, Asignaciones e Islas Dinámicas.\n\n**Nota sobre Tiempo Real:**\nEste servidor utiliza `socket.io`. El frontend puede conectarse a la raíz del servidor para escuchar actualizaciones del mapa en tiempo real.\n\n**Lógica de Capacidad:**\n1. Los tipos de espacio se crean basados en un porcentaje del parqueo.\n2. No se pueden crear más espacios físicos que los permitidos por el tipo.' 
     },
     servers: [
       {
@@ -44,14 +45,13 @@ const options = {
             details: { type: 'object', nullable: true }
           }
         },
-                Parqueo: {
+        Parqueo: {
           type: 'object',
           properties: {
             PQ_Parqueo: { type: 'integer', readOnly: true },
             PQ_Nombre: { type: 'string', example: 'Parqueo Central' },
             PQ_Direccion: { type: 'string', example: 'Campus Central UMG' },
             PQ_Capacidad: { type: 'integer', example: 150 },
-
             estado: {
               type: 'integer',
               example: 1,
@@ -90,72 +90,97 @@ const options = {
             TES_ESPACIO: { type: 'integer', example: 1 }
           }
         },
-  Asignacion: {
-  type: 'object',
-  required: ['carne_usuario', 'ES_Espacio', 'id_ciclo', 'id_jornada', 'correlativo'],
-  properties: {
-    AS_Asignacion: { 
-      type: 'integer', 
-      readOnly: true, 
-      description: 'ID autoincremental generado por Oracle.' 
-    },
-    AS_FechaAsignacion: { 
-      type: 'string', 
-      format: 'date-time', 
-      readOnly: true 
-    },
-    AS_Estado: { 
-      type: 'integer', 
-      readOnly: true, 
-      example: 1, 
-      description: '1: Activa, 0: Anulada' 
-    },
-    carne_usuario: { 
-      type: 'integer', 
-      example: 202601001, 
-      description: 'Carné del estudiante (Formato numérico sin guiones).' 
-    },
-    ES_Espacio: { 
-      type: 'integer', 
-      example: 1, 
-      description: 'ID del espacio físico en la tabla DP_ESPACIO.' 
-    },
-    id_ciclo: { 
-      type: 'integer', 
-      example: 1, 
-      description: 'ID del ciclo escolar (LR_ID_CICLO).' 
-    },
-    id_jornada: { 
-      type: 'integer', 
-      example: 1, 
-      description: 'ID de la jornada (LR_ID_JORNADA).' 
-    },
-    correlativo: { 
-      type: 'string', 
-      example: 'pi_3RDXTm2eZvKY1o2C1TjPKHmg', 
-      description: 'ID de Payment Intent de Stripe enviado para validación.' 
-    },
-    AS_Correlativo: { 
-      type: 'string', 
-      readOnly: true, 
-      example: 'pi_3RDXTm2eZvKY1o2C1TjPKHmg', 
-      description: 'ID de Stripe almacenado tras la validación exitosa.' 
-    }
-  }
-}
+        Asignacion: {
+          type: 'object',
+          required: ['carne_usuario', 'ES_Espacio', 'id_ciclo', 'id_jornada', 'correlativo'],
+          properties: {
+            AS_Asignacion: { 
+              type: 'integer', 
+              readOnly: true, 
+              description: 'ID autoincremental generado por Oracle.' 
+            },
+            AS_FechaAsignacion: { 
+              type: 'string', 
+              format: 'date-time', 
+              readOnly: true 
+            },
+            AS_Estado: { 
+              type: 'integer', 
+              readOnly: true, 
+              example: 1, 
+              description: '1: Activa, 0: Anulada' 
+            },
+            carne_usuario: { 
+              type: 'integer', 
+              example: 202601001, 
+              description: 'Carné del estudiante (Formato numérico sin guiones).' 
+            },
+            ES_Espacio: { 
+              type: 'integer', 
+              example: 1, 
+              description: 'ID del espacio físico en la tabla DP_ESPACIO.' 
+            },
+            id_ciclo: { 
+              type: 'integer', 
+              example: 1, 
+              description: 'ID del ciclo escolar (LR_ID_CICLO).' 
+            },
+            id_jornada: { 
+              type: 'integer', 
+              example: 1, 
+              description: 'ID de la jornada (LR_ID_JORNADA).' 
+            },
+            correlativo: { 
+              type: 'string', 
+              example: 'pi_3RDXTm2eZvKY1o2C1TjPKHmg', 
+              description: 'ID de Payment Intent de Stripe enviado para validación.' 
+            },
+            AS_Correlativo: { 
+              type: 'string', 
+              readOnly: true, 
+              example: 'pi_3RDXTm2eZvKY1o2C1TjPKHmg', 
+              description: 'ID de Stripe almacenado tras la validación exitosa.' 
+            }
+          }
+        },
+        // --- 🚀 NUEVOS ESQUEMAS PARA ISLAS DINÁMICAS ---
+        Isla: {
+          type: 'object',
+          properties: {
+            IS_ISLA: { type: 'integer', readOnly: true, description: 'ID de la Isla' },
+            PQ_PARQUEO: { type: 'integer', example: 1, description: 'ID del parqueo al que pertenece' },
+            IS_NOMBRE: { type: 'string', readOnly: true, example: 'ISLA A', description: 'Generado automáticamente por el backend' },
+            IS_CAPACIDAD: { type: 'integer', example: 15, description: 'Total de espacios en esta isla' },
+            IS_DESCRIPCION: { type: 'string', example: 'Área principal de catedráticos' },
+            IS_ESTADO: { type: 'integer', readOnly: true, example: 1, description: '1: Activa, 0: Inactiva' }
+          }
+        },
+        IslaCreate: {
+          type: 'object',
+          required: ['PQ_PARQUEO', 'IS_CAPACIDAD', 'espacios'],
+          properties: {
+            PQ_PARQUEO: { type: 'integer', example: 1, description: 'ID del parqueo' },
+            IS_CAPACIDAD: { type: 'integer', example: 5, description: 'Debe coincidir con la longitud del arreglo de espacios' },
+            IS_DESCRIPCION: { type: 'string', example: 'Sección techada', description: 'Opcional. Descripción para la BD.' },
+            espacios: {
+              type: 'array',
+              items: { type: 'integer' },
+              example: [101, 102, 103, 104, 105],
+              description: 'Arreglo con los IDs físicos de los espacios que conformarán la isla.'
+            }
+          }
+        }
       }
     },
     paths: {
       // --- PARQUEOS ---
-'/api/parqueos': {
-
+      '/api/parqueos': {
         get: { 
           tags: ['Parqueos'], 
           summary: 'Obtiene todos los parqueos activos (estado=1)', 
           description: 'Solo retorna parqueos activos. Los inactivos están ocultos por eliminación lógica.',
           responses: { '200': { description: 'Ok' } } 
         },
-
         post: {
           tags: ['Parqueos'],
           summary: 'Crea un parqueo (activo por defecto)',
@@ -176,9 +201,7 @@ const options = {
           }
         }
       },
-
       '/api/parqueos/{id}': {
-
         get: { 
           tags: ['Parqueos'], 
           summary: 'Obtiene parqueo por ID (solo activos)', 
@@ -191,7 +214,6 @@ const options = {
             '404': { description: 'No encontrado o inactivo' } 
           } 
         },
-
         put: {
           tags: ['Parqueos'],
           summary: 'Actualiza parqueo',
@@ -213,7 +235,6 @@ const options = {
             '404': { description: 'No encontrado' }
           }
         },
-
         delete: { 
           tags: ['Parqueos'], 
           summary: 'Eliminación lógica de parqueo (estado=0)', 
@@ -228,32 +249,33 @@ const options = {
         }
       },
       '/api/parqueos/{id}/restore': {
-  put: {
-    tags: ['Parqueos'],
-    summary: 'Restaura un parqueo eliminado lógicamente (estado=1)',
-    description: 'Reactiva un parqueo que fue desactivado (estado=0).',
-    parameters: [
-      {
-        name: 'id',
-        in: 'path',
-        required: true,
-        schema: { type: 'integer' }
-      }
-    ],
-    responses: {
-      '200': { description: 'Parqueo restaurado correctamente' },
-      '404': { description: 'No existe o ya está activo' }
-    }
-  }
-},
-'/api/parqueos/admin/all': {
-  get: {
-    tags: ['Parqueos'],
-    summary: 'Ver todos los parqueos (admin)',
-    description: 'Incluye activos e inactivos',
-    responses: { '200': { description: 'OK' } }
-  }
-},
+        put: {
+          tags: ['Parqueos'],
+          summary: 'Restaura un parqueo eliminado lógicamente (estado=1)',
+          description: 'Reactiva un parqueo que fue desactivado (estado=0).',
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: { type: 'integer' }
+            }
+          ],
+          responses: {
+            '200': { description: 'Parqueo restaurado correctamente' },
+            '404': { description: 'No existe o ya está activo' }
+          }
+        }
+      },
+      '/api/parqueos/admin/all': {
+        get: {
+          tags: ['Parqueos'],
+          summary: 'Ver todos los parqueos (admin)',
+          description: 'Incluye activos e inactivos',
+          responses: { '200': { description: 'OK' } }
+        }
+      },
+
       // --- TIPO ESPACIOS ---
       '/api/tipo-espacios': {
         get: { tags: ['Tipo Espacio'], summary: 'Lista todos los tipos de espacio', responses: { '200': { description: 'Ok' } } },
@@ -412,7 +434,6 @@ const options = {
           responses: { '200': { description: 'Eliminado' } }
         }
       },
-
       '/api/espacios/{id}/estado': {
         put: {
           tags: ['Espacios'],
@@ -439,7 +460,7 @@ const options = {
         }
       },
 
-     // --- ASIGNACIONES ---
+      // --- ASIGNACIONES ---
       '/api/asignacion': {
         get: { 
           tags: ['Asignaciones'], 
@@ -460,7 +481,6 @@ const options = {
           }
         }
       },
-
       '/api/asignacion/disponibilidad/ocupados': {
         get: {
           tags: ['Asignaciones'],
@@ -477,7 +497,6 @@ const options = {
           }
         }
       },
-
       '/api/asignacion/disponibilidad/libres': {
         get: {
           tags: ['Asignaciones'],
@@ -494,7 +513,6 @@ const options = {
           }
         }
       },
-
       '/api/asignacion/anular/{id}': {
         delete: {
           tags: ['Asignaciones'],
@@ -504,7 +522,6 @@ const options = {
           responses: { '200': { description: 'Anulada' } }
         }
       },
-
       '/api/asignacion/cambiar/{id}': {
         put: {
           tags: ['Asignaciones'],
@@ -532,7 +549,71 @@ const options = {
             '409': { description: 'Asignación ya anulada, o nuevo espacio ocupado/inhabilitado' }
           }
         }
-      }}},
+      },
+
+      // --- 🚀 NUEVAS RUTAS PARA ISLAS DINÁMICAS ---
+      '/api/islas': {
+        get: {
+          tags: ['Islas'],
+          summary: 'Obtiene todas las islas',
+          description: 'Devuelve las cabeceras de las islas. Se puede filtrar por parqueo y estado.',
+          parameters: [
+            { name: 'id_parqueo', in: 'query', schema: { type: 'integer' }, description: 'Filtrar por ID del Parqueo' },
+            { name: 'estado', in: 'query', schema: { type: 'integer', enum: [0, 1] }, description: '1: Activas, 0: Inactivas' }
+          ],
+          responses: { '200': { description: 'Listado obtenido exitosamente' } }
+        },
+        post: {
+          tags: ['Islas'],
+          summary: 'Crea una nueva Isla y asigna sus espacios',
+          description: 'Solo Administradores. Genera el nombre automático (ISLA A, ISLA B) y hace el mapeo masivo de espacios.',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/IslaCreate' }
+              }
+            }
+          },
+          responses: {
+            '201': { description: 'Isla creada y espacios asignados' },
+            '400': { description: 'Datos incompletos o discrepancia en capacidad' },
+            '403': { description: 'Permisos insuficientes' }
+          }
+        }
+      },
+      '/api/islas/{id}/espacios': {
+        get: {
+          tags: ['Islas'],
+          summary: 'Obtiene el detalle (espacios físicos) de una isla',
+          description: 'Devuelve un arreglo enriquecido con el ID físico, el tipo de espacio y el estado de cada espacio dentro de la isla. Útil para el offsetIndex del frontend.',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'integer' }, description: 'ID de la Isla' }
+          ],
+          responses: {
+            '200': { description: 'Detalle de la isla obtenido exitosamente' },
+            '404': { description: 'Isla vacía o no encontrada' }
+          }
+        }
+      },
+      '/api/islas/{id}/anular': {
+        put: {
+          tags: ['Islas'],
+          summary: 'Anular/Inhabilitar una isla',
+          description: 'Solo Administradores. Cambia el estado de la isla a 0.',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'integer' }, description: 'ID de la Isla a anular' }
+          ],
+          responses: {
+            '200': { description: 'Isla inhabilitada correctamente' },
+            '403': { description: 'Permisos insuficientes' },
+            '404': { description: 'Isla no encontrada' }
+          }
+        }
+      }
+    }
+  },
   apis: []
 };
+
 module.exports = swaggerJSDoc(options);
