@@ -132,8 +132,8 @@ router.post('/registro', authCtrl.registro);
  *       401:
  *         description: Credenciales incorrectas
  */
-// [LOG-004] Implementación del loginLimiter en la ruta de login
-router.post('/login', loginLimiter, authCtrl.login);
+// [LOG-004] Implementación del loginLimiter en la ruta de login (COMENTADO TEMPORALMENTE PARA PRUEBAS)
+router.post('/login', /* loginLimiter, */ authCtrl.login);
 
 /**
  * @swagger
