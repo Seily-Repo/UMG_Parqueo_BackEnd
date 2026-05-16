@@ -69,10 +69,11 @@ class CatalogoStore {
   }
 
   static async getPlanes() {
-    return this.getWithCache('planes', PlanParqueo,
-      { where: { PLN_ESTADO_REGISTRO: 'A' }, order: [['PLN_PRECIO', 'DESC']] },
-      null // Frontend usa PLN_PLAN, PLN_NOMBRE_PLAN, PLN_PRECIO directamente
-    );
+    const rows = await PlanParqueo.findAll({
+      where: { PLN_ESTADO_REGISTRO: 'A' },
+      order: [['PLN_PRECIO', 'DESC']]
+    });
+    return rows.map(r => r.get({ plain: true }));
   }
 
   static async getRoles() {
