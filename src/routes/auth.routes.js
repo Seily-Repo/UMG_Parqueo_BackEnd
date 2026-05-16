@@ -1,6 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const authCtrl = require('../controllers/auth.controller');
+const rateLimit = require('express-rate-limit'); // [LOG-004] Importación de limite de peticiones
+
+// [LOG-004] Configuración del limitador de tasa para protección contra Brute Force
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 5, // Límite de 5 intentos por IP
+  message: { error: 'Demasiados intentos de inicio de sesión, por favor intente de nuevo después de 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
  * @swagger
@@ -122,7 +132,8 @@ router.post('/registro', authCtrl.registro);
  *       401:
  *         description: Credenciales incorrectas
  */
-router.post('/login', authCtrl.login);
+// [LOG-004] Implementación del loginLimiter en la ruta de login
+router.post('/login', loginLimiter, authCtrl.login);
 
 /**
  * @swagger
@@ -147,5 +158,31 @@ router.post('/login', authCtrl.login);
  *         description: Contraseña actualizada exitosamente
  */
 router.put('/cambiar-password', authCtrl.cambiarPassword);
+
+/**
+ * @swagger
+ * /api/auth/recuperar-password:
+ *   post:
+ *     tags: [Autenticación]
+ *     summary: Verifica existencia del correo para enviar enlace de recuperación
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [correo_electronico]
+ *             properties:
+ *               correo_electronico:
+ *                 type: string
+ *                 example: "jperez@miumg.edu.gt"
+ *     responses:
+ *       200:
+ *         description: Solicitud procesada correctamente
+ *       400:
+ *         description: Correo inválido
+ */
+// [LOG-002] Preparación para Recuperación: Nuevo endpoint para recuperar password
+router.post('/recuperar-password', authCtrl.recuperarPassword);
 
 module.exports = router;
