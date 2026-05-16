@@ -53,4 +53,48 @@ async function enviarCorreoRegistro(datos, esAdmin) {
   }
 }
 
-module.exports = { transporter, enviarCorreoRegistro };
+/**
+ * Envía el correo con el enlace de recuperación de contraseña.
+ * @param {string} correo - Correo del usuario
+ * @param {string} primerNombre - Primer nombre del usuario
+ * @param {string} token - JWT de recuperación
+ */
+async function enviarCorreoRecuperacion(correo, primerNombre, token) {
+  try {
+    const enlace = `http://localhost:3000/reset-password?token=${token}`;
+
+    const mailOptions = {
+      from: `"Parqueo UMG" <${process.env.EMAIL_USER}>`,
+      to: correo,
+      subject: '🔒 Recuperación de Contraseña - Parqueo UMG',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+          <div style="background-color: #002b5c; color: white; padding: 20px; text-align: center;">
+            <h2 style="margin: 0; font-size: 24px;">Parqueo UMG</h2>
+          </div>
+          <div style="padding: 20px; color: #333;">
+            <h3 style="color: #00529b; font-size: 20px;">¡Hola, ${primerNombre}!</h3>
+            <p style="font-size: 16px;">Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en el <strong>Sistema de Control de Parqueo</strong>.</p>
+            
+            <div style="background-color: #f8f9fa; border-left: 4px solid #00b4d8; padding: 15px; margin-top: 20px; border-radius: 4px; text-align: center;">
+              <p style="font-size: 16px; margin-bottom: 20px;">Haz clic en el siguiente botón para cambiar tu contraseña. Este enlace expira en 15 minutos.</p>
+              
+              <a href="${enlace}" style="background-color: #00529b; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Restablecer mi Contraseña</a>
+            </div>
+            
+            <p style="font-size: 14px; color: #666; margin-top: 20px;">Si tú no realizaste esta solicitud, puedes ignorar este correo. Tu cuenta sigue estando segura.</p>
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log("✉️ [RECUPERACIÓN] Correo HTML enviado con éxito");
+    return true;
+  } catch (errEmail) {
+    console.error("❌ [EMAIL ERROR] Falló el correo de recuperación:", errEmail);
+    return false;
+  }
+}
+
+module.exports = { transporter, enviarCorreoRegistro, enviarCorreoRecuperacion };

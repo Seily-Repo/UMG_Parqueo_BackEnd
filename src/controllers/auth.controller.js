@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const UsuarioStore = require('../store/usuario.store');
 const { limpiarCarne, formatearCarne } = require('../utils/helpers');
-const { enviarCorreoRegistro } = require('../utils/email.util');
+const { enviarCorreoRegistro, enviarCorreoRecuperacion } = require('../utils/email.util');
 
 /**
  * POST /api/auth/registro
@@ -165,12 +165,19 @@ exports.recuperarPassword = async (req, res) => {
 
     const rows = await UsuarioStore.findForLogin(null, correo_electronico);
 
-    if (rows.length === 0) {
-      // Respondemos éxito igualmente para evitar enumeración de correos
-      return res.status(200).json({ mensaje: "Si el correo está registrado, se enviarán instrucciones." });
-    }
+    if (rows.length > 0) {
+      const usuario = rows[0];
+      const primerNombre = usuario.NOMBRES ? usuario.NOMBRES.split(' ')[0] : 'Usuario';
+      
+      const tokenRecuperacion = jwt.sign(
+        { carne: usuario.CARNE, correo: correo_electronico, proposito: 'recuperacion' },
+        process.env.JWT_SECRET,
+        { expiresIn: '15m' }
+      );
 
-    // TODO: Implementar lógica de generación y envío de token de recuperación temporal
+      // Enviar correo de forma asíncrona
+      enviarCorreoRecuperacion(correo_electronico, primerNombre, tokenRecuperacion);
+    }
 
     res.status(200).json({ mensaje: "Si el correo está registrado, se enviarán instrucciones." });
 
