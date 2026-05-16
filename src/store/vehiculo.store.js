@@ -1,5 +1,6 @@
 const Vehiculo = require('../model/vehiculo.model');
 const { limpiarCarne } = require('../utils/helpers');
+const { sequelize } = require('../config/db');
 
 class VehiculoStore {
   /**
@@ -53,7 +54,13 @@ class VehiculoStore {
       ? datos.tipo_vehiculo.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       : 'AUTOMOVIL';
 
+    const [maxResult] = await sequelize.query(
+      'SELECT NVL(MAX(VEH_ID_VEHICULO), 0) + 1 AS NEXT_ID FROM INFRA_DEV.LR_VEHICULO',
+      { type: sequelize.QueryTypes.SELECT }
+    );
+
     await Vehiculo.create({
+      VEH_ID_VEHICULO: maxResult.NEXT_ID,
       LR_CARNE: carneLimpio,
       VEH_TIPO_VEHICULO: tipoLimpio,
       VEH_PLACA: placaLimpia,
