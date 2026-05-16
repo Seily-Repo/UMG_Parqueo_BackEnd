@@ -29,6 +29,12 @@ exports.registro = async (req, res) => {
       return res.status(400).json({ error: "La contraseña debe tener un mínimo de 8 caracteres." });
     }
 
+    // Verificación preventiva de duplicados (Carné o Correo)
+    const existeUsuario = await UsuarioStore.findForLogin(datos.carne, datos.correo_electronico);
+    if (existeUsuario && existeUsuario.length > 0) {
+      return res.status(400).json({ error: "El carné o correo ya se encuentran registrados." });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const contrasenaEncriptada = await bcrypt.hash(datos.password, salt);
     const esAdmin = (creadoPorAdmin === true || creadoPorAdmin === 'true');
