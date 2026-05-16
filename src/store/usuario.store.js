@@ -6,7 +6,7 @@ const { limpiarCarne, formatearCarne } = require('../utils/helpers');
 
 class UsuarioStore {
   /**
-   * Busca un usuario por carné numérico o correo para login.
+   * Busca un usuario por carné numérico o correo para login
    */
   static async findForLogin(carne, correo) {
     const carneLimpio = limpiarCarne(carne);
