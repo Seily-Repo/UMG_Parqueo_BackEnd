@@ -1,7 +1,7 @@
 const reportesRoutes = require('./reportes.routes');
 
 const routes = (app) => {
-  app.use('/api/reportes', reportesRoutes);
+  app.use('/', reportesRoutes);
 };
 
 module.exports = routes;
