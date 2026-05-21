@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const reportesController = require('../controllers/reportes.controller');
-const authMiddleware = require('../middlewares/authMiddleware');
+const authMiddleware = require('../middleware/auth.middleware');
 
 //financieros
 //router.get('/reporte-financiero', authMiddleware.verifyToken, authMiddleware.checkRole(['ADMINISTRADOR']), reportesController.getReporteFinanciero);  ya no en uso
