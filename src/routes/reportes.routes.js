@@ -4,7 +4,7 @@ const reportesController = require('../controllers/reportes.controller');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 //financieros
-router.get('/reporte-financiero', authMiddleware.verifyToken, authMiddleware.checkRole(['ADMINISTRADOR']), reportesController.getReporteFinanciero);
+//router.get('/reporte-financiero', authMiddleware.verifyToken, authMiddleware.checkRole(['ADMINISTRADOR']), reportesController.getReporteFinanciero);  ya no en uso
 router.get('/pagos-aceptados', authMiddleware.verifyToken, authMiddleware.checkRole(['ADMINISTRADOR']), reportesController.getPagosAceptados);
 
 //administrativos
