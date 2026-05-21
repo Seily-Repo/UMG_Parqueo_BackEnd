@@ -7,7 +7,8 @@ exports.createIsla = async (req, res) => {
   try {
    
     if (req.user.rol !== 'ADMINISTRADOR') {
-      return res.status(403).json({ success: false, status: 403, message: "Permisos insuficientes." });
+      return res.status(403).json({ success: false, status: 403, message: "Permisos insuficientes.",
+      details: "Esta acción está restringida únicamente para usuarios con rol de Administrador." });
     }
     
 
