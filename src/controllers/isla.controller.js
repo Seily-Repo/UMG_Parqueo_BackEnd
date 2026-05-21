@@ -5,12 +5,11 @@ const EspacioStore = require("../store/espacio.store");
 
 exports.createIsla = async (req, res) => {
   try {
-    // COMENTADO TEMPORALMENTE MIENTRAS PROBÁS SIN JWT
-    /*
+   
     if (req.user.rol !== 'ADMINISTRADOR') {
       return res.status(403).json({ success: false, status: 403, message: "Permisos insuficientes." });
     }
-    */
+    
 
     const { PQ_PARQUEO, IS_CAPACIDAD, IS_DESCRIPCION, espacios } = req.body;
 
@@ -171,8 +170,7 @@ exports.getDetalleIsla = async (req, res) => {
 
 exports.anularIsla = async (req, res) => {
   try {
-    // COMENTADO TEMPORALMENTE MIENTRAS PROBÁS SIN JWT
-    /*
+   
     if (req.user.rol !== 'ADMINISTRADOR') {
       return res.status(403).json({
         success: false,
@@ -181,7 +179,6 @@ exports.anularIsla = async (req, res) => {
         details: "Esta acción está restringida únicamente para usuarios con rol de Administrador."
       });
     }
-    */
 
     const { id } = req.params;
     const islaAnulada = await IslaStore.anular(id);
