@@ -5,9 +5,9 @@ const { verifyToken, checkRole } = require('../middleware/auth.middleware');
 
 router.post('/', verifyToken, IslaController.createIsla);
 
-router.get('/', verifyToken, checkRole(['ADMINISTRADOR', 'USUARIO']), IslaController.getAllIslas);
+router.get('/', verifyToken, checkRole(['ADMINISTRADOR']), IslaController.getAllIslas);
 
-router.get('/:id/espacios', verifyToken, checkRole(['ADMINISTRADOR', 'USUARIO']), IslaController.getDetalleIsla);
+router.get('/:id/espacios', verifyToken, checkRole(['ADMINISTRADOR']), IslaController.getDetalleIsla);
 
 router.put('/:id/anular', verifyToken, IslaController.anularIsla);
 
