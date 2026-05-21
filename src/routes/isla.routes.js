@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const IslaController = require('../controllers/isla.controller');
-//const { verificarToken } = require('../middleware/jwt.middleware'); 
+const { verifyToken, checkRole } = require('../middleware/auth.middleware');
 
-router.post('/',  IslaController.createIsla);
+router.post('/', verifyToken, checkRole(['ADMINISTRADOR']), IslaController.createIsla);
 
-router.get('/',  IslaController.getAllIslas);
+router.get('/', verifyToken, checkRole(['ADMINISTRADOR']), IslaController.getAllIslas);
 
-router.get('/:id/espacios',  IslaController.getDetalleIsla);
+router.get('/:id/espacios', verifyToken, checkRole(['ADMINISTRADOR']), IslaController.getDetalleIsla);
 
-router.put('/:id/anular',  IslaController.anularIsla);
+router.put('/:id/anular', verifyToken, checkRole(['ADMINISTRADOR']), IslaController.anularIsla);
 
 module.exports = router;
