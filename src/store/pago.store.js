@@ -53,28 +53,30 @@ class PagoStore {
       const tienePagoPlan = pagosCompletados.some(p => p.PLN_PLAN != null);
       const pendingPlan = pagosPendientesGuardados.find(p => p.PLN_PLAN != null);
       
-      if (!tienePagoPlan && !pendingPlan) {
-        // Filtrar plan por tipo de vehículo del primero (Fallback usuarios antiguos)
-        const esMoto = primerVehiculo.VEH_TIPO_VEHICULO === 'MOTOCICLETA';
-        const [planes] = await sequelize.query(
-          `SELECT * FROM INFRA_DEV.CB_PLAN_PARQUEO 
-           WHERE PLN_ESTADO_REGISTRO = 'A' 
-           AND UPPER(PLN_NOMBRE_PLAN) LIKE :tipo 
-           ORDER BY PLN_PLAN ASC`,
-          { replacements: { tipo: esMoto ? '%MOTO%' : '%CARRO%' } }
-        );
-        
-        if (planes.length > 0) {
-          deudas.push({
-            ID_A_PAGAR: planes[0].PLN_PLAN,
-            DESCRIPCION: planes[0].PLN_NOMBRE_PLAN,
-            MONTO: planes[0].PLN_PRECIO,
-            PAG_ESTADO: 'P',
-            TIPO: 'PLAN'
-          });
+      if (!tienePagoPlan) {
+        if (pendingPlan) {
+          deudas.push(pendingPlan);
+        } else {
+          // Filtrar plan por tipo de vehículo del primero (Fallback usuarios antiguos)
+          const esMoto = primerVehiculo.VEH_TIPO_VEHICULO === 'MOTOCICLETA';
+          const [planes] = await sequelize.query(
+            `SELECT * FROM INFRA_DEV.CB_PLAN_PARQUEO 
+             WHERE PLN_ESTADO_REGISTRO = 'A' 
+             AND UPPER(PLN_NOMBRE_PLAN) LIKE :tipo 
+             ORDER BY PLN_PLAN ASC`,
+            { replacements: { tipo: esMoto ? '%MOTO%' : '%CARRO%' } }
+          );
+          
+          if (planes.length > 0) {
+            deudas.push({
+              ID_A_PAGAR: planes[0].PLN_PLAN,
+              DESCRIPCION: planes[0].PLN_NOMBRE_PLAN,
+              MONTO: planes[0].PLN_PRECIO,
+              PAG_ESTADO: 'P',
+              TIPO: 'PLAN'
+            });
+          }
         }
-      } else if (pendingPlan) {
-        deudas.push(pendingPlan);
       }
     }
 
