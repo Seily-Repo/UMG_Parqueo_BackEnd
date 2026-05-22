@@ -1,4 +1,5 @@
 const Vehiculo = require('../model/vehiculo.model');
+const { Pago, PlanParqueo } = require('../model/catalogos.model');
 const { limpiarCarne } = require('../utils/helpers');
 const { sequelize } = require('../config/db');
 
@@ -77,6 +78,34 @@ class VehiculoStore {
       VEH_COLOR: datos.color || null,
       VEH_ACTIVO: 1,
     });
+
+    // Guardar el plan seleccionado como deuda pendiente (para que no se pierda al salir)
+    const vehiculosActivos = await Vehiculo.count({ where: { LR_CARNE: carneLimpio, VEH_ACTIVO: 1 } });
+    
+    // Si es el primer vehículo y eligió un plan
+    if (vehiculosActivos === 1 && datos.plan_id) {
+      const planElegido = await PlanParqueo.findOne({ where: { PLN_PLAN: datos.plan_id }, raw: true });
+      if (planElegido) {
+        const [maxPago] = await sequelize.query('SELECT NVL(MAX(PAG_PAGO), 0) + 1 AS NEXT_ID FROM INFRA_DEV.CB_PAGO', { type: sequelize.QueryTypes.SELECT });
+        await Pago.create({
+          PAG_PAGO: maxPago.NEXT_ID,
+          LR_CARNE: carneLimpio,
+          PLN_PLAN: datos.plan_id,
+          PAG_MONTO_TOTAL: planElegido.PLN_PRECIO,
+          PAG_ESTADO: 'P'
+        });
+      }
+    } else if (vehiculosActivos > 1) {
+      // Vehículo extra (Tarifa Administrativa Q.50)
+      const [maxPago] = await sequelize.query('SELECT NVL(MAX(PAG_PAGO), 0) + 1 AS NEXT_ID FROM INFRA_DEV.CB_PAGO', { type: sequelize.QueryTypes.SELECT });
+      await Pago.create({
+        PAG_PAGO: maxPago.NEXT_ID,
+        LR_CARNE: carneLimpio,
+        PAG_MONTO_TOTAL: 50,
+        PAG_ESTADO: 'P'
+      });
+    }
+
     return true;
   }
 }

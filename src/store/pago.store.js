@@ -32,12 +32,29 @@ class PagoStore {
 
     let deudas = [];
 
+    // Obtener pagos pendientes guardados en CB_PAGO (los que creamos al registrar)
+    const [pagosPendientesGuardados] = await sequelize.query(`
+      SELECT 
+        p.PAG_PAGO AS ID_A_PAGAR,
+        NVL(pl.PLN_NOMBRE_PLAN, 'Tarifa Administrativa - Vehículo Extra') AS DESCRIPCION,
+        p.PAG_MONTO_TOTAL AS MONTO,
+        'P' AS PAG_ESTADO,
+        'PLAN' AS TIPO,
+        p.PLN_PLAN
+      FROM INFRA_DEV.CB_PAGO p
+      LEFT JOIN INFRA_DEV.CB_PLAN_PARQUEO pl ON p.PLN_PLAN = pl.PLN_PLAN
+      WHERE p.LR_CARNE = :carne 
+        AND p.PAG_ESTADO = 'P'
+        AND p.EMU_USUARIO_MULTA IS NULL
+    `, { replacements: { carne: carneLimpio } });
+
     if (vehiculos.length > 0) {
       const primerVehiculo = vehiculos[0];
       const tienePagoPlan = pagosCompletados.some(p => p.PLN_PLAN != null);
+      const pendingPlan = pagosPendientesGuardados.find(p => p.PLN_PLAN != null);
       
-      if (!tienePagoPlan) {
-        // Filtrar plan por tipo de vehículo del primero
+      if (!tienePagoPlan && !pendingPlan) {
+        // Filtrar plan por tipo de vehículo del primero (Fallback usuarios antiguos)
         const esMoto = primerVehiculo.VEH_TIPO_VEHICULO === 'MOTOCICLETA';
         const [planes] = await sequelize.query(
           `SELECT * FROM INFRA_DEV.CB_PLAN_PARQUEO 
@@ -56,21 +73,28 @@ class PagoStore {
             TIPO: 'PLAN'
           });
         }
+      } else if (pendingPlan) {
+        deudas.push(pendingPlan);
       }
 
       // Vehículos extras (tarifa de 50.00)
       const pagosTarifaExtra = pagosCompletados.filter(p => p.PAG_MONTO_TOTAL == 50).length;
+      const pendientesTarifaExtra = pagosPendientesGuardados.filter(p => p.PLN_PLAN == null && p.MONTO == 50);
       const vehiculosExtra = vehiculos.length - 1;
       
-      if (vehiculosExtra > pagosTarifaExtra) {
-        const extrasAPagar = vehiculosExtra - pagosTarifaExtra;
-        for (let i = 0; i < extrasAPagar; i++) {
+      // Agregamos las tarifas extra que ya guardamos
+      deudas.push(...pendientesTarifaExtra);
+      
+      const generadosAlVueloNecesarios = vehiculosExtra - pagosTarifaExtra - pendientesTarifaExtra.length;
+      
+      if (generadosAlVueloNecesarios > 0) {
+        for (let i = 0; i < generadosAlVueloNecesarios; i++) {
           deudas.push({
             ID_A_PAGAR: null,
-            DESCRIPCION: `Tarifa Administrativa - Vehículo Extra ${vehiculos[1 + pagosTarifaExtra + i].VEH_PLACA}`,
+            DESCRIPCION: `Tarifa Administrativa - Vehículo Extra (Generado) ${vehiculos[1 + pagosTarifaExtra + pendientesTarifaExtra.length + i].VEH_PLACA}`,
             MONTO: 50,
             PAG_ESTADO: 'P',
-            TIPO: 'PLAN' // El frontend lo maneja como 'PLAN' para el redireccionamiento simple
+            TIPO: 'PLAN'
           });
         }
       }
