@@ -63,6 +63,14 @@ class VehiculoStore {
       throw error;
     }
 
+    // Verificar límite de 3 vehículos
+    const vehiculosActivosPrevios = await Vehiculo.count({ where: { LR_CARNE: carneLimpio, VEH_ACTIVO: 1 } });
+    if (vehiculosActivosPrevios >= 3) {
+      const error = new Error("Has alcanzado el límite máximo de 3 vehículos registrados.");
+      error.errorNum = 2; // O un código personalizado
+      throw error;
+    }
+
     const [maxResult] = await sequelize.query(
       'SELECT NVL(MAX(VEH_ID_VEHICULO), 0) + 1 AS NEXT_ID FROM INFRA_DEV.LR_VEHICULO',
       { type: sequelize.QueryTypes.SELECT }
@@ -95,15 +103,6 @@ class VehiculoStore {
           PAG_ESTADO: 'P'
         });
       }
-    } else if (vehiculosActivos > 1) {
-      // Vehículo extra (Tarifa Administrativa Q.50)
-      const [maxPago] = await sequelize.query('SELECT NVL(MAX(PAG_PAGO), 0) + 1 AS NEXT_ID FROM INFRA_DEV.CB_PAGO', { type: sequelize.QueryTypes.SELECT });
-      await Pago.create({
-        PAG_PAGO: maxPago.NEXT_ID,
-        LR_CARNE: carneLimpio,
-        PAG_MONTO_TOTAL: 50,
-        PAG_ESTADO: 'P'
-      });
     }
 
     return true;

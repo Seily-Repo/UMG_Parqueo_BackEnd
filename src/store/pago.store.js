@@ -35,7 +35,7 @@ class PagoStore {
     // Obtener pagos pendientes guardados en CB_PAGO (los que creamos al registrar)
     const [pagosPendientesGuardados] = await sequelize.query(`
       SELECT 
-        p.PAG_PAGO AS ID_A_PAGAR,
+        p.PLN_PLAN AS ID_A_PAGAR,
         NVL(pl.PLN_NOMBRE_PLAN, 'Tarifa Administrativa - Vehículo Extra') AS DESCRIPCION,
         p.PAG_MONTO_TOTAL AS MONTO,
         'P' AS PAG_ESTADO,
@@ -75,28 +75,6 @@ class PagoStore {
         }
       } else if (pendingPlan) {
         deudas.push(pendingPlan);
-      }
-
-      // Vehículos extras (tarifa de 50.00)
-      const pagosTarifaExtra = pagosCompletados.filter(p => p.PAG_MONTO_TOTAL == 50).length;
-      const pendientesTarifaExtra = pagosPendientesGuardados.filter(p => p.PLN_PLAN == null && p.MONTO == 50);
-      const vehiculosExtra = vehiculos.length - 1;
-      
-      // Agregamos las tarifas extra que ya guardamos
-      deudas.push(...pendientesTarifaExtra);
-      
-      const generadosAlVueloNecesarios = vehiculosExtra - pagosTarifaExtra - pendientesTarifaExtra.length;
-      
-      if (generadosAlVueloNecesarios > 0) {
-        for (let i = 0; i < generadosAlVueloNecesarios; i++) {
-          deudas.push({
-            ID_A_PAGAR: null,
-            DESCRIPCION: `Tarifa Administrativa - Vehículo Extra (Generado) ${vehiculos[1 + pagosTarifaExtra + pendientesTarifaExtra.length + i].VEH_PLACA}`,
-            MONTO: 50,
-            PAG_ESTADO: 'P',
-            TIPO: 'PLAN'
-          });
-        }
       }
     }
 
