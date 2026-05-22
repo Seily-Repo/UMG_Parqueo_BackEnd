@@ -96,7 +96,23 @@ class PagoStore {
         )
     `, { replacements: { carne: carneLimpio } });
 
-    return [...deudas, ...deudaMultas];
+    // Pagos Completados Históricos
+    const [pagosHistoricos] = await sequelize.query(`
+      SELECT 
+        p.PAG_PAGO AS ID_A_PAGAR,
+        NVL(pl.PLN_NOMBRE_PLAN, NVL(m.MUL_DESCRIPCION, 'Tarifa Administrativa - Vehículo Extra')) AS DESCRIPCION,
+        p.PAG_MONTO_TOTAL AS MONTO,
+        'C' AS PAG_ESTADO,
+        CASE WHEN p.EMU_USUARIO_MULTA IS NOT NULL THEN 'MULTA' ELSE 'PLAN' END AS TIPO
+      FROM INFRA_DEV.CB_PAGO p
+      LEFT JOIN INFRA_DEV.CB_PLAN_PARQUEO pl ON p.PLN_PLAN = pl.PLN_PLAN
+      LEFT JOIN INFRA_DEV.CB_USUARIO_MULTA um ON p.EMU_USUARIO_MULTA = um.EMU_USUARIO_MULTA
+      LEFT JOIN INFRA_DEV.CB_MULTA m ON um.MUL_MULTA = m.MUL_MULTA
+      WHERE p.LR_CARNE = :carne 
+        AND p.PAG_ESTADO IN ('C', 'A')
+    `, { replacements: { carne: carneLimpio } });
+
+    return [...deudas, ...deudaMultas, ...pagosHistoricos];
   }
 
   /**
