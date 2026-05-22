@@ -20,26 +20,61 @@ class PagoStore {
   static async getListaPendientes(carne) {
     const carneLimpio = limpiarCarne(carne);
 
-    // Deudas de PLAN: vehículos registrados que aún no tienen un pago 'C' (completado) en CB_PAGO
-    const [deudaPlanes] = await sequelize.query(`
-      SELECT 
-        pl.PLN_PLAN AS ID_A_PAGAR,
-        pl.PLN_NOMBRE_PLAN AS DESCRIPCION,
-        pl.PLN_PRECIO AS MONTO,
-        'P' AS PAG_ESTADO,
-        'PLAN' AS TIPO
-      FROM INFRA_DEV.LR_VEHICULO v
-      JOIN INFRA_DEV.CB_PLAN_PARQUEO pl ON pl.PLN_ESTADO_REGISTRO = 'A'
-      WHERE v.LR_CARNE = :carne 
-        AND v.VEH_ACTIVO = 1
-        AND NOT EXISTS (
-          SELECT 1 FROM INFRA_DEV.CB_PAGO p 
-          WHERE p.LR_CARNE = v.LR_CARNE 
-            AND p.PLN_PLAN = pl.PLN_PLAN 
-            AND p.PAG_ESTADO IN ('C', 'A')
-        )
-      FETCH FIRST 1 ROWS ONLY
-    `, { replacements: { carne: carneLimpio } });
+    const [vehiculos] = await sequelize.query(
+      `SELECT * FROM INFRA_DEV.LR_VEHICULO WHERE LR_CARNE = :carne AND VEH_ACTIVO = 1 ORDER BY VEH_ID_VEHICULO ASC`,
+      { replacements: { carne: carneLimpio } }
+    );
+
+    const [pagosCompletados] = await sequelize.query(
+      `SELECT * FROM INFRA_DEV.CB_PAGO WHERE LR_CARNE = :carne AND PAG_ESTADO IN ('C', 'A')`,
+      { replacements: { carne: carneLimpio } }
+    );
+
+    let deudas = [];
+
+    if (vehiculos.length > 0) {
+      const primerVehiculo = vehiculos[0];
+      const tienePagoPlan = pagosCompletados.some(p => p.PLN_PLAN != null);
+      
+      if (!tienePagoPlan) {
+        // Filtrar plan por tipo de vehículo del primero
+        const esMoto = primerVehiculo.VEH_TIPO_VEHICULO === 'MOTOCICLETA';
+        const [planes] = await sequelize.query(
+          `SELECT * FROM INFRA_DEV.CB_PLAN_PARQUEO 
+           WHERE PLN_ESTADO_REGISTRO = 'A' 
+           AND UPPER(PLN_NOMBRE_PLAN) LIKE :tipo 
+           ORDER BY PLN_PLAN ASC`,
+          { replacements: { tipo: esMoto ? '%MOTO%' : '%CARRO%' } }
+        );
+        
+        if (planes.length > 0) {
+          deudas.push({
+            ID_A_PAGAR: planes[0].PLN_PLAN,
+            DESCRIPCION: planes[0].PLN_NOMBRE_PLAN,
+            MONTO: planes[0].PLN_PRECIO,
+            PAG_ESTADO: 'P',
+            TIPO: 'PLAN'
+          });
+        }
+      }
+
+      // Vehículos extras (tarifa de 50.00)
+      const pagosTarifaExtra = pagosCompletados.filter(p => p.PAG_MONTO_TOTAL == 50).length;
+      const vehiculosExtra = vehiculos.length - 1;
+      
+      if (vehiculosExtra > pagosTarifaExtra) {
+        const extrasAPagar = vehiculosExtra - pagosTarifaExtra;
+        for (let i = 0; i < extrasAPagar; i++) {
+          deudas.push({
+            ID_A_PAGAR: null,
+            DESCRIPCION: `Tarifa Administrativa - Vehículo Extra ${vehiculos[1 + pagosTarifaExtra + i].VEH_PLACA}`,
+            MONTO: 50,
+            PAG_ESTADO: 'P',
+            TIPO: 'PLAN' // El frontend lo maneja como 'PLAN' para el redireccionamiento simple
+          });
+        }
+      }
+    }
 
     // Deudas de MULTA: multas asignadas que no tienen pago completado
     const [deudaMultas] = await sequelize.query(`
@@ -61,7 +96,7 @@ class PagoStore {
         )
     `, { replacements: { carne: carneLimpio } });
 
-    return [...deudaPlanes, ...deudaMultas];
+    return [...deudas, ...deudaMultas];
   }
 
   /**

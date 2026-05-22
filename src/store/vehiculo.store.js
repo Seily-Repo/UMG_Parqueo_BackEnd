@@ -54,6 +54,14 @@ class VehiculoStore {
       ? datos.tipo_vehiculo.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       : 'AUTOMOVIL';
 
+    // Verificar si la placa ya existe para devolver un error claro
+    const placaExistente = await Vehiculo.findOne({ where: { VEH_PLACA: placaLimpia }, raw: true });
+    if (placaExistente) {
+      const error = new Error("Esta placa ya se encuentra registrada en el sistema.");
+      error.errorNum = 1; // Usado por el controlador para detectarlo
+      throw error;
+    }
+
     const [maxResult] = await sequelize.query(
       'SELECT NVL(MAX(VEH_ID_VEHICULO), 0) + 1 AS NEXT_ID FROM INFRA_DEV.LR_VEHICULO',
       { type: sequelize.QueryTypes.SELECT }
