@@ -64,19 +64,44 @@ class PagosStore {
     });
   }
 
-  /** Solo pendientes (para reabrir pasarela sin confundir con ya pagado). */
+  /** Solo pendientes; prioriza filas que ya tienen Payment Intent en Stripe. */
   static async findPendingByPlanAndCarne(PLN_PLAN, LR_CARNE) {
+    const conPi = await Pago.findOne({
+      where: {
+        PLN_PLAN,
+        LR_CARNE,
+        PAG_ESTADO: PAG_PENDIENTE,
+        EMU_USUARIO_MULTA: { [Op.is]: null },
+        STRIPE_PAYMENT_INTENT_ID: { [Op.like]: "pi_%" },
+      },
+      order: [["PAG_PAGO", "DESC"]],
+    });
+
+    if (conPi) return conPi;
+
     return await Pago.findOne({
       where: {
         PLN_PLAN,
         LR_CARNE,
         PAG_ESTADO: PAG_PENDIENTE,
+        EMU_USUARIO_MULTA: { [Op.is]: null },
       },
       order: [["PAG_PAGO", "DESC"]],
     });
   }
 
   static async findPendingByUsuarioMulta(EMU_USUARIO_MULTA) {
+    const conPi = await Pago.findOne({
+      where: {
+        EMU_USUARIO_MULTA,
+        PAG_ESTADO: PAG_PENDIENTE,
+        STRIPE_PAYMENT_INTENT_ID: { [Op.like]: "pi_%" },
+      },
+      order: [["PAG_PAGO", "DESC"]],
+    });
+
+    if (conPi) return conPi;
+
     return await Pago.findOne({
       where: {
         EMU_USUARIO_MULTA,

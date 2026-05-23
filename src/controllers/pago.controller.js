@@ -26,6 +26,19 @@ const usuarioPuedeVerPago = (req, pago) => {
 
 const toPagoJson = (pago) => (pago?.toJSON ? pago.toJSON() : pago);
 
+const isValidStripeClientSecret = (secret) =>
+  typeof secret === "string" &&
+  secret.includes("_secret_") &&
+  !secret.startsWith("pk_") &&
+  !secret.startsWith("sk_");
+
+const obtenerClientSecretDesdePi = (paymentIntent) => {
+  if (!paymentIntent) return null;
+  return isValidStripeClientSecret(paymentIntent.client_secret)
+    ? paymentIntent.client_secret
+    : null;
+};
+
 const estadoPrioridad = (estado) => {
   if (estado === PAG_ACEPTADO) return 3;
   if (estado === PAG_PENDIENTE) return 2;
@@ -81,10 +94,21 @@ const sendPagoResponse = (
   statusCode,
   { message, data, clientSecret, reused = false, alreadyPaid = false },
 ) => {
+  const secretValido = obtenerClientSecretDesdePi({ client_secret: clientSecret });
+
+  if (!alreadyPaid && clientSecret && !secretValido) {
+    return res.status(502).json({
+      message:
+        "Stripe devolvió un client secret inválido. No use la clave publicable (pk_) como clientSecret.",
+      alreadyPaid: false,
+      reused: false,
+    });
+  }
+
   res.status(statusCode).json({
     message,
     data,
-    clientSecret,
+    clientSecret: alreadyPaid ? null : secretValido,
     reused,
     alreadyPaid,
   });
@@ -175,11 +199,12 @@ const resolveExistingActivePago = async (existingPago) => {
     const pi = await stripe.paymentIntents.retrieve(piId);
 
     if (pi.status === "succeeded") {
-      return {
-        action: "already_paid",
-        pago,
-        stripeStatus: "succeeded",
-      };
+      let actualizado = pago;
+      if (pago.PAG_ESTADO !== PAG_ACEPTADO) {
+        await confirmarPagoExitoso(pago.PAG_PAGO, pi, pago);
+        actualizado = toPagoJson(await PagoStore.getById(pago.PAG_PAGO));
+      }
+      return { action: "already_paid", pago: actualizado || pago };
     }
 
     if (pi.status === "canceled") {
@@ -187,10 +212,15 @@ const resolveExistingActivePago = async (existingPago) => {
       return { action: "expired", pago: null };
     }
 
+    const clientSecret = obtenerClientSecretDesdePi(pi);
+    if (!clientSecret) {
+      return { action: "orphan_pending", pago };
+    }
+
     return {
       action: "reuse",
       pago,
-      clientSecret: pi.client_secret,
+      clientSecret,
     };
   } catch (err) {
     console.log("No se pudo recuperar PI existente:", err.message);
@@ -521,11 +551,9 @@ exports.getPagoById = async (req, res) => {
         if (paymentIntent?.metadata) {
           pagoResponse.metadatos = paymentIntent.metadata;
         }
-        if (
-          pagoResponse.PAG_ESTADO === PAG_PENDIENTE &&
-          paymentIntent.client_secret
-        ) {
-          pagoResponse.clientSecret = paymentIntent.client_secret;
+        const secret = obtenerClientSecretDesdePi(paymentIntent);
+        if (pagoResponse.PAG_ESTADO === PAG_PENDIENTE && secret) {
+          pagoResponse.clientSecret = secret;
         }
       } catch (stripeErr) {
         console.log("Error al obtener metadata de Stripe", stripeErr.message);
@@ -704,6 +732,15 @@ exports.createPago = async (req, res) => {
       ? await PagoStore.findPendingByUsuarioMulta(EMU_USUARIO_MULTA)
       : await PagoStore.findPendingByPlanAndCarne(PLN_PLAN, LR_CARNE);
 
+    if (pendingPago) {
+      await PagoStore.cancelDuplicatePending({
+        keepPagoId: pendingPago.PAG_PAGO,
+        LR_CARNE,
+        PLN_PLAN: EMU_USUARIO_MULTA ? null : PLN_PLAN,
+        EMU_USUARIO_MULTA: EMU_USUARIO_MULTA ?? null,
+      });
+    }
+
     if (!EMU_USUARIO_MULTA && !pendingPago) {
       const planesAceptados = await PagoStore.findAllAcceptedByPlanAndCarne(
         PLN_PLAN,
@@ -807,11 +844,20 @@ exports.createPago = async (req, res) => {
           pagoPayload,
           { onlyMissing: true },
         );
+        await cancelPagosPendientesDuplicados(pagoActualizado, req.body);
+
+        const secret = obtenerClientSecretDesdePi(paymentIntent);
+        if (!secret) {
+          return res.status(502).json({
+            message:
+              "No se pudo obtener el client secret del Payment Intent en Stripe.",
+          });
+        }
 
         return sendPagoResponse(res, 200, {
           message: "Pago pendiente existente reutilizado",
           data: pagoActualizado,
-          clientSecret: paymentIntent.client_secret,
+          clientSecret: secret,
           reused: true,
         });
       }
@@ -850,10 +896,18 @@ exports.createPago = async (req, res) => {
     );
     await cancelPagosPendientesDuplicados(pagoActualizado, req.body);
 
+    const secretNuevo = obtenerClientSecretDesdePi(paymentIntent);
+    if (!secretNuevo) {
+      return res.status(502).json({
+        message:
+          "No se pudo obtener el client secret del Payment Intent en Stripe.",
+      });
+    }
+
     return sendPagoResponse(res, 201, {
       message: "Pago iniciado exitosamente",
       data: pagoActualizado,
-      clientSecret: paymentIntent.client_secret,
+      clientSecret: secretNuevo,
       reused: false,
     });
   } catch (error) {
