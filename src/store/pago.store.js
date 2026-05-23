@@ -65,6 +65,28 @@ class PagosStore {
     });
   }
 
+  /** Solo pendientes (para reabrir pasarela sin confundir con ya pagado). */
+  static async findPendingByPlanAndCarne(PLN_PLAN, LR_CARNE) {
+    return await Pago.findOne({
+      where: {
+        PLN_PLAN,
+        LR_CARNE,
+        PAG_ESTADO: PAG_PENDIENTE,
+      },
+      order: [["PAG_PAGO", "DESC"]],
+    });
+  }
+
+  static async findPendingByUsuarioMulta(EMU_USUARIO_MULTA) {
+    return await Pago.findOne({
+      where: {
+        EMU_USUARIO_MULTA,
+        PAG_ESTADO: PAG_PENDIENTE,
+      },
+      order: [["PAG_PAGO", "DESC"]],
+    });
+  }
+
   static async findAcceptedByPlanAndCarne(PLN_PLAN, LR_CARNE) {
     return await Pago.findOne({
       where: {

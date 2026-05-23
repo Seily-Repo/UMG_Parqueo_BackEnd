@@ -40,14 +40,42 @@ const buildStripeIdempotencyKey = (
 const sendPagoResponse = (
   res,
   statusCode,
-  { message, data, clientSecret, reused = false },
+  { message, data, clientSecret, reused = false, alreadyPaid = false },
 ) => {
   res.status(statusCode).json({
     message,
     data,
     clientSecret,
     reused,
+    alreadyPaid,
   });
+};
+
+const respondAlreadyPaid = (res, message, pago) => {
+  return sendPagoResponse(res, 200, {
+    message,
+    data: toPagoJson(pago),
+    clientSecret: null,
+    reused: true,
+    alreadyPaid: true,
+  });
+};
+
+const pagoLocks = new Map();
+const acquirePagoLock = async (lockKey) => {
+  const maxWait = 15000;
+  const start = Date.now();
+  while (pagoLocks.has(lockKey)) {
+    if (Date.now() - start > maxWait) {
+      throw new Error("Tiempo de espera agotado al procesar el pago.");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 80));
+  }
+  pagoLocks.set(lockKey, true);
+};
+
+const releasePagoLock = (lockKey) => {
+  pagoLocks.delete(lockKey);
 };
 
 /**
@@ -74,11 +102,8 @@ const resolveExistingActivePago = async (existingPago) => {
     const pi = await stripe.paymentIntents.retrieve(piId);
 
     if (pi.status === "succeeded") {
-      if (pi.metadata?.PAG_PAGO === String(pago.PAG_PAGO)) {
-        await confirmarPagoExitoso(pago.PAG_PAGO, pi, pago);
-      }
-      const actualizado = await PagoStore.getById(pago.PAG_PAGO);
-      return { action: "already_paid", pago: toPagoJson(actualizado) || pago };
+      // No confirmar aquí: evita marcar Aceptado al abrir pasarela sin cobrar.
+      return { action: "already_paid", pago };
     }
 
     if (pi.status === "canceled") {
@@ -461,6 +486,7 @@ exports.verifyPayment = async (req, res) => {
 };
 
 exports.createPago = async (req, res) => {
+  let lockKey = null;
   try {
     let LR_CARNE = req.user.carne;
     if (req.user.rol === "ADMINISTRADOR" && req.body.LR_CARNE) {
@@ -493,6 +519,11 @@ exports.createPago = async (req, res) => {
         message: "La forma de pago (FPG_FORMA_PAGO) es obligatoria.",
       });
     }
+
+    lockKey = EMU_USUARIO_MULTA
+      ? `multa-${EMU_USUARIO_MULTA}`
+      : `plan-${PLN_PLAN}-${LR_CARNE}`;
+    await acquirePagoLock(lockKey);
 
     const formaPago = await FormaPagoStore.getById(FPG_FORMA_PAGO);
     if (!formaPago?.FPG_NOMBRE_FORMA?.includes("Tarjeta")) {
@@ -543,9 +574,7 @@ exports.createPago = async (req, res) => {
           LR_CARNE,
           EMU_USUARIO_MULTA,
         });
-        return res.status(409).json({
-          message: "Esta multa ya fue pagada.",
-        });
+        return respondAlreadyPaid(res, "Esta multa ya fue pagada.", pagoAceptado);
       }
       multa = await MultaStore.getById(usuarioMulta.MUL_MULTA);
       if (!multa) {
@@ -571,9 +600,11 @@ exports.createPago = async (req, res) => {
           LR_CARNE,
           PLN_PLAN,
         });
-        return res.status(409).json({
-          message: "Este plan ya fue pagado para tu carné.",
-        });
+        return respondAlreadyPaid(
+          res,
+          "Este plan ya fue pagado para tu carné.",
+          planPagado,
+        );
       }
     }
 
@@ -585,20 +616,30 @@ exports.createPago = async (req, res) => {
 
     const pagoPayload = buildPagoPayload(req.body, PAG_MONTO_TOTAL);
 
-    const existingPago = EMU_USUARIO_MULTA
-      ? await PagoStore.findActiveByUsuarioMulta(EMU_USUARIO_MULTA)
-      : await PagoStore.findActiveByPlanAndCarne(PLN_PLAN, LR_CARNE);
+    const pendingPago = EMU_USUARIO_MULTA
+      ? await PagoStore.findPendingByUsuarioMulta(EMU_USUARIO_MULTA)
+      : await PagoStore.findPendingByPlanAndCarne(PLN_PLAN, LR_CARNE);
+
+    const existingPago =
+      pendingPago ||
+      (EMU_USUARIO_MULTA
+        ? await PagoStore.findActiveByUsuarioMulta(EMU_USUARIO_MULTA)
+        : await PagoStore.findActiveByPlanAndCarne(PLN_PLAN, LR_CARNE));
 
     if (existingPago) {
       const resolved = await resolveExistingActivePago(existingPago);
 
       if (resolved.action === "already_paid") {
-        return res.status(409).json({
-          message: EMU_USUARIO_MULTA
-            ? "Esta multa ya tiene un pago registrado."
-            : "Este plan ya tiene un pago registrado para tu carné.",
-          data: resolved.pago,
-        });
+        const aceptado = EMU_USUARIO_MULTA
+          ? await PagoStore.findAcceptedByUsuarioMulta(EMU_USUARIO_MULTA)
+          : await PagoStore.findAcceptedByPlanAndCarne(PLN_PLAN, LR_CARNE);
+        return respondAlreadyPaid(
+          res,
+          EMU_USUARIO_MULTA
+            ? "Esta multa ya fue pagada."
+            : "Este plan ya fue pagado para tu carné.",
+          aceptado || resolved.pago,
+        );
       }
 
       if (resolved.action === "reuse") {
@@ -709,6 +750,8 @@ exports.createPago = async (req, res) => {
       message: "Error al crear el pago",
       error: error.message,
     });
+  } finally {
+    if (lockKey) releasePagoLock(lockKey);
   }
 };
 
@@ -762,9 +805,20 @@ exports.stripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+  if (!endpointSecret) {
+    console.error("STRIPE_WEBHOOK_SECRET no configurado en .env");
+    return res.status(500).send("Webhook no configurado");
+  }
+
+  const payload = Buffer.isBuffer(req.body)
+    ? req.body
+    : Buffer.from(
+        typeof req.body === "string" ? req.body : JSON.stringify(req.body),
+      );
+
   let event;
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
   } catch (err) {
     console.error(" Error Webhook Stripe:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
