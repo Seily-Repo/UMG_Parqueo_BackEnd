@@ -275,15 +275,7 @@ exports.updateUsuarioMulta = async (req, res) => {
         });
       }
 
-      const estadoSolicitado =
-        normalizeEstado(EMU_ESTADO_MULTA) || (EMU_ESTADO_MULTA ? null : EMU_ACEPTADO);
-      if (estadoSolicitado !== EMU_ACEPTADO) {
-        return res.status(403).json({
-          message:
-            "Como estudiante solo puedes marcar tu multa como pagada (A / Aceptado).",
-        });
-      }
-
+      // Tras pagar, el front puede enviar distintos textos de estado; siempre A = Aceptado.
       const pagoAceptado = await PagoStore.findAcceptedByUsuarioMulta(
         EMU_USUARIO_MULTA,
       );
