@@ -88,20 +88,7 @@ exports.getUsuarioMultaByCarne = async (req, res) => {
       });
     }
 
-    const { sequelize } = require("../config/db");
-    
-    // Consulta SQL pura para hacer JOIN con CB_VEHICULO ya que el modelo no lo tiene mapeado
-    const query = `
-      SELECT M.* 
-      FROM CB_USUARIO_MULTA M
-      INNER JOIN LR_VEHICULO V ON M.VEH_ID_VEHICULO = V.VEH_ID_VEHICULO
-      WHERE V.LR_CARNE = :carne
-    `;
-
-    const registros = await sequelize.query(query, {
-      replacements: { carne },
-      type: sequelize.QueryTypes.SELECT
-    });
+    const registros = await UsuarioMultaStore.getByCarneWithMulta(carne);
 
     if (!registros || registros.length === 0) {
       return res.status(404).json({
@@ -114,6 +101,41 @@ exports.getUsuarioMultaByCarne = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener los registros de Usuario Multa por carné",
+      error: error.message,
+    });
+  }
+};
+
+exports.getUsuarioMultaById = async (req, res) => {
+  try {
+    const { EMU_USUARIO_MULTA } = req.params;
+
+    if (!EMU_USUARIO_MULTA) {
+      return res.status(400).json({
+        message: "El parámetro EMU_USUARIO_MULTA es requerido",
+      });
+    }
+
+    const carneFilter =
+      req.user.rol === "ADMINISTRADOR" ? null : req.user.carne;
+
+    const registro = await UsuarioMultaStore.getByIdWithMulta(
+      EMU_USUARIO_MULTA,
+      carneFilter,
+    );
+
+    if (!registro) {
+      const message =
+        req.user.rol === "ADMINISTRADOR"
+          ? "No se encontró el registro de Usuario Multa indicado"
+          : "No se encontró el registro de Usuario Multa o no tienes permiso para consultarlo";
+      return res.status(404).json({ message });
+    }
+
+    res.status(200).json(formatMulta(registro));
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al obtener el registro de Usuario Multa",
       error: error.message,
     });
   }

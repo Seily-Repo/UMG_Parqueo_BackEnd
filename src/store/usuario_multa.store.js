@@ -22,6 +22,39 @@ class UsuarioMultaStore {
     });
   }
 
+  static async getByCarneWithMulta(carne) {
+    const query = `
+      SELECT M.*, CB.MUL_DESCRIPCION, CB.MUL_MONTO_TOTAL
+      FROM CB_USUARIO_MULTA M
+      INNER JOIN LR_VEHICULO V ON M.VEH_ID_VEHICULO = V.VEH_ID_VEHICULO
+      INNER JOIN CB_MULTA CB ON M.MUL_MULTA = CB.MUL_MULTA
+      WHERE V.LR_CARNE = :carne
+      ORDER BY M.EMU_USUARIO_MULTA ASC
+    `;
+    return sequelize.query(query, {
+      replacements: { carne },
+      type: sequelize.QueryTypes.SELECT,
+    });
+  }
+
+  static async getByIdWithMulta(EMU_USUARIO_MULTA, carne = null) {
+    const query = `
+      SELECT M.*, CB.MUL_DESCRIPCION, CB.MUL_MONTO_TOTAL
+      FROM CB_USUARIO_MULTA M
+      INNER JOIN CB_MULTA CB ON M.MUL_MULTA = CB.MUL_MULTA
+      INNER JOIN LR_VEHICULO V ON M.VEH_ID_VEHICULO = V.VEH_ID_VEHICULO
+      WHERE M.EMU_USUARIO_MULTA = :id
+      ${carne ? "AND V.LR_CARNE = :carne" : ""}
+    `;
+    const replacements = { id: EMU_USUARIO_MULTA };
+    if (carne) replacements.carne = carne;
+    const rows = await sequelize.query(query, {
+      replacements,
+      type: sequelize.QueryTypes.SELECT,
+    });
+    return rows[0] || null;
+  }
+
   static async create(data) {
     return await UsuarioMulta.create({
       MUL_MULTA: data.MUL_MULTA,

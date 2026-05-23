@@ -12,4 +12,7 @@ router.put("/:EMU_USUARIO_MULTA", checkRole(['ADMINISTRADOR']), usuarioMultaCont
 // Ruta para que ADMINISTRADOR y USUARIO vean las multas por carné. USUARIO solo puede ver el suyo.
 router.get("/carne/:carne", checkRole(['ADMINISTRADOR', 'USUARIO']), checkOwnership('carne'), usuarioMultaController.getUsuarioMultaByCarne);
 
+// Detalle de una multa de usuario (incluye MUL_DESCRIPCION y MUL_MONTO_TOTAL). USUARIO solo ve las suyas.
+router.get("/:EMU_USUARIO_MULTA", checkRole(['ADMINISTRADOR', 'USUARIO']), usuarioMultaController.getUsuarioMultaById);
+
 module.exports = router;
