@@ -47,7 +47,6 @@ class PagosStore {
       where: {
         EMU_USUARIO_MULTA,
         PAG_ESTADO: "A",
-        PAG_ESTADO_REGISTRO: "A",
       },
       order: [["PAG_PAGO", "DESC"]],
     });
@@ -93,10 +92,48 @@ class PagosStore {
         PLN_PLAN,
         LR_CARNE,
         PAG_ESTADO: "A",
-        PAG_ESTADO_REGISTRO: "A",
+        EMU_USUARIO_MULTA: { [Op.is]: null },
       },
       order: [["PAG_PAGO", "DESC"]],
     });
+  }
+
+  /** Todos los pagos aceptados de un plan (p. ej. cobros duplicados por vehículo). */
+  static async findAllAcceptedByPlanAndCarne(PLN_PLAN, LR_CARNE) {
+    return await Pago.findAll({
+      where: {
+        PLN_PLAN,
+        LR_CARNE,
+        PAG_ESTADO: "A",
+        EMU_USUARIO_MULTA: { [Op.is]: null },
+      },
+      order: [["PAG_PAGO", "DESC"]],
+    });
+  }
+
+  /** Deja un solo pago A por plan+carné; cancela aceptados duplicados. */
+  static async cancelDuplicateAccepted({
+    keepPagoId,
+    LR_CARNE,
+    PLN_PLAN = null,
+    EMU_USUARIO_MULTA = null,
+  }) {
+    const where = {
+      PAG_PAGO: { [Op.ne]: keepPagoId },
+      LR_CARNE,
+      PAG_ESTADO: "A",
+    };
+
+    if (PLN_PLAN != null) {
+      where.PLN_PLAN = PLN_PLAN;
+      where.EMU_USUARIO_MULTA = { [Op.is]: null };
+    }
+
+    if (EMU_USUARIO_MULTA != null) {
+      where.EMU_USUARIO_MULTA = EMU_USUARIO_MULTA;
+    }
+
+    return await Pago.update({ PAG_ESTADO: PAG_CANCELADO }, { where });
   }
 
   /** Cancela otros pendientes del mismo concepto (evita duplicados en auditoría). */

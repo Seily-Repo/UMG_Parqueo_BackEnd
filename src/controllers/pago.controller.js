@@ -26,6 +26,45 @@ const usuarioPuedeVerPago = (req, pago) => {
 
 const toPagoJson = (pago) => (pago?.toJSON ? pago.toJSON() : pago);
 
+const estadoPrioridad = (estado) => {
+  if (estado === PAG_ACEPTADO) return 3;
+  if (estado === PAG_PENDIENTE) return 2;
+  return 1;
+};
+
+/** Un plan = una línea por carné; multas = una línea por EMU_USUARIO_MULTA. */
+const deduplicatePagosForAccount = (pagos) => {
+  const porConcepto = new Map();
+
+  for (const row of pagos) {
+    const pago = toPagoJson(row);
+    const key = pago.EMU_USUARIO_MULTA
+      ? `multa-${pago.EMU_USUARIO_MULTA}`
+      : `plan-${pago.PLN_PLAN}`;
+
+    const actual = porConcepto.get(key);
+    if (!actual) {
+      porConcepto.set(key, pago);
+      continue;
+    }
+
+    const prioridadNueva = estadoPrioridad(pago.PAG_ESTADO);
+    const prioridadActual = estadoPrioridad(actual.PAG_ESTADO);
+
+    if (
+      prioridadNueva > prioridadActual ||
+      (prioridadNueva === prioridadActual &&
+        Number(pago.PAG_PAGO) > Number(actual.PAG_PAGO))
+    ) {
+      porConcepto.set(key, pago);
+    }
+  }
+
+  return Array.from(porConcepto.values()).sort(
+    (a, b) => Number(b.PAG_PAGO) - Number(a.PAG_PAGO),
+  );
+};
+
 /** Una clave por fila CB_PAGO evita reutilizar un PaymentIntent ya cobrado en Stripe. */
 const buildStripeIdempotencyKey = (
   pagoId,
@@ -347,6 +386,20 @@ const confirmarPagoExitoso = async (pagoId, paymentIntent, pagoExistente) => {
       null,
   });
 
+  await PagoStore.cancelDuplicateAccepted({
+    keepPagoId: pagoId,
+    LR_CARNE:
+      paymentIntent.metadata?.LR_CARNE ||
+      actualDb?.LR_CARNE ||
+      pagoExistente?.LR_CARNE,
+    PLN_PLAN: actualDb?.PLN_PLAN ?? pagoExistente?.PLN_PLAN ?? null,
+    EMU_USUARIO_MULTA:
+      paymentIntent.metadata?.EMU_USUARIO_MULTA ||
+      actualDb?.EMU_USUARIO_MULTA ||
+      pagoExistente?.EMU_USUARIO_MULTA ||
+      null,
+  });
+
   return { alreadyDone: false };
 };
 
@@ -501,7 +554,9 @@ exports.getPagosByCarne = async (req, res) => {
       });
     }
 
-    res.status(200).json(pagos);
+    const pagosUnicos = deduplicatePagosForAccount(pagos);
+
+    res.status(200).json(pagosUnicos);
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener los pagos",
@@ -650,19 +705,27 @@ exports.createPago = async (req, res) => {
       : await PagoStore.findPendingByPlanAndCarne(PLN_PLAN, LR_CARNE);
 
     if (!EMU_USUARIO_MULTA && !pendingPago) {
-      const planPagado = await PagoStore.findAcceptedByPlanAndCarne(
+      const planesAceptados = await PagoStore.findAllAcceptedByPlanAndCarne(
         PLN_PLAN,
         LR_CARNE,
       );
-      const planPagadoReal = await validarPagoAceptadoEnStripe(planPagado, {
-        cancelInvalid: true,
-      });
-      if (planPagadoReal) {
-        return respondAlreadyPaid(
-          res,
-          "Este plan ya fue pagado para tu carné.",
-          planPagadoReal,
-        );
+
+      for (const planPagado of planesAceptados) {
+        const planPagadoReal = await validarPagoAceptadoEnStripe(planPagado, {
+          cancelInvalid: true,
+        });
+        if (planPagadoReal) {
+          await PagoStore.cancelDuplicateAccepted({
+            keepPagoId: planPagadoReal.PAG_PAGO,
+            LR_CARNE,
+            PLN_PLAN,
+          });
+          return respondAlreadyPaid(
+            res,
+            "Este plan ya fue pagado para tu carné.",
+            planPagadoReal,
+          );
+        }
       }
     }
 
