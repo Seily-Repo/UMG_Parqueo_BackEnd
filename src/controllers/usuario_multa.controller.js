@@ -26,11 +26,18 @@ const formatDateTime = (value) => {
 const formatMulta = (record) => {
   if (!record) return record;
   const data = typeof record.toJSON === "function" ? record.toJSON() : { ...record };
-  return {
+  const formatted = {
     ...data,
     EMU_FECHA_CREACION: formatDateTime(data.EMU_FECHA_CREACION),
     EMU_FECHA_MODIFICACION: formatDateTime(data.EMU_FECHA_MODIFICACION),
   };
+  if (data.LR_NOMBRES || data.LR_APELLIDOS) {
+    formatted.LR_NOMBRE_COMPLETO = [data.LR_NOMBRES, data.LR_APELLIDOS]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  }
+  return formatted;
 };
 
 exports.getAllUsuarioMulta = async (req, res) => {

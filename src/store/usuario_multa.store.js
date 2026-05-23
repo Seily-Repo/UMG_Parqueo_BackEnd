@@ -1,18 +1,40 @@
 const UsuarioMulta = require("../model/usuario_multa.model");
 const { sequelize } = require("../config/db");
 
+const ENRICHED_SELECT = `
+  SELECT M.*,
+         CB.MUL_DESCRIPCION, CB.MUL_MONTO_TOTAL,
+         V.VEH_PLACA, V.VEH_TIPO_VEHICULO, V.VEH_MARCA, V.VEH_MODELO,
+         U.LR_CARNE, U.LR_NOMBRES, U.LR_APELLIDOS, U.LR_CORREO_INSTITUCIONAL
+`;
+
+const ENRICHED_JOINS = `
+  FROM CB_USUARIO_MULTA M
+  INNER JOIN LR_VEHICULO V ON M.VEH_ID_VEHICULO = V.VEH_ID_VEHICULO
+  INNER JOIN LR_USUARIO U ON V.LR_CARNE = U.LR_CARNE
+  INNER JOIN CB_MULTA CB ON M.MUL_MULTA = CB.MUL_MULTA
+`;
 
 class UsuarioMultaStore {
   static async getAll() {
-    return await UsuarioMulta.findAll({
-      order: [["EMU_USUARIO_MULTA", "ASC"]],
-    });
+    const query = `
+      ${ENRICHED_SELECT}
+      ${ENRICHED_JOINS}
+      ORDER BY M.EMU_USUARIO_MULTA ASC
+    `;
+    return sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
   }
 
   static async getByVehiculo(VEH_ID_VEHICULO) {
-    return await UsuarioMulta.findAll({
-      where: { VEH_ID_VEHICULO },
-      order: [["EMU_USUARIO_MULTA", "ASC"]],
+    const query = `
+      ${ENRICHED_SELECT}
+      ${ENRICHED_JOINS}
+      WHERE M.VEH_ID_VEHICULO = :vehId
+      ORDER BY M.EMU_USUARIO_MULTA ASC
+    `;
+    return sequelize.query(query, {
+      replacements: { vehId: VEH_ID_VEHICULO },
+      type: sequelize.QueryTypes.SELECT,
     });
   }
 
@@ -24,10 +46,8 @@ class UsuarioMultaStore {
 
   static async getByCarneWithMulta(carne) {
     const query = `
-      SELECT M.*, CB.MUL_DESCRIPCION, CB.MUL_MONTO_TOTAL
-      FROM CB_USUARIO_MULTA M
-      INNER JOIN LR_VEHICULO V ON M.VEH_ID_VEHICULO = V.VEH_ID_VEHICULO
-      INNER JOIN CB_MULTA CB ON M.MUL_MULTA = CB.MUL_MULTA
+      ${ENRICHED_SELECT}
+      ${ENRICHED_JOINS}
       WHERE V.LR_CARNE = :carne
       ORDER BY M.EMU_USUARIO_MULTA ASC
     `;
@@ -39,10 +59,8 @@ class UsuarioMultaStore {
 
   static async getByIdWithMulta(EMU_USUARIO_MULTA, carne = null) {
     const query = `
-      SELECT M.*, CB.MUL_DESCRIPCION, CB.MUL_MONTO_TOTAL
-      FROM CB_USUARIO_MULTA M
-      INNER JOIN CB_MULTA CB ON M.MUL_MULTA = CB.MUL_MULTA
-      INNER JOIN LR_VEHICULO V ON M.VEH_ID_VEHICULO = V.VEH_ID_VEHICULO
+      ${ENRICHED_SELECT}
+      ${ENRICHED_JOINS}
       WHERE M.EMU_USUARIO_MULTA = :id
       ${carne ? "AND V.LR_CARNE = :carne" : ""}
     `;
@@ -78,7 +96,7 @@ class UsuarioMultaStore {
       },
       {
         where: { EMU_USUARIO_MULTA },
-      }
+      },
     );
   }
 }
