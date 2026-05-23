@@ -1,76 +1,74 @@
+const { Op } = require("sequelize");
 const UsuarioMulta = require("../model/usuario_multa.model");
+const Multa = require("../model/multa.model");
 const { sequelize } = require("../config/db");
 
-const ENRICHED_SELECT = `
-  SELECT M.*,
-         CB.MUL_DESCRIPCION, CB.MUL_MONTO_TOTAL,
-         V.VEH_PLACA, V.VEH_TIPO_VEHICULO, V.VEH_MARCA, V.VEH_MODELO,
-         U.LR_CARNE, U.LR_NOMBRES, U.LR_APELLIDOS, U.LR_CORREO_INSTITUCIONAL
-`;
+const MULTA_AS = "Multa";
 
-const ENRICHED_JOINS = `
-  FROM CB_USUARIO_MULTA M
-  INNER JOIN LR_VEHICULO V ON M.VEH_ID_VEHICULO = V.VEH_ID_VEHICULO
-  INNER JOIN LR_USUARIO U ON V.LR_CARNE = U.LR_CARNE
-  INNER JOIN CB_MULTA CB ON M.MUL_MULTA = CB.MUL_MULTA
-`;
+UsuarioMulta.belongsTo(Multa, {
+  foreignKey: "MUL_MULTA",
+  targetKey: "MUL_MULTA",
+  as: MULTA_AS,
+});
+
+const MULTA_INCLUDE = {
+  model: Multa,
+  as: MULTA_AS,
+  attributes: ["MUL_DESCRIPCION", "MUL_MONTO_TOTAL"],
+  required: true,
+};
+
+const defaultOrder = [["EMU_USUARIO_MULTA", "ASC"]];
+
+const vehiculosPorCarne = (carne) =>
+  sequelize.literal(
+    "(SELECT VEH_ID_VEHICULO FROM LR_VEHICULO WHERE LR_CARNE = :carne)",
+  );
 
 class UsuarioMultaStore {
   static async getAll() {
-    const query = `
-      ${ENRICHED_SELECT}
-      ${ENRICHED_JOINS}
-      ORDER BY M.EMU_USUARIO_MULTA ASC
-    `;
-    return sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
+    return await UsuarioMulta.findAll({
+      include: [MULTA_INCLUDE],
+      order: defaultOrder,
+    });
   }
 
   static async getByVehiculo(VEH_ID_VEHICULO) {
-    const query = `
-      ${ENRICHED_SELECT}
-      ${ENRICHED_JOINS}
-      WHERE M.VEH_ID_VEHICULO = :vehId
-      ORDER BY M.EMU_USUARIO_MULTA ASC
-    `;
-    return sequelize.query(query, {
-      replacements: { vehId: VEH_ID_VEHICULO },
-      type: sequelize.QueryTypes.SELECT,
+    return await UsuarioMulta.findAll({
+      where: { VEH_ID_VEHICULO },
+      include: [MULTA_INCLUDE],
+      order: defaultOrder,
     });
   }
 
-  static async getById(EMU_USUARIO_MULTA) {
-    return await UsuarioMulta.findOne({
-      where: { EMU_USUARIO_MULTA },
-    });
-  }
-
-  static async getByCarneWithMulta(carne) {
-    const query = `
-      ${ENRICHED_SELECT}
-      ${ENRICHED_JOINS}
-      WHERE V.LR_CARNE = :carne
-      ORDER BY M.EMU_USUARIO_MULTA ASC
-    `;
-    return sequelize.query(query, {
+  static async getByCarne(carne) {
+    return await UsuarioMulta.findAll({
+      where: {
+        VEH_ID_VEHICULO: {
+          [Op.in]: vehiculosPorCarne(carne),
+        },
+      },
+      include: [MULTA_INCLUDE],
       replacements: { carne },
-      type: sequelize.QueryTypes.SELECT,
+      order: defaultOrder,
     });
   }
 
-  static async getByIdWithMulta(EMU_USUARIO_MULTA, carne = null) {
-    const query = `
-      ${ENRICHED_SELECT}
-      ${ENRICHED_JOINS}
-      WHERE M.EMU_USUARIO_MULTA = :id
-      ${carne ? "AND V.LR_CARNE = :carne" : ""}
-    `;
-    const replacements = { id: EMU_USUARIO_MULTA };
-    if (carne) replacements.carne = carne;
-    const rows = await sequelize.query(query, {
-      replacements,
-      type: sequelize.QueryTypes.SELECT,
-    });
-    return rows[0] || null;
+  static async getById(EMU_USUARIO_MULTA, carne = null) {
+    const where = { EMU_USUARIO_MULTA };
+    const options = {
+      where,
+      include: [MULTA_INCLUDE],
+    };
+
+    if (carne) {
+      where.VEH_ID_VEHICULO = {
+        [Op.in]: vehiculosPorCarne(carne),
+      };
+      options.replacements = { carne };
+    }
+
+    return await UsuarioMulta.findOne(options);
   }
 
   static async create(data) {

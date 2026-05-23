@@ -23,9 +23,37 @@ const formatDateTime = (value) => {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 };
 
+const flattenMultaFields = (data) => {
+  if (data.MUL_DESCRIPCION != null || data.MUL_MONTO_TOTAL != null) {
+    return data;
+  }
+
+  const nestedKey = Object.keys(data).find(
+    (key) =>
+      data[key] &&
+      typeof data[key] === "object" &&
+      !Array.isArray(data[key]) &&
+      "MUL_DESCRIPCION" in data[key],
+  );
+  if (!nestedKey) return data;
+
+  const multa = data[nestedKey];
+  const { [nestedKey]: _nested, ...rest } = data;
+  return {
+    ...rest,
+    MUL_DESCRIPCION: multa.MUL_DESCRIPCION,
+    MUL_MONTO_TOTAL:
+      multa.MUL_MONTO_TOTAL != null
+        ? Number(multa.MUL_MONTO_TOTAL)
+        : multa.MUL_MONTO_TOTAL,
+  };
+};
+
 const formatMulta = (record) => {
   if (!record) return record;
-  const data = typeof record.toJSON === "function" ? record.toJSON() : { ...record };
+  const raw =
+    typeof record.toJSON === "function" ? record.toJSON() : { ...record };
+  const data = flattenMultaFields(raw);
   const formatted = {
     ...data,
     EMU_FECHA_CREACION: formatDateTime(data.EMU_FECHA_CREACION),
@@ -95,7 +123,7 @@ exports.getUsuarioMultaByCarne = async (req, res) => {
       });
     }
 
-    const registros = await UsuarioMultaStore.getByCarneWithMulta(carne);
+    const registros = await UsuarioMultaStore.getByCarne(carne);
 
     if (!registros || registros.length === 0) {
       return res.status(404).json({
@@ -126,7 +154,7 @@ exports.getUsuarioMultaById = async (req, res) => {
     const carneFilter =
       req.user.rol === "ADMINISTRADOR" ? null : req.user.carne;
 
-    const registro = await UsuarioMultaStore.getByIdWithMulta(
+    const registro = await UsuarioMultaStore.getById(
       EMU_USUARIO_MULTA,
       carneFilter,
     );
