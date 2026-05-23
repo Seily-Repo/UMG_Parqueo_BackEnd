@@ -174,10 +174,14 @@ app.post('/api/auth/registro', async (req, res) => {
           </div>
         `
       };
-      await transporter.sendMail(mailOptions);
-      console.log("✉️ [REGISTRO] Correo HTML enviado con éxito");
-    } catch (errEmail) { 
-      console.error("❌ [EMAIL ERROR] Falló el correo:", errEmail); 
+      // 🚀 ENVIAMOS EL CORREO EN SEGUNDO PLANO SIN BLOQUEAR LA RESPUESTA HTTP
+      transporter.sendMail(mailOptions).then(() => {
+        console.log("✉️ [REGISTRO] Correo HTML enviado con éxito en segundo plano");
+      }).catch((errEmail) => {
+        console.error("❌ [EMAIL ERROR] Falló el correo en segundo plano:", errEmail);
+      });
+    } catch (errSync) {
+      console.error("❌ [EMAIL ERROR] Error síncrono al preparar correo:", errSync);
     }
 
     res.status(200).json({ mensaje: "Registro exitoso." });
