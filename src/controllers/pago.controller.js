@@ -117,13 +117,35 @@ const createStripePaymentIntent = async ({
   );
 };
 
-const attachPaymentIntentToPago = async (pago, paymentIntent) => {
-  await PagoStore.update(pago.PAG_PAGO, {
+const buildPagoPayload = (reqBody, PAG_MONTO_TOTAL) => ({
+  LR_CARNE: reqBody.LR_CARNE,
+  PLN_PLAN: reqBody.PLN_PLAN ?? null,
+  EMU_USUARIO_MULTA: reqBody.EMU_USUARIO_MULTA ?? null,
+  FPG_FORMA_PAGO: reqBody.FPG_FORMA_PAGO,
+  PAG_MONTO_TOTAL,
+  PAG_ESTADO: PAG_PENDIENTE,
+  PAG_FECHA_CREACION: new Date(),
+  PAG_FECHA_PAGO: new Date(),
+  STRIPE_PAYMENT_INTENT_ID: PAG_PENDIENTE,
+  PAG_ESTADO_REGISTRO: "A",
+});
+
+const attachPaymentIntentToPago = async (pago, paymentIntent, pagoPayload) => {
+  await PagoStore.completePagoRecord(pago.PAG_PAGO, {
+    ...pagoPayload,
     STRIPE_PAYMENT_INTENT_ID: paymentIntent.id,
   });
-  const updated = toPagoJson(pago);
-  updated.STRIPE_PAYMENT_INTENT_ID = paymentIntent.id;
-  return updated;
+  const updated = await PagoStore.getById(pago.PAG_PAGO);
+  return toPagoJson(updated);
+};
+
+const cancelPagosPendientesDuplicados = async (pago, reqBody) => {
+  await PagoStore.cancelDuplicatePending({
+    keepPagoId: pago.PAG_PAGO,
+    LR_CARNE: reqBody.LR_CARNE,
+    PLN_PLAN: reqBody.PLN_PLAN ?? null,
+    EMU_USUARIO_MULTA: reqBody.EMU_USUARIO_MULTA ?? null,
+  });
 };
 
 const buildStripeMetadata = ({
@@ -208,6 +230,16 @@ const confirmarPagoExitoso = async (pagoId, paymentIntent, pagoExistente) => {
     pagoExistente?.EMU_USUARIO_MULTA;
   await marcarMultaComoPagada(emuId);
   await enviarCorreoPagoExitoso(paymentIntent);
+
+  await PagoStore.cancelDuplicatePending({
+    keepPagoId: pagoId,
+    LR_CARNE: paymentIntent.metadata?.LR_CARNE || pagoExistente?.LR_CARNE,
+    PLN_PLAN: pagoExistente?.PLN_PLAN ?? null,
+    EMU_USUARIO_MULTA:
+      paymentIntent.metadata?.EMU_USUARIO_MULTA ||
+      pagoExistente?.EMU_USUARIO_MULTA ||
+      null,
+  });
 
   return { alreadyDone: false };
 };
@@ -457,6 +489,11 @@ exports.createPago = async (req, res) => {
         EMU_USUARIO_MULTA,
       );
       if (pagoAceptado) {
+        await PagoStore.cancelDuplicatePending({
+          keepPagoId: pagoAceptado.PAG_PAGO,
+          LR_CARNE,
+          EMU_USUARIO_MULTA,
+        });
         return res.status(409).json({
           message: "Esta multa ya fue pagada.",
         });
@@ -474,6 +511,21 @@ exports.createPago = async (req, res) => {
         });
       }
       PAG_MONTO_TOTAL = Number(plan.PLN_PRECIO);
+
+      const planPagado = await PagoStore.findAcceptedByPlanAndCarne(
+        PLN_PLAN,
+        LR_CARNE,
+      );
+      if (planPagado) {
+        await PagoStore.cancelDuplicatePending({
+          keepPagoId: planPagado.PAG_PAGO,
+          LR_CARNE,
+          PLN_PLAN,
+        });
+        return res.status(409).json({
+          message: "Este plan ya fue pagado para tu carné.",
+        });
+      }
     }
 
     if (PAG_MONTO_TOTAL <= 0) {
@@ -487,6 +539,8 @@ exports.createPago = async (req, res) => {
       EMU_USUARIO_MULTA,
       PLN_PLAN,
     });
+
+    const pagoPayload = buildPagoPayload(req.body, PAG_MONTO_TOTAL);
 
     const existingPago = EMU_USUARIO_MULTA
       ? await PagoStore.findActiveByUsuarioMulta(EMU_USUARIO_MULTA)
@@ -537,7 +591,9 @@ exports.createPago = async (req, res) => {
         const pagoActualizado = await attachPaymentIntentToPago(
           resolved.pago,
           paymentIntent,
+          pagoPayload,
         );
+        await cancelPagosPendientesDuplicados(pagoActualizado, req.body);
 
         return sendPagoResponse(res, 200, {
           message: "Pago pendiente existente reutilizado",
@@ -548,14 +604,7 @@ exports.createPago = async (req, res) => {
       }
     }
 
-    req.body.PAG_MONTO_TOTAL = PAG_MONTO_TOTAL;
-    req.body.PAG_ESTADO = PAG_PENDIENTE;
-    req.body.PAG_FECHA_CREACION = new Date();
-    req.body.PAG_FECHA_PAGO = new Date();
-    req.body.STRIPE_PAYMENT_INTENT_ID = PAG_PENDIENTE;
-    req.body.PAG_ESTADO_REGISTRO = "A";
-
-    const pago = await PagoStore.create(req.body);
+    const pago = await PagoStore.create(pagoPayload);
 
     const metadatos = buildStripeMetadata({
       nombreEstudiante: usuario.LR_NOMBRES,
@@ -577,7 +626,12 @@ exports.createPago = async (req, res) => {
       idempotencyKey,
     });
 
-    const pagoActualizado = await attachPaymentIntentToPago(pago, paymentIntent);
+    const pagoActualizado = await attachPaymentIntentToPago(
+      pago,
+      paymentIntent,
+      pagoPayload,
+    );
+    await cancelPagosPendientesDuplicados(pagoActualizado, req.body);
 
     return sendPagoResponse(res, 201, {
       message: "Pago iniciado exitosamente",
