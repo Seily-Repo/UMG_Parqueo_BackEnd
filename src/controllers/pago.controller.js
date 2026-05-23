@@ -78,6 +78,30 @@ const releasePagoLock = (lockKey) => {
   pagoLocks.delete(lockKey);
 };
 
+/** Solo cuenta como pagado si Stripe confirma succeeded (evita A falsos en BD). */
+const validarPagoAceptadoEnStripe = async (pago) => {
+  const row = toPagoJson(pago);
+  if (!row || row.PAG_ESTADO !== PAG_ACEPTADO) return null;
+
+  const piId = row.STRIPE_PAYMENT_INTENT_ID;
+  if (!piId?.startsWith("pi_")) {
+    await PagoStore.update(row.PAG_PAGO, { PAG_ESTADO: PAG_CANCELADO });
+    return null;
+  }
+
+  try {
+    const pi = await stripe.paymentIntents.retrieve(piId);
+    if (pi.status === "succeeded") {
+      return row;
+    }
+  } catch (err) {
+    console.log("Pago A sin PI válido en Stripe:", err.message);
+  }
+
+  await PagoStore.update(row.PAG_PAGO, { PAG_ESTADO: PAG_CANCELADO });
+  return null;
+};
+
 /**
  * Resuelve un pago activo existente: ya pagado, reutilizar PI pendiente, o invalidar cancelado.
  */
@@ -102,8 +126,12 @@ const resolveExistingActivePago = async (existingPago) => {
     const pi = await stripe.paymentIntents.retrieve(piId);
 
     if (pi.status === "succeeded") {
-      // No confirmar aquí: evita marcar Aceptado al abrir pasarela sin cobrar.
-      return { action: "already_paid", pago };
+      let actualizado = pago;
+      if (pago.PAG_ESTADO !== PAG_ACEPTADO) {
+        await confirmarPagoExitoso(pago.PAG_PAGO, pi, pago);
+        actualizado = toPagoJson(await PagoStore.getById(pago.PAG_PAGO));
+      }
+      return { action: "already_paid", pago: actualizado || pago };
     }
 
     if (pi.status === "canceled") {
@@ -565,17 +593,6 @@ exports.createPago = async (req, res) => {
         });
       }
 
-      const pagoAceptado = await PagoStore.findAcceptedByUsuarioMulta(
-        EMU_USUARIO_MULTA,
-      );
-      if (pagoAceptado) {
-        await PagoStore.cancelDuplicatePending({
-          keepPagoId: pagoAceptado.PAG_PAGO,
-          LR_CARNE,
-          EMU_USUARIO_MULTA,
-        });
-        return respondAlreadyPaid(res, "Esta multa ya fue pagada.", pagoAceptado);
-      }
       multa = await MultaStore.getById(usuarioMulta.MUL_MULTA);
       if (!multa) {
         return res.status(404).json({ message: "La multa especificada no existe" });
@@ -589,23 +606,6 @@ exports.createPago = async (req, res) => {
         });
       }
       PAG_MONTO_TOTAL = Number(plan.PLN_PRECIO);
-
-      const planPagado = await PagoStore.findAcceptedByPlanAndCarne(
-        PLN_PLAN,
-        LR_CARNE,
-      );
-      if (planPagado) {
-        await PagoStore.cancelDuplicatePending({
-          keepPagoId: planPagado.PAG_PAGO,
-          LR_CARNE,
-          PLN_PLAN,
-        });
-        return respondAlreadyPaid(
-          res,
-          "Este plan ya fue pagado para tu carné.",
-          planPagado,
-        );
-      }
     }
 
     if (PAG_MONTO_TOTAL <= 0) {
@@ -619,6 +619,45 @@ exports.createPago = async (req, res) => {
     const pendingPago = EMU_USUARIO_MULTA
       ? await PagoStore.findPendingByUsuarioMulta(EMU_USUARIO_MULTA)
       : await PagoStore.findPendingByPlanAndCarne(PLN_PLAN, LR_CARNE);
+
+    if (!EMU_USUARIO_MULTA && !pendingPago) {
+      const planPagado = await PagoStore.findAcceptedByPlanAndCarne(
+        PLN_PLAN,
+        LR_CARNE,
+      );
+      const planPagadoReal = await validarPagoAceptadoEnStripe(planPagado);
+      if (planPagadoReal) {
+        await PagoStore.cancelDuplicatePending({
+          keepPagoId: planPagadoReal.PAG_PAGO,
+          LR_CARNE,
+          PLN_PLAN,
+        });
+        return respondAlreadyPaid(
+          res,
+          "Este plan ya fue pagado para tu carné.",
+          planPagadoReal,
+        );
+      }
+    }
+
+    if (EMU_USUARIO_MULTA && !pendingPago) {
+      const multaPagada = await PagoStore.findAcceptedByUsuarioMulta(
+        EMU_USUARIO_MULTA,
+      );
+      const multaPagadaReal = await validarPagoAceptadoEnStripe(multaPagada);
+      if (multaPagadaReal) {
+        await PagoStore.cancelDuplicatePending({
+          keepPagoId: multaPagadaReal.PAG_PAGO,
+          LR_CARNE,
+          EMU_USUARIO_MULTA,
+        });
+        return respondAlreadyPaid(
+          res,
+          "Esta multa ya fue pagada.",
+          multaPagadaReal,
+        );
+      }
+    }
 
     const existingPago =
       pendingPago ||
