@@ -9,6 +9,8 @@ const estadoMap = {
   pendiente: "P",
   c: "C",
   cancelada: "C",
+  pagada: "C",
+  pagado: "C",
 };
 
 const normalizeEstado = (value) => {
@@ -248,6 +250,52 @@ exports.updateUsuarioMulta = async (req, res) => {
   try {
     const { EMU_USUARIO_MULTA } = req.params;
     const { EMU_ESTADO_MULTA, EMU_MODIFICADO_POR, EMU_ESTADO_REGISTRO } = req.body;
+
+    if (req.user.rol !== "ADMINISTRADOR") {
+      const carne =
+        req.user.carne?.replace(/-/g, "") || req.user.carne;
+      const registro = await UsuarioMultaStore.getById(
+        EMU_USUARIO_MULTA,
+        carne,
+      );
+
+      if (!registro) {
+        return res.status(403).json({
+          message:
+            "No se encontró la multa o no tienes permiso para actualizarla.",
+        });
+      }
+
+      const estadoSolicitado =
+        normalizeEstado(EMU_ESTADO_MULTA) || (EMU_ESTADO_MULTA ? null : "C");
+      if (estadoSolicitado !== "C") {
+        return res.status(403).json({
+          message:
+            "Como estudiante solo puedes marcar tu multa como pagada (C / Cancelada).",
+        });
+      }
+
+      if (registro.EMU_ESTADO_MULTA === "C") {
+        return res.status(200).json({
+          message: "La multa ya estaba marcada como pagada.",
+        });
+      }
+
+      const [affectedRows] = await UsuarioMultaStore.update(EMU_USUARIO_MULTA, {
+        EMU_ESTADO_MULTA: "C",
+        EMU_MODIFICADO_POR: EMU_MODIFICADO_POR || carne || "USUARIO",
+      });
+
+      if (affectedRows === 0) {
+        return res.status(404).json({
+          message: "No se encontró el registro de Usuario Multa para actualizar",
+        });
+      }
+
+      return res.status(200).json({
+        message: "Multa marcada como pagada correctamente",
+      });
+    }
 
     if (!EMU_ESTADO_MULTA && !EMU_ESTADO_REGISTRO) {
       return res.status(400).json({
