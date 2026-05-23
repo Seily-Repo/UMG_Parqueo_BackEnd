@@ -1,16 +1,25 @@
 const UsuarioMultaStore = require("../store/usuario_multa.store");
+const PagoStore = require("../store/pago.store");
+
+const EMU_ACEPTADO = "A";
+const EMU_CANCELADO = "C";
 const { enviarCorreoMulta } = require("../utils/email_multa.util");
 const { sequelize } = require("../config/db");
 
+// P = Pendiente, A = Aceptado (pagada), C = Cancelado
 const estadoMap = {
-  a: "A",
-  activa: "A",
   p: "P",
   pendiente: "P",
+  activa: "P",
+  activo: "P",
+  a: "A",
+  aceptado: "A",
+  aceptada: "A",
+  pagada: "A",
+  pagado: "A",
   c: "C",
+  cancelado: "C",
   cancelada: "C",
-  pagada: "C",
-  pagado: "C",
 };
 
 const normalizeEstado = (value) => {
@@ -191,7 +200,7 @@ exports.createUsuarioMulta = async (req, res) => {
     const estado = normalizeEstado(EMU_ESTADO_MULTA);
     if (!estado) {
       return res.status(400).json({
-        message: "EMU_ESTADO_MULTA inválido. Se aceptan: A / Activa, P / Pendiente, C / Cancelada",
+        message: "EMU_ESTADO_MULTA inválido. Se aceptan: P / Pendiente, A / Aceptado, C / Cancelado",
       });
     }
 
@@ -267,22 +276,34 @@ exports.updateUsuarioMulta = async (req, res) => {
       }
 
       const estadoSolicitado =
-        normalizeEstado(EMU_ESTADO_MULTA) || (EMU_ESTADO_MULTA ? null : "C");
-      if (estadoSolicitado !== "C") {
+        normalizeEstado(EMU_ESTADO_MULTA) || (EMU_ESTADO_MULTA ? null : EMU_ACEPTADO);
+      if (estadoSolicitado !== EMU_ACEPTADO) {
         return res.status(403).json({
           message:
-            "Como estudiante solo puedes marcar tu multa como pagada (C / Cancelada).",
+            "Como estudiante solo puedes marcar tu multa como pagada (A / Aceptado).",
         });
       }
 
-      if (registro.EMU_ESTADO_MULTA === "C") {
+      const pagoAceptado = await PagoStore.findAcceptedByUsuarioMulta(
+        EMU_USUARIO_MULTA,
+      );
+      if (
+        registro.EMU_ESTADO_MULTA === EMU_ACEPTADO &&
+        pagoAceptado
+      ) {
         return res.status(200).json({
           message: "La multa ya estaba marcada como pagada.",
         });
       }
 
+      if (registro.EMU_ESTADO_MULTA === EMU_CANCELADO) {
+        return res.status(409).json({
+          message: "Esta multa está cancelada y no puede marcarse como pagada.",
+        });
+      }
+
       const [affectedRows] = await UsuarioMultaStore.update(EMU_USUARIO_MULTA, {
-        EMU_ESTADO_MULTA: "C",
+        EMU_ESTADO_MULTA: EMU_ACEPTADO,
         EMU_MODIFICADO_POR: EMU_MODIFICADO_POR || carne || "USUARIO",
       });
 
@@ -315,7 +336,7 @@ exports.updateUsuarioMulta = async (req, res) => {
       const estado = normalizeEstado(EMU_ESTADO_MULTA);
       if (!estado) {
         return res.status(400).json({
-          message: "EMU_ESTADO_MULTA inválido. Se aceptan: A / Activa, P / Pendiente, C / Cancelada",
+          message: "EMU_ESTADO_MULTA inválido. Se aceptan: P / Pendiente, A / Aceptado, C / Cancelado",
         });
       }
       updateData.EMU_ESTADO_MULTA = estado;

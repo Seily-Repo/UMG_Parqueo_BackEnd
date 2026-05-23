@@ -10,7 +10,8 @@ const MultaStore = require("../store/multa.store");
 const PAG_ACEPTADO = "A";
 const PAG_PENDIENTE = "P";
 const PAG_CANCELADO = "C";
-const EMU_MULTA_PAGADA = "C";
+const EMU_MULTA_ACEPTADA = "A";
+const EMU_MULTA_CANCELADA = "C";
 
 const normalizeCarne = (carne) => {
   if (carne == null || carne === "") return null;
@@ -164,7 +165,7 @@ const buildStripeMetadata = ({
 const marcarMultaComoPagada = async (emuUsuarioMulta) => {
   if (!emuUsuarioMulta) return;
   await UsuarioMultaStore.update(emuUsuarioMulta, {
-    EMU_ESTADO_MULTA: EMU_MULTA_PAGADA,
+    EMU_ESTADO_MULTA: EMU_MULTA_ACEPTADA,
     EMU_MODIFICADO_POR: "STRIPE_WEBHOOK",
   });
 };
@@ -446,7 +447,16 @@ exports.createPago = async (req, res) => {
             : "Registro de multa no encontrado o no te pertenece";
         return res.status(404).json({ message });
       }
-      if (usuarioMulta.EMU_ESTADO_MULTA === EMU_MULTA_PAGADA) {
+      if (usuarioMulta.EMU_ESTADO_MULTA === EMU_MULTA_CANCELADA) {
+        return res.status(409).json({
+          message: "Esta multa está cancelada y no puede pagarse.",
+        });
+      }
+
+      const pagoAceptado = await PagoStore.findAcceptedByUsuarioMulta(
+        EMU_USUARIO_MULTA,
+      );
+      if (pagoAceptado) {
         return res.status(409).json({
           message: "Esta multa ya fue pagada.",
         });

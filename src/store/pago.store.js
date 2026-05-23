@@ -41,6 +41,18 @@ class PagosStore {
     });
   }
 
+  /** Pago aceptado para una multa (ya cobrada). */
+  static async findAcceptedByUsuarioMulta(EMU_USUARIO_MULTA) {
+    return await Pago.findOne({
+      where: {
+        EMU_USUARIO_MULTA,
+        PAG_ESTADO: "A",
+        PAG_ESTADO_REGISTRO: "A",
+      },
+      order: [["PAG_FECHA_CREACION", "DESC"]],
+    });
+  }
+
   /** Pago pendiente o aceptado para un plan + carné (idempotencia). */
   static async findActiveByPlanAndCarne(PLN_PLAN, LR_CARNE) {
     return await Pago.findOne({
