@@ -124,22 +124,65 @@ class PagosStore {
     return await Pago.update({ PAG_ESTADO: PAG_CANCELADO }, { where });
   }
 
-  static async completePagoRecord(pagoId, data) {
-    return await Pago.update(
-      {
-        LR_CARNE: data.LR_CARNE,
-        PLN_PLAN: data.PLN_PLAN ?? null,
-        EMU_USUARIO_MULTA: data.EMU_USUARIO_MULTA ?? null,
-        FPG_FORMA_PAGO: data.FPG_FORMA_PAGO,
-        PAG_MONTO_TOTAL: data.PAG_MONTO_TOTAL,
-        PAG_ESTADO: data.PAG_ESTADO ?? PAG_PENDIENTE,
-        PAG_FECHA_CREACION: data.PAG_FECHA_CREACION ?? new Date(),
-        PAG_FECHA_PAGO: data.PAG_FECHA_PAGO ?? new Date(),
-        STRIPE_PAYMENT_INTENT_ID: data.STRIPE_PAYMENT_INTENT_ID,
-        PAG_ESTADO_REGISTRO: "A",
-      },
-      { where: { PAG_PAGO: pagoId } },
-    );
+  /** Completa un registro huérfano; si onlyMissing=true no sobrescribe campos ya guardados. */
+  static async completePagoRecord(pagoId, data, { onlyMissing = false } = {}) {
+    if (!onlyMissing) {
+      return await Pago.update(
+        {
+          LR_CARNE: data.LR_CARNE,
+          PLN_PLAN: data.PLN_PLAN ?? null,
+          EMU_USUARIO_MULTA: data.EMU_USUARIO_MULTA ?? null,
+          FPG_FORMA_PAGO: data.FPG_FORMA_PAGO,
+          PAG_MONTO_TOTAL: data.PAG_MONTO_TOTAL,
+          PAG_ESTADO: data.PAG_ESTADO ?? PAG_PENDIENTE,
+          PAG_FECHA_CREACION: data.PAG_FECHA_CREACION ?? new Date(),
+          PAG_FECHA_PAGO: data.PAG_FECHA_PAGO ?? new Date(),
+          STRIPE_PAYMENT_INTENT_ID: data.STRIPE_PAYMENT_INTENT_ID,
+          PAG_ESTADO_REGISTRO: "A",
+        },
+        { where: { PAG_PAGO: pagoId } },
+      );
+    }
+
+    const row = await Pago.findOne({ where: { PAG_PAGO: pagoId } });
+    if (!row) return [0];
+
+    const updates = { PAG_ESTADO_REGISTRO: "A" };
+
+    if (!row.LR_CARNE && data.LR_CARNE) updates.LR_CARNE = data.LR_CARNE;
+    if (row.PLN_PLAN == null && data.PLN_PLAN != null) {
+      updates.PLN_PLAN = data.PLN_PLAN;
+    }
+    if (row.EMU_USUARIO_MULTA == null && data.EMU_USUARIO_MULTA != null) {
+      updates.EMU_USUARIO_MULTA = data.EMU_USUARIO_MULTA;
+    }
+    if (!row.FPG_FORMA_PAGO && data.FPG_FORMA_PAGO) {
+      updates.FPG_FORMA_PAGO = data.FPG_FORMA_PAGO;
+    }
+    if (
+      (row.PAG_MONTO_TOTAL == null || Number(row.PAG_MONTO_TOTAL) <= 0) &&
+      data.PAG_MONTO_TOTAL > 0
+    ) {
+      updates.PAG_MONTO_TOTAL = data.PAG_MONTO_TOTAL;
+    }
+    if (!row.PAG_FECHA_CREACION && data.PAG_FECHA_CREACION) {
+      updates.PAG_FECHA_CREACION = data.PAG_FECHA_CREACION;
+    }
+    if (
+      data.STRIPE_PAYMENT_INTENT_ID?.startsWith("pi_") &&
+      (!row.STRIPE_PAYMENT_INTENT_ID ||
+        row.STRIPE_PAYMENT_INTENT_ID === PAG_PENDIENTE ||
+        !row.STRIPE_PAYMENT_INTENT_ID.startsWith("pi_"))
+    ) {
+      updates.STRIPE_PAYMENT_INTENT_ID = data.STRIPE_PAYMENT_INTENT_ID;
+    }
+    if (row.PAG_ESTADO == null && data.PAG_ESTADO) {
+      updates.PAG_ESTADO = data.PAG_ESTADO;
+    }
+
+    if (Object.keys(updates).length <= 1) return [0];
+
+    return await Pago.update(updates, { where: { PAG_PAGO: pagoId } });
   }
 
   static async create(data) {

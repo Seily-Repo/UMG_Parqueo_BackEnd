@@ -79,13 +79,15 @@ const releasePagoLock = (lockKey) => {
 };
 
 /** Solo cuenta como pagado si Stripe confirma succeeded (evita A falsos en BD). */
-const validarPagoAceptadoEnStripe = async (pago) => {
+const validarPagoAceptadoEnStripe = async (pago, { cancelInvalid = false } = {}) => {
   const row = toPagoJson(pago);
   if (!row || row.PAG_ESTADO !== PAG_ACEPTADO) return null;
 
   const piId = row.STRIPE_PAYMENT_INTENT_ID;
   if (!piId?.startsWith("pi_")) {
-    await PagoStore.update(row.PAG_PAGO, { PAG_ESTADO: PAG_CANCELADO });
+    if (cancelInvalid) {
+      await PagoStore.update(row.PAG_PAGO, { PAG_ESTADO: PAG_CANCELADO });
+    }
     return null;
   }
 
@@ -98,7 +100,9 @@ const validarPagoAceptadoEnStripe = async (pago) => {
     console.log("Pago A sin PI válido en Stripe:", err.message);
   }
 
-  await PagoStore.update(row.PAG_PAGO, { PAG_ESTADO: PAG_CANCELADO });
+  if (cancelInvalid) {
+    await PagoStore.update(row.PAG_PAGO, { PAG_ESTADO: PAG_CANCELADO });
+  }
   return null;
 };
 
@@ -109,7 +113,13 @@ const resolveExistingActivePago = async (existingPago) => {
   const pago = toPagoJson(existingPago);
 
   if (pago.PAG_ESTADO === PAG_ACEPTADO) {
-    return { action: "already_paid", pago };
+    const valido = await validarPagoAceptadoEnStripe(pago, {
+      cancelInvalid: true,
+    });
+    if (valido) {
+      return { action: "already_paid", pago: valido };
+    }
+    return { action: "expired", pago: null };
   }
 
   const piId = pago.STRIPE_PAYMENT_INTENT_ID;
@@ -126,12 +136,11 @@ const resolveExistingActivePago = async (existingPago) => {
     const pi = await stripe.paymentIntents.retrieve(piId);
 
     if (pi.status === "succeeded") {
-      let actualizado = pago;
-      if (pago.PAG_ESTADO !== PAG_ACEPTADO) {
-        await confirmarPagoExitoso(pago.PAG_PAGO, pi, pago);
-        actualizado = toPagoJson(await PagoStore.getById(pago.PAG_PAGO));
-      }
-      return { action: "already_paid", pago: actualizado || pago };
+      return {
+        action: "already_paid",
+        pago,
+        stripeStatus: "succeeded",
+      };
     }
 
     if (pi.status === "canceled") {
@@ -207,11 +216,20 @@ const buildPagoPayload = (reqBody, PAG_MONTO_TOTAL) => ({
   PAG_ESTADO_REGISTRO: "A",
 });
 
-const attachPaymentIntentToPago = async (pago, paymentIntent, pagoPayload) => {
-  await PagoStore.completePagoRecord(pago.PAG_PAGO, {
-    ...pagoPayload,
-    STRIPE_PAYMENT_INTENT_ID: paymentIntent.id,
-  });
+const attachPaymentIntentToPago = async (
+  pago,
+  paymentIntent,
+  pagoPayload,
+  { onlyMissing = false } = {},
+) => {
+  await PagoStore.completePagoRecord(
+    pago.PAG_PAGO,
+    {
+      ...pagoPayload,
+      STRIPE_PAYMENT_INTENT_ID: paymentIntent.id,
+    },
+    { onlyMissing },
+  );
   const updated = await PagoStore.getById(pago.PAG_PAGO);
   return toPagoJson(updated);
 };
@@ -292,28 +310,39 @@ const enviarCorreoPagoExitoso = async (paymentIntent) => {
 };
 
 const confirmarPagoExitoso = async (pagoId, paymentIntent, pagoExistente) => {
-  if (pagoExistente?.PAG_ESTADO === PAG_ACEPTADO) {
+  const actualDb = toPagoJson(
+    pagoExistente?.PAG_PAGO
+      ? await PagoStore.getById(pagoExistente.PAG_PAGO)
+      : await PagoStore.getById(pagoId),
+  );
+
+  if (actualDb?.PAG_ESTADO === PAG_ACEPTADO) {
     return { alreadyDone: true };
   }
 
-  const PAG_FECHA_PAGO = new Date(paymentIntent.created * 1000);
-  await PagoStore.update(pagoId, {
-    PAG_ESTADO: PAG_ACEPTADO,
-    PAG_FECHA_PAGO,
-  });
+  const updates = { PAG_ESTADO: PAG_ACEPTADO };
+  if (!actualDb?.PAG_FECHA_PAGO) {
+    updates.PAG_FECHA_PAGO = new Date(paymentIntent.created * 1000);
+  }
+  await PagoStore.update(pagoId, updates);
 
   const emuId =
     paymentIntent.metadata?.EMU_USUARIO_MULTA ||
+    actualDb?.EMU_USUARIO_MULTA ||
     pagoExistente?.EMU_USUARIO_MULTA;
   await marcarMultaComoPagada(emuId);
   await enviarCorreoPagoExitoso(paymentIntent);
 
   await PagoStore.cancelDuplicatePending({
     keepPagoId: pagoId,
-    LR_CARNE: paymentIntent.metadata?.LR_CARNE || pagoExistente?.LR_CARNE,
-    PLN_PLAN: pagoExistente?.PLN_PLAN ?? null,
+    LR_CARNE:
+      paymentIntent.metadata?.LR_CARNE ||
+      actualDb?.LR_CARNE ||
+      pagoExistente?.LR_CARNE,
+    PLN_PLAN: actualDb?.PLN_PLAN ?? pagoExistente?.PLN_PLAN ?? null,
     EMU_USUARIO_MULTA:
       paymentIntent.metadata?.EMU_USUARIO_MULTA ||
+      actualDb?.EMU_USUARIO_MULTA ||
       pagoExistente?.EMU_USUARIO_MULTA ||
       null,
   });
@@ -625,13 +654,10 @@ exports.createPago = async (req, res) => {
         PLN_PLAN,
         LR_CARNE,
       );
-      const planPagadoReal = await validarPagoAceptadoEnStripe(planPagado);
+      const planPagadoReal = await validarPagoAceptadoEnStripe(planPagado, {
+        cancelInvalid: true,
+      });
       if (planPagadoReal) {
-        await PagoStore.cancelDuplicatePending({
-          keepPagoId: planPagadoReal.PAG_PAGO,
-          LR_CARNE,
-          PLN_PLAN,
-        });
         return respondAlreadyPaid(
           res,
           "Este plan ya fue pagado para tu carné.",
@@ -644,13 +670,10 @@ exports.createPago = async (req, res) => {
       const multaPagada = await PagoStore.findAcceptedByUsuarioMulta(
         EMU_USUARIO_MULTA,
       );
-      const multaPagadaReal = await validarPagoAceptadoEnStripe(multaPagada);
+      const multaPagadaReal = await validarPagoAceptadoEnStripe(multaPagada, {
+        cancelInvalid: true,
+      });
       if (multaPagadaReal) {
-        await PagoStore.cancelDuplicatePending({
-          keepPagoId: multaPagadaReal.PAG_PAGO,
-          LR_CARNE,
-          EMU_USUARIO_MULTA,
-        });
         return respondAlreadyPaid(
           res,
           "Esta multa ya fue pagada.",
@@ -719,8 +742,8 @@ exports.createPago = async (req, res) => {
           resolved.pago,
           paymentIntent,
           pagoPayload,
+          { onlyMissing: true },
         );
-        await cancelPagosPendientesDuplicados(pagoActualizado, req.body);
 
         return sendPagoResponse(res, 200, {
           message: "Pago pendiente existente reutilizado",
