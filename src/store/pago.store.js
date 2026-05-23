@@ -1,28 +1,27 @@
+const { Op } = require("sequelize");
 const Pago = require("../model/Pago.model");
 
+const ESTADOS_ACTIVOS = ["P", "A"];
+
 class PagosStore {
-  // Obtener todos los pagos
   static async getAll() {
     return await Pago.findAll({
       order: [["PAG_PAGO", "ASC"]],
     });
   }
 
-  // Obtener pago por ID
   static async getById(id) {
     return await Pago.findOne({
       where: { PAG_PAGO: id },
     });
   }
 
-  // Obtener pago por ID de Stripe
   static async getByPi(pi) {
     return await Pago.findOne({
       where: { STRIPE_PAYMENT_INTENT_ID: pi },
     });
   }
 
-  // Obtener pagos por carné
   static async getByCarne(carne) {
     return await Pago.findAll({
       where: { LR_CARNE: carne },
@@ -30,7 +29,31 @@ class PagosStore {
     });
   }
 
-  // Crear pago
+  /** Pago pendiente o aceptado para una multa (idempotencia). */
+  static async findActiveByUsuarioMulta(EMU_USUARIO_MULTA) {
+    return await Pago.findOne({
+      where: {
+        EMU_USUARIO_MULTA,
+        PAG_ESTADO: { [Op.in]: ESTADOS_ACTIVOS },
+        PAG_ESTADO_REGISTRO: "A",
+      },
+      order: [["PAG_FECHA_CREACION", "DESC"]],
+    });
+  }
+
+  /** Pago pendiente o aceptado para un plan + carné (idempotencia). */
+  static async findActiveByPlanAndCarne(PLN_PLAN, LR_CARNE) {
+    return await Pago.findOne({
+      where: {
+        PLN_PLAN,
+        LR_CARNE,
+        PAG_ESTADO: { [Op.in]: ESTADOS_ACTIVOS },
+        PAG_ESTADO_REGISTRO: "A",
+      },
+      order: [["PAG_FECHA_CREACION", "DESC"]],
+    });
+  }
+
   static async create(data) {
     return await Pago.create({
       PAG_PAGO: data.PAG_PAGO,
@@ -47,13 +70,11 @@ class PagosStore {
     });
   }
 
-  // Actualizar pago
   static async update(id, data) {
     return await Pago.update(data, {
       where: { PAG_PAGO: id },
     });
   }
-
 }
 
 module.exports = PagosStore;

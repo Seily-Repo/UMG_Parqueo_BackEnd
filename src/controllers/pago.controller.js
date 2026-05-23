@@ -7,6 +7,166 @@ const emailUtil = require("../utils/email.util");
 const UsuarioMultaStore = require("../store/usuario_multa.store");
 const MultaStore = require("../store/multa.store");
 
+const PAG_ACEPTADO = "A";
+const PAG_PENDIENTE = "P";
+const PAG_CANCELADO = "C";
+const EMU_MULTA_PAGADA = "C";
+
+const normalizeCarne = (carne) =>
+  carne ? String(carne).replace(/-/g, "") : null;
+
+const usuarioPuedeVerPago = (req, pago) => {
+  if (req.user.rol === "ADMINISTRADOR") return true;
+  const carnePago = normalizeCarne(pago.LR_CARNE);
+  return carnePago && carnePago === normalizeCarne(req.user.carne);
+};
+
+const toPagoJson = (pago) => (pago?.toJSON ? pago.toJSON() : pago);
+
+const buildIdempotencyKey = (req, { LR_CARNE, EMU_USUARIO_MULTA, PLN_PLAN }) => {
+  const headerKey = req.headers["idempotency-key"];
+  if (headerKey && String(headerKey).trim()) {
+    return String(headerKey).trim().slice(0, 255);
+  }
+  if (EMU_USUARIO_MULTA) {
+    return `pago-multa-${EMU_USUARIO_MULTA}-${LR_CARNE}`.slice(0, 255);
+  }
+  return `pago-plan-${PLN_PLAN}-${LR_CARNE}`.slice(0, 255);
+};
+
+const sendPagoResponse = (
+  res,
+  statusCode,
+  { message, data, clientSecret, reused = false },
+) => {
+  res.status(statusCode).json({
+    message,
+    data,
+    clientSecret,
+    reused,
+  });
+};
+
+/**
+ * Resuelve un pago activo existente: ya pagado, reutilizar PI pendiente, o invalidar cancelado.
+ */
+const resolveExistingActivePago = async (existingPago) => {
+  const pago = toPagoJson(existingPago);
+
+  if (pago.PAG_ESTADO === PAG_ACEPTADO) {
+    return { action: "already_paid", pago };
+  }
+
+  const piId = pago.STRIPE_PAYMENT_INTENT_ID;
+
+  if (!piId || piId === PAG_PENDIENTE) {
+    return { action: "orphan_pending", pago };
+  }
+
+  if (!piId.startsWith("pi_")) {
+    return { action: "orphan_pending", pago };
+  }
+
+  try {
+    const pi = await stripe.paymentIntents.retrieve(piId);
+
+    if (pi.status === "succeeded") {
+      await PagoStore.update(pago.PAG_PAGO, { PAG_ESTADO: PAG_ACEPTADO });
+      pago.PAG_ESTADO = PAG_ACEPTADO;
+      return { action: "already_paid", pago };
+    }
+
+    if (pi.status === "canceled") {
+      await PagoStore.update(pago.PAG_PAGO, { PAG_ESTADO: PAG_CANCELADO });
+      return { action: "expired", pago: null };
+    }
+
+    return {
+      action: "reuse",
+      pago,
+      clientSecret: pi.client_secret,
+    };
+  } catch (err) {
+    console.log("No se pudo recuperar PI existente:", err.message);
+    await PagoStore.update(pago.PAG_PAGO, { PAG_ESTADO: PAG_CANCELADO });
+    return { action: "expired", pago: null };
+  }
+};
+
+const createStripePaymentIntent = async ({
+  amount,
+  LR_CARNE,
+  pagoId,
+  metadatos,
+  idempotencyKey,
+}) => {
+  return stripe.paymentIntents.create(
+    {
+      amount: Math.round(amount * 100),
+      currency: "GTQ",
+      metadata: {
+        PAG_PAGO: pagoId.toString(),
+        LR_CARNE: LR_CARNE.toString(),
+        ...metadatos,
+      },
+    },
+    { idempotencyKey },
+  );
+};
+
+const attachPaymentIntentToPago = async (pago, paymentIntent) => {
+  await PagoStore.update(pago.PAG_PAGO, {
+    STRIPE_PAYMENT_INTENT_ID: paymentIntent.id,
+  });
+  const updated = toPagoJson(pago);
+  updated.STRIPE_PAYMENT_INTENT_ID = paymentIntent.id;
+  return updated;
+};
+
+const buildStripeMetadata = ({
+  nombreEstudiante,
+  apellidosEstudiante,
+  correoEstudiante,
+  formaPago,
+  PAG_MONTO_TOTAL,
+  plan,
+  usuarioMulta,
+  multa,
+  EMU_USUARIO_MULTA,
+}) => {
+  const metadatos = {
+    LR_NOMBRES: (nombreEstudiante ?? "").toString(),
+    LR_APELLIDOS: (apellidosEstudiante ?? "").toString(),
+    LR_CORREO_INSTITUCIONAL: (correoEstudiante ?? "").toString(),
+    FPG_NOMBRE_FORMA: (formaPago.FPG_NOMBRE_FORMA ?? "").toString(),
+    PAG_MONTO_TOTAL: PAG_MONTO_TOTAL.toString(),
+  };
+
+  if (plan) {
+    metadatos.PLN_NOMBRE_PLAN = (plan.PLN_NOMBRE_PLAN ?? "").toString();
+  }
+
+  if (EMU_USUARIO_MULTA) {
+    metadatos.EMU_USUARIO_MULTA = EMU_USUARIO_MULTA.toString();
+    if (usuarioMulta) {
+      metadatos.MUL_PLACAS = (usuarioMulta.VEH_ID_VEHICULO ?? "").toString();
+    }
+    if (multa) {
+      metadatos.MUL_DESCRIPCION = (multa.MUL_DESCRIPCION ?? "").toString();
+    }
+  }
+
+  return metadatos;
+};
+
+const marcarMultaComoPagada = async (emuUsuarioMulta) => {
+  if (!emuUsuarioMulta) return;
+  await UsuarioMultaStore.update(emuUsuarioMulta, {
+    EMU_ESTADO_MULTA: EMU_MULTA_PAGADA,
+    EMU_MODIFICADO_POR: "STRIPE_WEBHOOK",
+  });
+};
+
 // Obtener todos los pagos
 exports.getAllPagos = async (req, res) => {
   try {
@@ -27,7 +187,7 @@ exports.getAllPagos = async (req, res) => {
   }
 };
 
-// Obtener pago por ID de
+// Obtener pago por ID
 exports.getPagoById = async (req, res) => {
   try {
     const pago = await PagoStore.getById(req.params.id);
@@ -38,13 +198,28 @@ exports.getPagoById = async (req, res) => {
       });
     }
 
-    let pagoResponse = pago.toJSON ? pago.toJSON() : pago;
+    if (!usuarioPuedeVerPago(req, pago)) {
+      return res.status(403).json({
+        message:
+          "Acceso denegado. Solo puedes consultar tus propios pagos.",
+      });
+    }
 
-    if (pagoResponse.STRIPE_PAYMENT_INTENT_ID && pagoResponse.STRIPE_PAYMENT_INTENT_ID.startsWith('pi_')) {
+    let pagoResponse = toPagoJson(pago);
+
+    if (pagoResponse.STRIPE_PAYMENT_INTENT_ID?.startsWith("pi_")) {
       try {
-        const paymentIntent = await stripe.paymentIntents.retrieve(pagoResponse.STRIPE_PAYMENT_INTENT_ID);
-        if (paymentIntent && paymentIntent.metadata) {
+        const paymentIntent = await stripe.paymentIntents.retrieve(
+          pagoResponse.STRIPE_PAYMENT_INTENT_ID,
+        );
+        if (paymentIntent?.metadata) {
           pagoResponse.metadatos = paymentIntent.metadata;
+        }
+        if (
+          pagoResponse.PAG_ESTADO === PAG_PENDIENTE &&
+          paymentIntent.client_secret
+        ) {
+          pagoResponse.clientSecret = paymentIntent.client_secret;
         }
       } catch (stripeErr) {
         console.log("Error al obtener metadata de Stripe", stripeErr.message);
@@ -60,10 +235,11 @@ exports.getPagoById = async (req, res) => {
   }
 };
 
-// Obtener pagos por carné (solo el suyo o si es ADMINISTRADOR)
 exports.getPagosByCarne = async (req, res) => {
   try {
-    const carneNormalizado = req.params.carne ? req.params.carne.replace(/-/g, '') : null;
+    const carneNormalizado = req.params.carne
+      ? req.params.carne.replace(/-/g, "")
+      : null;
     const pagos = await PagoStore.getByCarne(carneNormalizado);
 
     if (!pagos || pagos.length === 0) {
@@ -81,8 +257,6 @@ exports.getPagosByCarne = async (req, res) => {
   }
 };
 
-// Verificar el estado de un pago en Stripe mediante su PI
-// GET /api/pagos/verify/:pi - Para que disponibilidad verifique si el pago.
 exports.verifyPayment = async (req, res) => {
   try {
     const { pi } = req.params;
@@ -115,33 +289,25 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
-// Crear pago
 exports.createPago = async (req, res) => {
   try {
-    // 1. EXTRAER CARNÉ DEL TOKEN JWT POR SEGURIDAD
-    // Si es ADMIN y quiere pagar por otro, permitimos que mande el LR_CARNE en el body, sino usamos el suyo.
     let LR_CARNE = req.user.carne;
     if (req.user.rol === "ADMINISTRADOR" && req.body.LR_CARNE) {
       LR_CARNE = req.body.LR_CARNE;
     }
-    
+
     if (LR_CARNE) {
-      LR_CARNE = LR_CARNE.replace(/-/g, '');
+      LR_CARNE = LR_CARNE.replace(/-/g, "");
     }
 
-    // Lo guardamos de vuelta en el body por si otras funciones lo necesitan
     req.body.LR_CARNE = LR_CARNE;
 
-    const {
-      PLN_PLAN,
-      FPG_FORMA_PAGO,
-      EMU_USUARIO_MULTA
-    } = req.body;
+    const { PLN_PLAN, FPG_FORMA_PAGO, EMU_USUARIO_MULTA } = req.body;
 
-    // Validación 1: Mutuamente excluyentes y campos obligatorios
     if (PLN_PLAN && EMU_USUARIO_MULTA) {
       return res.status(400).json({
-        message: "No se puede pagar un plan y una multa al mismo tiempo. Proporcione solo uno.",
+        message:
+          "No se puede pagar un plan y una multa al mismo tiempo. Proporcione solo uno.",
       });
     }
 
@@ -157,33 +323,50 @@ exports.createPago = async (req, res) => {
       });
     }
 
-    // 2. VALIDACIÓN CONTRA LA BASE DE DATOS COMPARTIDA
-    const usuario = await usuarioStore.getByCarne(LR_CARNE);
-    if (!usuario) {
-      return res.status(404).json({
-        message: "El usuario autenticado no existe en la base de datos compartida",
+    const formaPago = await FormaPagoStore.getById(FPG_FORMA_PAGO);
+    if (!formaPago?.FPG_NOMBRE_FORMA?.includes("Tarjeta")) {
+      return res.status(400).json({
+        message: "Forma de pago no valida",
       });
     }
 
-    // 3. Obtener datos para Stripe (priorizando lo de la BD compartida)
-    const nombreEstudiante = usuario.LR_NOMBRES;
-    const apellidosEstudiante = usuario.LR_APELLIDOS;
-    const correoEstudiante = usuario.LR_CORREO_INSTITUCIONAL;
+    const usuario = await usuarioStore.getByCarne(LR_CARNE);
+    if (!usuario) {
+      return res.status(404).json({
+        message:
+          "El usuario autenticado no existe en la base de datos compartida",
+      });
+    }
 
     let PAG_MONTO_TOTAL = 0;
     let plan = null;
+    let usuarioMulta = null;
+    let multa = null;
 
-    // Obtener el precio según si es pago de multa o de plan
     if (EMU_USUARIO_MULTA) {
-      const usuarioMulta = await UsuarioMultaStore.getById(EMU_USUARIO_MULTA);
+      const carneMulta =
+        req.user.rol === "ADMINISTRADOR" ? null : LR_CARNE;
+      usuarioMulta = await UsuarioMultaStore.getById(
+        EMU_USUARIO_MULTA,
+        carneMulta,
+      );
       if (!usuarioMulta) {
-        return res.status(404).json({ message: "Registro de multa de usuario no encontrado" });
+        const message =
+          req.user.rol === "ADMINISTRADOR"
+            ? "Registro de multa de usuario no encontrado"
+            : "Registro de multa no encontrado o no te pertenece";
+        return res.status(404).json({ message });
       }
-      const multa = await MultaStore.getById(usuarioMulta.MUL_MULTA);
+      if (usuarioMulta.EMU_ESTADO_MULTA === EMU_MULTA_PAGADA) {
+        return res.status(409).json({
+          message: "Esta multa ya fue pagada.",
+        });
+      }
+      multa = await MultaStore.getById(usuarioMulta.MUL_MULTA);
       if (!multa) {
         return res.status(404).json({ message: "La multa especificada no existe" });
       }
-      PAG_MONTO_TOTAL = multa.MUL_MONTO_TOTAL;
+      PAG_MONTO_TOTAL = Number(multa.MUL_MONTO_TOTAL);
     } else {
       plan = await PlanParqueoStore.getById(PLN_PLAN);
       if (!plan) {
@@ -191,85 +374,117 @@ exports.createPago = async (req, res) => {
           message: "Plan de parqueo no encontrado",
         });
       }
-      PAG_MONTO_TOTAL = plan.PLN_PRECIO;
+      PAG_MONTO_TOTAL = Number(plan.PLN_PRECIO);
     }
 
-    req.body.PAG_MONTO_TOTAL = PAG_MONTO_TOTAL;
-    // Validación 2: monto mayor a 0
     if (PAG_MONTO_TOTAL <= 0) {
       return res.status(400).json({
         message: "El monto pagado debe ser mayor a 0",
       });
     }
 
-    // 1. Llenar los datos automáticos a insertar
-    req.body.PAG_ESTADO = "P"; // Pendiente ("P")
-    req.body.PAG_FECHA_CREACION = new Date();
-    req.body.PAG_FECHA_PAGO = new Date(); // Fecha temporal para poder insertar en BD, se actualizará luego
-    req.body.STRIPE_PAYMENT_INTENT_ID = "P"; // Se actualizará luego con el ID de Stripe
-    req.body.PAG_ESTADO_REGISTRO = "A";
+    const idempotencyKey = buildIdempotencyKey(req, {
+      LR_CARNE,
+      EMU_USUARIO_MULTA,
+      PLN_PLAN,
+    });
 
-    // 2. Crear en base de datos para obtener el ID autogenerado
-    const pago = await PagoStore.create(req.body);
+    const existingPago = EMU_USUARIO_MULTA
+      ? await PagoStore.findActiveByUsuarioMulta(EMU_USUARIO_MULTA)
+      : await PagoStore.findActiveByPlanAndCarne(PLN_PLAN, LR_CARNE);
 
-    // Obtener Metadatos para enviar a Stripe de otras tablas
-    // Obtener Metadatos para enviar a Stripe de otras tablas
-    const formaPago = await FormaPagoStore.getById(FPG_FORMA_PAGO);
-    
-    // Valida que la forma de pago sea tarjeta de debito o credito, si la forma de pago no tiene la palabra Tarjeta insertar en Stripe
-    if (!formaPago.FPG_NOMBRE_FORMA.includes("Tarjeta")){
-      return res.status(400).json({
-        message: "Forma de pago no valida",
-      });
-    }
+    if (existingPago) {
+      const resolved = await resolveExistingActivePago(existingPago);
 
-    // Stripe solo acepta strings en metadata; convertir todos los valores
-    const metadatos = {
-      LR_NOMBRES: (nombreEstudiante ?? "").toString(),
-      LR_APELLIDOS: (apellidosEstudiante ?? "").toString(),
-      LR_CORREO_INSTITUCIONAL: (correoEstudiante ?? "").toString(),
-      FPG_NOMBRE_FORMA: (formaPago.FPG_NOMBRE_FORMA ?? "").toString(),
-      PAG_MONTO_TOTAL: PAG_MONTO_TOTAL.toString(),
-    };
+      if (resolved.action === "already_paid") {
+        return res.status(409).json({
+          message: EMU_USUARIO_MULTA
+            ? "Esta multa ya tiene un pago registrado."
+            : "Este plan ya tiene un pago registrado para tu carné.",
+          data: resolved.pago,
+        });
+      }
 
-    if (plan) {
-      metadatos.PLN_NOMBRE_PLAN = (plan.PLN_NOMBRE_PLAN ?? "").toString();
-    }
+      if (resolved.action === "reuse") {
+        return sendPagoResponse(res, 200, {
+          message: "Pago pendiente existente reutilizado",
+          data: resolved.pago,
+          clientSecret: resolved.clientSecret,
+          reused: true,
+        });
+      }
 
-    if (req.body.EMU_USUARIO_MULTA) {
-      const usuarioMulta = await UsuarioMultaStore.getById(req.body.EMU_USUARIO_MULTA);
-      if (usuarioMulta) {
-        metadatos.MUL_PLACAS = (usuarioMulta.VEH_ID_VEHICULO ?? "").toString();
-        const multa = await MultaStore.getById(usuarioMulta.MUL_MULTA);
-        if (multa) {
-          metadatos.MUL_DESCRIPCION = (multa.MUL_DESCRIPCION ?? "").toString();
-        }
+      if (resolved.action === "orphan_pending") {
+        const metadatos = buildStripeMetadata({
+          nombreEstudiante: usuario.LR_NOMBRES,
+          apellidosEstudiante: usuario.LR_APELLIDOS,
+          correoEstudiante: usuario.LR_CORREO_INSTITUCIONAL,
+          formaPago,
+          PAG_MONTO_TOTAL,
+          plan,
+          usuarioMulta,
+          multa,
+          EMU_USUARIO_MULTA,
+        });
+
+        const paymentIntent = await createStripePaymentIntent({
+          amount: PAG_MONTO_TOTAL,
+          LR_CARNE,
+          pagoId: resolved.pago.PAG_PAGO,
+          metadatos,
+          idempotencyKey,
+        });
+
+        const pagoActualizado = await attachPaymentIntentToPago(
+          resolved.pago,
+          paymentIntent,
+        );
+
+        return sendPagoResponse(res, 200, {
+          message: "Pago pendiente existente reutilizado",
+          data: pagoActualizado,
+          clientSecret: paymentIntent.client_secret,
+          reused: true,
+        });
       }
     }
 
-    // 3. Crear el Payment Intent en Stripe
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(PAG_MONTO_TOTAL * 100), // Stripe usa centavos
-      currency: "GTQ",
-      metadata: {
-        PAG_PAGO: pago.PAG_PAGO.toString(),
-        LR_CARNE: LR_CARNE.toString(),
-        ...metadatos, // todos los valores ya son strings
-      },
+    req.body.PAG_MONTO_TOTAL = PAG_MONTO_TOTAL;
+    req.body.PAG_ESTADO = PAG_PENDIENTE;
+    req.body.PAG_FECHA_CREACION = new Date();
+    req.body.PAG_FECHA_PAGO = new Date();
+    req.body.STRIPE_PAYMENT_INTENT_ID = PAG_PENDIENTE;
+    req.body.PAG_ESTADO_REGISTRO = "A";
+
+    const pago = await PagoStore.create(req.body);
+
+    const metadatos = buildStripeMetadata({
+      nombreEstudiante: usuario.LR_NOMBRES,
+      apellidosEstudiante: usuario.LR_APELLIDOS,
+      correoEstudiante: usuario.LR_CORREO_INSTITUCIONAL,
+      formaPago,
+      PAG_MONTO_TOTAL,
+      plan,
+      usuarioMulta,
+      multa,
+      EMU_USUARIO_MULTA,
     });
 
-    // 4. Actualizar el registro con el ID del Payment Intent
-    await PagoStore.update(pago.PAG_PAGO, {
-      STRIPE_PAYMENT_INTENT_ID: paymentIntent.id,
+    const paymentIntent = await createStripePaymentIntent({
+      amount: PAG_MONTO_TOTAL,
+      LR_CARNE,
+      pagoId: pago.PAG_PAGO,
+      metadatos,
+      idempotencyKey,
     });
 
-    // Actualizamos el objeto local para la respuesta
-    pago.STRIPE_PAYMENT_INTENT_ID = paymentIntent.id;
+    const pagoActualizado = await attachPaymentIntentToPago(pago, paymentIntent);
 
-    res.status(201).json({
+    return sendPagoResponse(res, 201, {
       message: "Pago iniciado exitosamente",
-      data: pago,
+      data: pagoActualizado,
       clientSecret: paymentIntent.client_secret,
+      reused: false,
     });
   } catch (error) {
     console.log(error);
@@ -280,10 +495,8 @@ exports.createPago = async (req, res) => {
   }
 };
 
-// Actualizar pago
 exports.updatePago = async (req, res) => {
   try {
-    // VALIDACIÓN
     const { PAG_MONTO_TOTAL } = req.body;
 
     if (PAG_MONTO_TOTAL !== undefined && PAG_MONTO_TOTAL <= 0) {
@@ -310,7 +523,6 @@ exports.updatePago = async (req, res) => {
   }
 };
 
-// Webhook de Stripe para confirmar el pago asíncronamente
 exports.stripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -323,46 +535,67 @@ exports.stripeWebhook = async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Manejar el evento
   try {
     const paymentIntent = event.data.object;
-    if (!paymentIntent.metadata || !paymentIntent.metadata.PAG_PAGO) {
+    if (!paymentIntent.metadata?.PAG_PAGO) {
       console.log("No hay metadata asociada al payment intent, ignorando.");
       return res.send();
     }
 
     const pagoId = paymentIntent.metadata.PAG_PAGO;
+    const pagoExistente = await PagoStore.getById(pagoId);
 
     switch (event.type) {
-      case "payment_intent.succeeded":
-        // La fecha de pago se actualizará cuando stripe confirme el pago
+      case "payment_intent.succeeded": {
+        if (pagoExistente?.PAG_ESTADO === PAG_ACEPTADO) {
+          console.log(`Pago ${pagoId} ya estaba aceptado (idempotente).`);
+          return res.send();
+        }
+
         const PAG_FECHA_PAGO = new Date(paymentIntent.created * 1000);
-        await PagoStore.update(pagoId, { PAG_ESTADO: "A", PAG_FECHA_PAGO }); // Aceptado y Fecha del cobro
+        await PagoStore.update(pagoId, {
+          PAG_ESTADO: PAG_ACEPTADO,
+          PAG_FECHA_PAGO,
+        });
         console.log(
           `Pago ${pagoId} actualizado a Aceptado (A) y fecha actualizada`,
         );
 
-        // Enviar correo electrónico
+        const emuId =
+          paymentIntent.metadata.EMU_USUARIO_MULTA ||
+          pagoExistente?.EMU_USUARIO_MULTA;
+        await marcarMultaComoPagada(emuId);
+
         const carnetStripe = paymentIntent.metadata.LR_CARNE;
         if (carnetStripe) {
           const estud = await usuarioStore.getByCarne(carnetStripe);
-          if (estud && estud.LR_CORREO_INSTITUCIONAL) {
+          if (estud?.LR_CORREO_INSTITUCIONAL) {
+            const concepto =
+              paymentIntent.metadata.PLN_NOMBRE_PLAN ||
+              paymentIntent.metadata.MUL_DESCRIPCION ||
+              "Pago de parqueo";
             await emailUtil.enviarCorreoPago(
               estud.LR_CORREO_INSTITUCIONAL,
               estud.LR_CARNE,
-              estud.LR_NOMBRES + " " + estud.LR_APELLIDOS,
-              paymentIntent.metadata.PLN_NOMBRE_PLAN,
-              paymentIntent.amount / 100, // Stripe devuelve el monto en centavos
+              `${estud.LR_NOMBRES} ${estud.LR_APELLIDOS}`,
+              concepto,
+              paymentIntent.amount / 100,
               paymentIntent.id,
             );
           }
         }
         break;
+      }
 
-      case "payment_intent.payment_failed":
-        await PagoStore.update(pagoId, { PAG_ESTADO: "C" }); // Cancelado
+      case "payment_intent.payment_failed": {
+        if (pagoExistente?.PAG_ESTADO === PAG_CANCELADO) {
+          console.log(`Pago ${pagoId} ya estaba cancelado (idempotente).`);
+          return res.send();
+        }
+        await PagoStore.update(pagoId, { PAG_ESTADO: PAG_CANCELADO });
         console.log(`Pago ${pagoId} actualizado a Cancelado (C)`);
         break;
+      }
 
       default:
         console.log(`Unhandled event type ${event.type}`);
