@@ -275,22 +275,25 @@ exports.updateUsuarioMulta = async (req, res) => {
         });
       }
 
-      // Tras pagar, el front puede enviar distintos textos de estado; siempre A = Aceptado.
-      const pagoAceptado = await PagoStore.findAcceptedByUsuarioMulta(
-        EMU_USUARIO_MULTA,
-      );
-      if (
-        registro.EMU_ESTADO_MULTA === EMU_ACEPTADO &&
-        pagoAceptado
-      ) {
-        return res.status(200).json({
-          message: "La multa ya estaba marcada como pagada.",
-        });
-      }
-
       if (registro.EMU_ESTADO_MULTA === EMU_CANCELADO) {
         return res.status(409).json({
           message: "Esta multa está cancelada y no puede marcarse como pagada.",
+        });
+      }
+
+      const pagoAceptado = await PagoStore.findAcceptedByUsuarioMulta(
+        EMU_USUARIO_MULTA,
+      );
+      if (!pagoAceptado) {
+        return res.status(402).json({
+          message:
+            "No hay un pago aceptado para esta multa. Completa el pago en la pasarela primero.",
+        });
+      }
+
+      if (registro.EMU_ESTADO_MULTA === EMU_ACEPTADO) {
+        return res.status(200).json({
+          message: "La multa ya estaba marcada como pagada.",
         });
       }
 

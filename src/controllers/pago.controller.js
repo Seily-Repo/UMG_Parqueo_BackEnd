@@ -26,15 +26,15 @@ const usuarioPuedeVerPago = (req, pago) => {
 
 const toPagoJson = (pago) => (pago?.toJSON ? pago.toJSON() : pago);
 
-const buildIdempotencyKey = (req, { LR_CARNE, EMU_USUARIO_MULTA, PLN_PLAN }) => {
-  const headerKey = req.headers["idempotency-key"];
-  if (headerKey && String(headerKey).trim()) {
-    return String(headerKey).trim().slice(0, 255);
-  }
+/** Una clave por fila CB_PAGO evita reutilizar un PaymentIntent ya cobrado en Stripe. */
+const buildStripeIdempotencyKey = (
+  pagoId,
+  { EMU_USUARIO_MULTA, PLN_PLAN, LR_CARNE },
+) => {
   if (EMU_USUARIO_MULTA) {
-    return `pago-multa-${EMU_USUARIO_MULTA}-${LR_CARNE}`.slice(0, 255);
+    return `pi-multa-${EMU_USUARIO_MULTA}-pag-${pagoId}`.slice(0, 255);
   }
-  return `pago-plan-${PLN_PLAN}-${LR_CARNE}`.slice(0, 255);
+  return `pi-plan-${PLN_PLAN}-${LR_CARNE}-pag-${pagoId}`.slice(0, 255);
 };
 
 const sendPagoResponse = (
@@ -74,9 +74,11 @@ const resolveExistingActivePago = async (existingPago) => {
     const pi = await stripe.paymentIntents.retrieve(piId);
 
     if (pi.status === "succeeded") {
-      await PagoStore.update(pago.PAG_PAGO, { PAG_ESTADO: PAG_ACEPTADO });
-      pago.PAG_ESTADO = PAG_ACEPTADO;
-      return { action: "already_paid", pago };
+      if (pi.metadata?.PAG_PAGO === String(pago.PAG_PAGO)) {
+        await confirmarPagoExitoso(pago.PAG_PAGO, pi, pago);
+      }
+      const actualizado = await PagoStore.getById(pago.PAG_PAGO);
+      return { action: "already_paid", pago: toPagoJson(actualizado) || pago };
     }
 
     if (pi.status === "canceled") {
@@ -115,6 +117,28 @@ const createStripePaymentIntent = async ({
     },
     { idempotencyKey },
   );
+};
+
+/** Ignora Idempotency-Key del cliente (pago-plan-X-carne) y reintenta si Stripe rechaza la clave. */
+const createStripePaymentIntentSafe = async (params) => {
+  const { idempotencyKey, ...rest } = params;
+  try {
+    return await createStripePaymentIntent({ ...rest, idempotencyKey });
+  } catch (err) {
+    const esIdempotencia =
+      err?.type === "StripeIdempotencyError" ||
+      err?.rawType === "idempotency_error";
+    if (!esIdempotencia) throw err;
+
+    const fallbackKey = `${idempotencyKey}-r${Date.now()}`.slice(0, 255);
+    console.warn(
+      `Stripe idempotency conflict (${idempotencyKey}), reintento con ${fallbackKey}`,
+    );
+    return await createStripePaymentIntent({
+      ...rest,
+      idempotencyKey: fallbackKey,
+    });
+  }
 };
 
 const buildPagoPayload = (reqBody, PAG_MONTO_TOTAL) => ({
@@ -244,7 +268,7 @@ const confirmarPagoExitoso = async (pagoId, paymentIntent, pagoExistente) => {
   return { alreadyDone: false };
 };
 
-const syncPagoUsuarioDesdeStripe = async (res, pago) => {
+const syncPagoUsuarioDesdeStripe = async (req, res, pago) => {
   const pagoData = toPagoJson(pago);
   const piId = pagoData.STRIPE_PAYMENT_INTENT_ID;
 
@@ -256,20 +280,8 @@ const syncPagoUsuarioDesdeStripe = async (res, pago) => {
   }
 
   const paymentIntent = await stripe.paymentIntents.retrieve(piId);
-
-  if (paymentIntent.status === "succeeded") {
-    await confirmarPagoExitoso(
-      pagoData.PAG_PAGO,
-      paymentIntent,
-      pago,
-    );
-    const actualizado = await PagoStore.getById(pagoData.PAG_PAGO);
-    return res.status(200).json({
-      message: "Pago confirmado exitosamente",
-      data: toPagoJson(actualizado),
-      stripeStatus: paymentIntent.status,
-    });
-  }
+  const piPerteneceAlPago =
+    paymentIntent.metadata?.PAG_PAGO === String(pagoData.PAG_PAGO);
 
   if (paymentIntent.status === "canceled") {
     await PagoStore.update(pagoData.PAG_PAGO, { PAG_ESTADO: PAG_CANCELADO });
@@ -281,11 +293,48 @@ const syncPagoUsuarioDesdeStripe = async (res, pago) => {
     });
   }
 
+  const debeConfirmar =
+    req.body?.confirmar === true || req.query?.confirmar === "true";
+
+  if (
+    paymentIntent.status === "succeeded" &&
+    debeConfirmar &&
+    piPerteneceAlPago
+  ) {
+    const actualDb = await PagoStore.getById(pagoData.PAG_PAGO);
+    if (actualDb?.PAG_ESTADO === PAG_PENDIENTE) {
+      await confirmarPagoExitoso(
+        pagoData.PAG_PAGO,
+        paymentIntent,
+        actualDb,
+      );
+    }
+    const actualizado = await PagoStore.getById(pagoData.PAG_PAGO);
+    return res.status(200).json({
+      message: "Pago confirmado exitosamente",
+      data: toPagoJson(actualizado),
+      stripeStatus: paymentIntent.status,
+      confirmado: actualizado?.PAG_ESTADO === PAG_ACEPTADO,
+    });
+  }
+
+  const actualizado = await PagoStore.getById(pagoData.PAG_PAGO);
+  const estadoDb = actualizado?.PAG_ESTADO || pagoData.PAG_ESTADO;
+
   return res.status(200).json({
-    message: "Pago pendiente en Stripe",
-    data: pagoData,
-    clientSecret: paymentIntent.client_secret,
+    message:
+      paymentIntent.status === "succeeded" && estadoDb !== PAG_ACEPTADO
+        ? "Pago autorizado en Stripe; envíe confirmar=true tras completar la pasarela."
+        : estadoDb === PAG_ACEPTADO
+          ? "Pago ya registrado como aceptado."
+          : "Pago pendiente en Stripe",
+    data: toPagoJson(actualizado) || pagoData,
+    clientSecret:
+      paymentIntent.status === "succeeded"
+        ? null
+        : paymentIntent.client_secret,
     stripeStatus: paymentIntent.status,
+    confirmado: estadoDb === PAG_ACEPTADO,
   });
 };
 
@@ -534,12 +583,6 @@ exports.createPago = async (req, res) => {
       });
     }
 
-    const idempotencyKey = buildIdempotencyKey(req, {
-      LR_CARNE,
-      EMU_USUARIO_MULTA,
-      PLN_PLAN,
-    });
-
     const pagoPayload = buildPagoPayload(req.body, PAG_MONTO_TOTAL);
 
     const existingPago = EMU_USUARIO_MULTA
@@ -580,12 +623,16 @@ exports.createPago = async (req, res) => {
           EMU_USUARIO_MULTA,
         });
 
-        const paymentIntent = await createStripePaymentIntent({
+        const paymentIntent = await createStripePaymentIntentSafe({
           amount: PAG_MONTO_TOTAL,
           LR_CARNE,
           pagoId: resolved.pago.PAG_PAGO,
           metadatos,
-          idempotencyKey,
+          idempotencyKey: buildStripeIdempotencyKey(resolved.pago.PAG_PAGO, {
+            EMU_USUARIO_MULTA,
+            PLN_PLAN,
+            LR_CARNE,
+          }),
         });
 
         const pagoActualizado = await attachPaymentIntentToPago(
@@ -618,12 +665,16 @@ exports.createPago = async (req, res) => {
       EMU_USUARIO_MULTA,
     });
 
-    const paymentIntent = await createStripePaymentIntent({
+    const paymentIntent = await createStripePaymentIntentSafe({
       amount: PAG_MONTO_TOTAL,
       LR_CARNE,
       pagoId: pago.PAG_PAGO,
       metadatos,
-      idempotencyKey,
+      idempotencyKey: buildStripeIdempotencyKey(pago.PAG_PAGO, {
+        EMU_USUARIO_MULTA,
+        PLN_PLAN,
+        LR_CARNE,
+      }),
     });
 
     const pagoActualizado = await attachPaymentIntentToPago(
@@ -640,8 +691,21 @@ exports.createPago = async (req, res) => {
       reused: false,
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
+    console.error("createPago:", error);
+    const esStripe = error?.type?.startsWith?.("Stripe");
+    const esIdempotencia =
+      error?.type === "StripeIdempotencyError" ||
+      error?.rawType === "idempotency_error";
+
+    if (esIdempotencia) {
+      return res.status(409).json({
+        message:
+          "Conflicto al iniciar el pago en Stripe. Recargue la página e intente de nuevo.",
+        error: error.message,
+      });
+    }
+
+    res.status(esStripe ? 400 : 500).json({
       message: "Error al crear el pago",
       error: error.message,
     });
@@ -664,7 +728,7 @@ exports.updatePago = async (req, res) => {
           message: "Acceso denegado. Solo puedes actualizar tus propios pagos.",
         });
       }
-      return syncPagoUsuarioDesdeStripe(res, pago);
+      return syncPagoUsuarioDesdeStripe(req, res, pago);
     }
 
     const { PAG_MONTO_TOTAL } = req.body;
