@@ -44,11 +44,17 @@ async function enviarCorreoRegistro(datos, esAdmin) {
       `
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log("✉️ [REGISTRO] Correo HTML enviado con éxito");
+    // 🚀 ENVIAMOS EL CORREO EN SEGUNDO PLANO SIN BLOQUEAR LA RESPUESTA HTTP
+    transporter.sendMail(mailOptions).then(() => {
+      console.log("✉️ [REGISTRO] Correo HTML enviado con éxito en segundo plano");
+    }).catch((errEmail) => {
+      console.error("❌ [EMAIL ERROR] Falló el correo en segundo plano:", errEmail);
+    });
+    
+    // Devolvemos true inmediatamente sin esperar
     return true;
-  } catch (errEmail) {
-    console.error("❌ [EMAIL ERROR] Falló el correo:", errEmail);
+  } catch (errSync) {
+    console.error("❌ [EMAIL ERROR] Error síncrono al preparar correo:", errSync);
     return false;
   }
 }
