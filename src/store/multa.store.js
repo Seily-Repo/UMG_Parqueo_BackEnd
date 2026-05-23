@@ -30,7 +30,7 @@ class MultaStore {
       const nuevaMulta = await UsuarioMulta.create({
         MUL_MULTA: parseInt(idMulta),
         VEH_ID_VEHICULO: vehiculo.VEH_ID_VEHICULO,
-        EMU_ESTADO_MULTA: 'P',
+        EMU_ESTADO_MULTA: 'A',
       }, { transaction: t });
 
       // Obtener monto de la multa

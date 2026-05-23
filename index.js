@@ -545,7 +545,7 @@ app.post('/api/admin/multas', async (req, res) => {
     // Insertamos la multa
     const resultMulta = await connection.execute(
       `INSERT INTO INFRA_DEV.CB_USUARIO_MULTA (MUL_MULTA, VEH_ID_VEHICULO, EMU_ESTADO_MULTA) 
-       VALUES (:id_multa, :id_veh, 'P') RETURNING EMU_USUARIO_MULTA INTO :id_generado`,
+       VALUES (:id_multa, :id_veh, 'A') RETURNING EMU_USUARIO_MULTA INTO :id_generado`,
       { id_multa: parseInt(id_multa), id_veh: idVehiculo, id_generado: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT } }
     );
     const idUsuarioMulta = resultMulta.outBinds.id_generado[0];
