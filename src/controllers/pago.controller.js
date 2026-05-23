@@ -12,8 +12,10 @@ const PAG_PENDIENTE = "P";
 const PAG_CANCELADO = "C";
 const EMU_MULTA_PAGADA = "C";
 
-const normalizeCarne = (carne) =>
-  carne ? String(carne).replace(/-/g, "") : null;
+const normalizeCarne = (carne) => {
+  if (carne == null || carne === "") return null;
+  return String(carne).replace(/-/g, "").trim();
+};
 
 const usuarioPuedeVerPago = (req, pago) => {
   if (req.user.rol === "ADMINISTRADOR") return true;
@@ -164,6 +166,93 @@ const marcarMultaComoPagada = async (emuUsuarioMulta) => {
   await UsuarioMultaStore.update(emuUsuarioMulta, {
     EMU_ESTADO_MULTA: EMU_MULTA_PAGADA,
     EMU_MODIFICADO_POR: "STRIPE_WEBHOOK",
+  });
+};
+
+const enviarCorreoPagoExitoso = async (paymentIntent) => {
+  const carnetStripe = paymentIntent.metadata?.LR_CARNE;
+  if (!carnetStripe) return;
+
+  const estud = await usuarioStore.getByCarne(carnetStripe);
+  if (!estud?.LR_CORREO_INSTITUCIONAL) return;
+
+  const concepto =
+    paymentIntent.metadata.PLN_NOMBRE_PLAN ||
+    paymentIntent.metadata.MUL_DESCRIPCION ||
+    "Pago de parqueo";
+
+  await emailUtil.enviarCorreoPago(
+    estud.LR_CORREO_INSTITUCIONAL,
+    estud.LR_CARNE,
+    `${estud.LR_NOMBRES} ${estud.LR_APELLIDOS}`,
+    concepto,
+    paymentIntent.amount / 100,
+    paymentIntent.id,
+  );
+};
+
+const confirmarPagoExitoso = async (pagoId, paymentIntent, pagoExistente) => {
+  if (pagoExistente?.PAG_ESTADO === PAG_ACEPTADO) {
+    return { alreadyDone: true };
+  }
+
+  const PAG_FECHA_PAGO = new Date(paymentIntent.created * 1000);
+  await PagoStore.update(pagoId, {
+    PAG_ESTADO: PAG_ACEPTADO,
+    PAG_FECHA_PAGO,
+  });
+
+  const emuId =
+    paymentIntent.metadata?.EMU_USUARIO_MULTA ||
+    pagoExistente?.EMU_USUARIO_MULTA;
+  await marcarMultaComoPagada(emuId);
+  await enviarCorreoPagoExitoso(paymentIntent);
+
+  return { alreadyDone: false };
+};
+
+const syncPagoUsuarioDesdeStripe = async (res, pago) => {
+  const pagoData = toPagoJson(pago);
+  const piId = pagoData.STRIPE_PAYMENT_INTENT_ID;
+
+  if (!piId?.startsWith("pi_")) {
+    return res.status(400).json({
+      message:
+        "El pago no tiene un Payment Intent de Stripe válido para sincronizar.",
+    });
+  }
+
+  const paymentIntent = await stripe.paymentIntents.retrieve(piId);
+
+  if (paymentIntent.status === "succeeded") {
+    await confirmarPagoExitoso(
+      pagoData.PAG_PAGO,
+      paymentIntent,
+      pago,
+    );
+    const actualizado = await PagoStore.getById(pagoData.PAG_PAGO);
+    return res.status(200).json({
+      message: "Pago confirmado exitosamente",
+      data: toPagoJson(actualizado),
+      stripeStatus: paymentIntent.status,
+    });
+  }
+
+  if (paymentIntent.status === "canceled") {
+    await PagoStore.update(pagoData.PAG_PAGO, { PAG_ESTADO: PAG_CANCELADO });
+    const actualizado = await PagoStore.getById(pagoData.PAG_PAGO);
+    return res.status(409).json({
+      message: "El intento de pago fue cancelado en Stripe.",
+      data: toPagoJson(actualizado),
+      stripeStatus: paymentIntent.status,
+    });
+  }
+
+  return res.status(200).json({
+    message: "Pago pendiente en Stripe",
+    data: pagoData,
+    clientSecret: paymentIntent.client_secret,
+    stripeStatus: paymentIntent.status,
   });
 };
 
@@ -497,6 +586,23 @@ exports.createPago = async (req, res) => {
 
 exports.updatePago = async (req, res) => {
   try {
+    const pago = await PagoStore.getById(req.params.id);
+
+    if (!pago) {
+      return res.status(404).json({
+        message: "Pago no encontrado",
+      });
+    }
+
+    if (req.user.rol !== "ADMINISTRADOR") {
+      if (!usuarioPuedeVerPago(req, pago)) {
+        return res.status(403).json({
+          message: "Acceso denegado. Solo puedes actualizar tus propios pagos.",
+        });
+      }
+      return syncPagoUsuarioDesdeStripe(res, pago);
+    }
+
     const { PAG_MONTO_TOTAL } = req.body;
 
     if (PAG_MONTO_TOTAL !== undefined && PAG_MONTO_TOTAL <= 0) {
@@ -504,6 +610,7 @@ exports.updatePago = async (req, res) => {
         message: "El monto pagado debe ser mayor a 0",
       });
     }
+
     const rowsAffected = await PagoStore.update(req.params.id, req.body);
 
     if (rowsAffected[0] === 0) {
@@ -547,42 +654,17 @@ exports.stripeWebhook = async (req, res) => {
 
     switch (event.type) {
       case "payment_intent.succeeded": {
-        if (pagoExistente?.PAG_ESTADO === PAG_ACEPTADO) {
-          console.log(`Pago ${pagoId} ya estaba aceptado (idempotente).`);
-          return res.send();
-        }
-
-        const PAG_FECHA_PAGO = new Date(paymentIntent.created * 1000);
-        await PagoStore.update(pagoId, {
-          PAG_ESTADO: PAG_ACEPTADO,
-          PAG_FECHA_PAGO,
-        });
-        console.log(
-          `Pago ${pagoId} actualizado a Aceptado (A) y fecha actualizada`,
+        const { alreadyDone } = await confirmarPagoExitoso(
+          pagoId,
+          paymentIntent,
+          pagoExistente,
         );
-
-        const emuId =
-          paymentIntent.metadata.EMU_USUARIO_MULTA ||
-          pagoExistente?.EMU_USUARIO_MULTA;
-        await marcarMultaComoPagada(emuId);
-
-        const carnetStripe = paymentIntent.metadata.LR_CARNE;
-        if (carnetStripe) {
-          const estud = await usuarioStore.getByCarne(carnetStripe);
-          if (estud?.LR_CORREO_INSTITUCIONAL) {
-            const concepto =
-              paymentIntent.metadata.PLN_NOMBRE_PLAN ||
-              paymentIntent.metadata.MUL_DESCRIPCION ||
-              "Pago de parqueo";
-            await emailUtil.enviarCorreoPago(
-              estud.LR_CORREO_INSTITUCIONAL,
-              estud.LR_CARNE,
-              `${estud.LR_NOMBRES} ${estud.LR_APELLIDOS}`,
-              concepto,
-              paymentIntent.amount / 100,
-              paymentIntent.id,
-            );
-          }
+        if (alreadyDone) {
+          console.log(`Pago ${pagoId} ya estaba aceptado (idempotente).`);
+        } else {
+          console.log(
+            `Pago ${pagoId} actualizado a Aceptado (A) y fecha actualizada`,
+          );
         }
         break;
       }

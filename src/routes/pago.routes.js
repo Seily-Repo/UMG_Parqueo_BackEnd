@@ -19,13 +19,17 @@ router.get(
 
 // Rutas de ADMINISTRADOR
 router.get("/", checkRole(["ADMINISTRADOR"]), pagoController.getAllPagos);
-router.put("/:id", checkRole(["ADMINISTRADOR"]), pagoController.updatePago);
 
-// Detalle de pago: USUARIO solo el suyo (ownership en controller)
+// Detalle / sincronización: USUARIO solo sus pagos (ownership en controller)
 router.get(
   "/:id",
   checkRole(["ADMINISTRADOR", "USUARIO"]),
   pagoController.getPagoById,
+);
+router.put(
+  "/:id",
+  checkRole(["ADMINISTRADOR", "USUARIO"]),
+  pagoController.updatePago,
 );
 
 module.exports = router;
