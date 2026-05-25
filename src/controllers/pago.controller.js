@@ -250,6 +250,23 @@ const createStripePaymentIntent = async ({
   );
 };
 
+const updateStripePaymentIntent = async ({
+  paymentIntentId,
+  amount,
+  LR_CARNE,
+  pagoId,
+  metadatos,
+}) => {
+  return stripe.paymentIntents.update(paymentIntentId, {
+    amount: Math.round(amount * 100),
+    metadata: {
+      PAG_PAGO: pagoId.toString(),
+      LR_CARNE: LR_CARNE.toString(),
+      ...metadatos,
+    },
+  });
+};
+
 /** Ignora Idempotency-Key del cliente (pago-plan-X-carne) y reintenta si Stripe rechaza la clave. */
 const createStripePaymentIntentSafe = async (params) => {
   const { idempotencyKey, ...rest } = params;
@@ -805,6 +822,67 @@ exports.createPago = async (req, res) => {
       }
 
       if (resolved.action === "reuse") {
+        // Si el usuario cambia de plan antes de confirmar Stripe, sincronizamos PI+BD
+        // para aplicar la regla de cobrar siempre el plan de mayor precio.
+        if (
+          !EMU_USUARIO_MULTA &&
+          (Number(resolved.pago.PAG_MONTO_TOTAL) !== Number(PAG_MONTO_TOTAL) ||
+            Number(resolved.pago.PLN_PLAN) !== Number(PLN_PLAN))
+        ) {
+          if (!resolved.pago.STRIPE_PAYMENT_INTENT_ID?.startsWith("pi_")) {
+            return res.status(409).json({
+              message:
+                "El pago pendiente no tiene un Payment Intent válido para actualizar.",
+            });
+          }
+
+          const metadatos = buildStripeMetadata({
+            nombreEstudiante: usuario.LR_NOMBRES,
+            apellidosEstudiante: usuario.LR_APELLIDOS,
+            correoEstudiante: usuario.LR_CORREO_INSTITUCIONAL,
+            formaPago,
+            PAG_MONTO_TOTAL,
+            plan,
+            usuarioMulta,
+            multa,
+            EMU_USUARIO_MULTA,
+          });
+
+          const paymentIntentActualizado = await updateStripePaymentIntent({
+            paymentIntentId: resolved.pago.STRIPE_PAYMENT_INTENT_ID,
+            amount: PAG_MONTO_TOTAL,
+            LR_CARNE,
+            pagoId: resolved.pago.PAG_PAGO,
+            metadatos,
+          });
+
+          await PagoStore.update(resolved.pago.PAG_PAGO, {
+            LR_CARNE,
+            PLN_PLAN,
+            FPG_FORMA_PAGO,
+            PAG_MONTO_TOTAL,
+            PAG_ESTADO: PAG_PENDIENTE,
+          });
+
+          const pagoSincronizado = await PagoStore.getById(resolved.pago.PAG_PAGO);
+          const secretActualizado =
+            obtenerClientSecretDesdePi(paymentIntentActualizado);
+
+          if (!secretActualizado) {
+            return res.status(502).json({
+              message:
+                "No se pudo obtener el client secret del Payment Intent actualizado en Stripe.",
+            });
+          }
+
+          return sendPagoResponse(res, 200, {
+            message: "Pago pendiente actualizado al nuevo monto",
+            data: toPagoJson(pagoSincronizado),
+            clientSecret: secretActualizado,
+            reused: true,
+          });
+        }
+
         return sendPagoResponse(res, 200, {
           message: "Pago pendiente existente reutilizado",
           data: resolved.pago,
