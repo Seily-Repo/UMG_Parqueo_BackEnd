@@ -81,6 +81,7 @@ exports.login = async (req, res) => {
         apellidos: usuario.APELLIDOS,
         correo_institucional: usuario.CORREO_INSTITUCIONAL,
         telefono: usuario.TELEFONO,
+        id_jornada: usuario.ID_JORNADA,
         rol: rolTexto,
         requiereCambioPass: usuario.REQUIERE_CAMBIO === 1
       }
