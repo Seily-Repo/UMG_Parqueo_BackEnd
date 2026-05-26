@@ -249,7 +249,6 @@ class PagosStore {
 
   static async create(data) {
     return await Pago.create({
-      PAG_PAGO: data.PAG_PAGO,
       LR_CARNE: data.LR_CARNE,
       PLN_PLAN: data.PLN_PLAN,
       FPG_FORMA_PAGO: data.FPG_FORMA_PAGO,

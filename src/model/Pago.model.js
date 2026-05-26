@@ -45,8 +45,7 @@ const Pago = sequelize.define(
     },
     STRIPE_PAYMENT_INTENT_ID: {
       type: DataTypes.STRING(255),
-      allowNull: false,
-      unique: true,
+      allowNull: true,
     },
     PAG_ESTADO_REGISTRO: {
       type: DataTypes.CHAR(1),
