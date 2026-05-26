@@ -18,6 +18,24 @@ const dbConfig = {
   connectString: process.env.DB_CONNECTION_STRING
 };
 
+// 🌟 INICIALIZAR POOL DE CONEXIONES 🌟
+async function initDbPool() {
+  try {
+    await oracledb.createPool({
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      connectString: process.env.DB_CONNECTION_STRING,
+      poolMin: 2,
+      poolMax: 10,
+      poolIncrement: 1
+    });
+    console.log("✅ [DB] Pool de conexiones Oracle inicializado con éxito.");
+  } catch (err) {
+    console.error("❌ [DB] Error al inicializar pool de conexiones:", err);
+  }
+}
+initDbPool();
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
@@ -40,7 +58,7 @@ async function serveCatalog(req, res, cacheKey, sql) {
   if (cached) return res.status(200).json(cached);
   let connection;
   try {
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     const result = await connection.execute(sql, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
     setCache(cacheKey, result.rows);
     res.status(200).json(result.rows);
@@ -76,7 +94,7 @@ app.get('/api/municipios/:id_depto', async (req, res) => {
   if (cached) return res.status(200).json(cached);
   let connection;
   try {
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     const result = await connection.execute('SELECT MUN_ID_MUNICIPIO as id_municipio, MUN_NOMBRE_MUNICIPIO as nombre_municipio FROM INFRA_DEV.LR_MUNICIPIO WHERE DEP_ID_DEPARTAMENTO = :id ORDER BY MUN_NOMBRE_MUNICIPIO', { id: idDepto }, { outFormat: oracledb.OUT_FORMAT_OBJECT });
     setCache(cacheKey, result.rows);
     res.status(200).json(result.rows);
@@ -103,7 +121,7 @@ app.post('/api/auth/registro', async (req, res) => {
     
     console.log("🚀 [REGISTRO] Carné formateado para Oracle:", carneLimpio);
 
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
 
     const sqlUsuario = `
   INSERT INTO INFRA_DEV.LR_USUARIO (
@@ -174,10 +192,14 @@ app.post('/api/auth/registro', async (req, res) => {
           </div>
         `
       };
-      await transporter.sendMail(mailOptions);
-      console.log("✉️ [REGISTRO] Correo HTML enviado con éxito");
-    } catch (errEmail) { 
-      console.error("❌ [EMAIL ERROR] Falló el correo:", errEmail); 
+      // 🚀 ENVIAMOS EL CORREO EN SEGUNDO PLANO SIN BLOQUEAR LA RESPUESTA HTTP
+      transporter.sendMail(mailOptions).then(() => {
+        console.log("✉️ [REGISTRO] Correo HTML enviado con éxito en segundo plano");
+      }).catch((errEmail) => {
+        console.error("❌ [EMAIL ERROR] Falló el correo en segundo plano:", errEmail);
+      });
+    } catch (errSync) {
+      console.error("❌ [EMAIL ERROR] Error síncrono al preparar correo:", errSync);
     }
 
     res.status(200).json({ mensaje: "Registro exitoso." });
@@ -199,7 +221,7 @@ app.post('/api/auth/login', async (req, res) => {
     // 🚨 RADAR 2: Veamos con qué está intentando entrar el usuario
     console.log(`🔐 [LOGIN] Intentando entrar con -> Carné Numérico: ${identificadorCarne} | Correo: ${identificadorCorreo}`);
     
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     const result = await connection.execute(
   `SELECT LR_CARNE AS CARNE, LR_NOMBRES AS NOMBRES, LR_APELLIDOS AS APELLIDOS, 
           LR_CORREO_INSTITUCIONAL AS CORREO_INSTITUCIONAL, LR_TELEFONO AS TELEFONO, 
@@ -291,7 +313,7 @@ app.put('/api/auth/cambiar-password', async (req, res) => {
     const contrasenaEncriptada = await bcrypt.hash(nuevaPassword, salt);
     const carneLimpio = limpiarCarne(carne);
     
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     await connection.execute(`UPDATE INFRA_DEV.LR_USUARIO SET LR_CONTRASENA = :contrasena WHERE LR_CARNE = :carne`, { contrasena: contrasenaEncriptada, carne: carneLimpio });
     await connection.commit();
     res.status(200).json({ mensaje: "Contraseña actualizada exitosamente." });
@@ -305,7 +327,7 @@ app.get('/api/vehiculos/:carne', async (req, res) => {
   let connection;
   try {
     const carneLimpio = limpiarCarne(req.params.carne);
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     const result = await connection.execute(
       `SELECT VEH_ID_VEHICULO AS ID_VEHICULO, VEH_TIPO_VEHICULO AS TIPO_VEHICULO, VEH_PLACA AS PLACA, VEH_MARCA AS MARCA, VEH_MODELO AS MODELO, VEH_COLOR AS COLOR, VEH_ACTIVO AS ACTIVO 
        FROM INFRA_DEV.LR_VEHICULO WHERE LR_CARNE = :carne AND VEH_ACTIVO = 1 ORDER BY VEH_FECHA_REGISTRO ASC`, 
@@ -319,7 +341,7 @@ app.get('/api/pagos/lista-pendiente/:carne', async (req, res) => {
   let connection;
   try {
     const carneLimpio = limpiarCarne(req.params.carne);
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     const sql = `
       SELECT p.PAG_PAGO, 
              NVL(pl.PLN_NOMBRE_PLAN, NVL(m.MUL_DESCRIPCION, 'Marbete Vehículo Adicional')) AS DESCRIPCION,
@@ -352,7 +374,7 @@ app.post('/api/vehiculos', async (req, res) => {
       ? tipo_vehiculo.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
       : 'AUTOMOVIL';
 
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     
     // 2. Guardamos el vehículo con los datos ya limpios
     await connection.execute(
@@ -426,7 +448,7 @@ app.post('/api/vehiculos', async (req, res) => {
 app.get('/api/admin/usuarios', verificarToken, esAdmin, async (req, res) => {
   let connection;
   try {
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     const sql = `
       SELECT u.LR_CARNE as carne, u.LR_NOMBRES as nombres, u.LR_APELLIDOS as apellidos, 
              u.LR_NOMBRES || ' ' || u.LR_APELLIDOS AS nombre, 
@@ -451,7 +473,7 @@ app.put('/api/admin/usuarios/:carne', verificarToken, esAdmin, async (req, res) 
   try {
     const carneLimpio = limpiarCarne(req.params.carne);
     const { nombres, apellidos, correo_institucional, telefono, id_rol } = req.body;
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     const sql = `UPDATE INFRA_DEV.LR_USUARIO SET LR_NOMBRES = :nombres, LR_APELLIDOS = :apellidos, LR_CORREO_INSTITUCIONAL = :correo, LR_TELEFONO = :telefono, ROL_ID_ROL = :id_rol WHERE LR_CARNE = :carne`;
     await connection.execute(sql, { nombres, apellidos, correo: correo_institucional, telefono: telefono || null, id_rol: parseInt(id_rol), carne: carneLimpio });
     await connection.commit();
@@ -464,7 +486,7 @@ app.put('/api/admin/usuarios/:carne/estado', verificarToken, esAdmin, async (req
   try {
     const carneLimpio = limpiarCarne(req.params.carne);
     const { nuevoEstado } = req.body; 
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     await connection.execute(`UPDATE INFRA_DEV.LR_USUARIO SET LR_ACTIVO = :nuevoEstado WHERE LR_CARNE = :carne`, { nuevoEstado, carne: carneLimpio });
     await connection.commit();
     res.status(200).json({ mensaje: "Actualizado" });
@@ -474,7 +496,7 @@ app.put('/api/admin/usuarios/:carne/estado', verificarToken, esAdmin, async (req
 app.get('/api/admin/estadisticas', verificarToken, esAdmin, async (req, res) => {
   let connection;
   try {
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     const resCarros = await connection.execute(`SELECT COUNT(*) AS TOTAL FROM INFRA_DEV.LR_VEHICULO WHERE VEH_TIPO_VEHICULO = 'AUTOMOVIL'`, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
     const resMotos = await connection.execute(`SELECT COUNT(*) AS TOTAL FROM INFRA_DEV.LR_VEHICULO WHERE VEH_TIPO_VEHICULO = 'MOTOCICLETA'`, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
     const resIngresos = await connection.execute(`SELECT NVL(SUM(PAG_MONTO_TOTAL), 0) AS TOTAL FROM INFRA_DEV.CB_PAGO WHERE PAG_ESTADO = 'C'`, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
@@ -485,7 +507,7 @@ app.get('/api/admin/estadisticas', verificarToken, esAdmin, async (req, res) => 
 app.get('/api/admin/pagos', async (req, res) => {
   let connection;
   try {
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     const sql = `
       SELECT p.PAG_PAGO, p.LR_CARNE AS CARNE_USUARIO, u.LR_NOMBRES || ' ' || u.LR_APELLIDOS as NOMBRE, 
              NVL(pl.PLN_NOMBRE_PLAN, m.MUL_DESCRIPCION) AS CONCEPTO, 
@@ -513,7 +535,7 @@ app.put('/api/admin/pagos/:id/aprobar', async (req, res) => {
   let connection;
   try {
     const { id } = req.params;
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     await connection.execute(`UPDATE INFRA_DEV.CB_PAGO SET PAG_ESTADO = 'C' WHERE PAG_PAGO = :id`, { id });
     await connection.commit();
     res.status(200).json({ mensaje: "Pago Aprobado" });
@@ -529,7 +551,7 @@ app.post('/api/admin/multas', async (req, res) => {
   try {
     const { carne, placa, id_multa } = req.body;
     const carneLimpio = limpiarCarne(carne);
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     
     // Primero, buscamos el ID del vehículo por placa y carné para amarrarlo a la multa
     const resVeh = await connection.execute(
@@ -545,7 +567,7 @@ app.post('/api/admin/multas', async (req, res) => {
     // Insertamos la multa
     const resultMulta = await connection.execute(
       `INSERT INTO INFRA_DEV.CB_USUARIO_MULTA (MUL_MULTA, VEH_ID_VEHICULO, EMU_ESTADO_MULTA) 
-       VALUES (:id_multa, :id_veh, 'P') RETURNING EMU_USUARIO_MULTA INTO :id_generado`,
+       VALUES (:id_multa, :id_veh, 'A') RETURNING EMU_USUARIO_MULTA INTO :id_generado`,
       { id_multa: parseInt(id_multa), id_veh: idVehiculo, id_generado: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT } }
     );
     const idUsuarioMulta = resultMulta.outBinds.id_generado[0];
@@ -572,7 +594,7 @@ app.post('/api/admin/multas', async (req, res) => {
 app.get('/api/admin/reportes', async (req, res) => {
   let connection;
   try {
-    connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection();
     
     const resDemografia = await connection.execute(
       `SELECT VEH_TIPO_VEHICULO AS "nombre", COUNT(*) AS "cantidad" FROM INFRA_DEV.LR_VEHICULO WHERE VEH_ACTIVO = 1 GROUP BY VEH_TIPO_VEHICULO`, 

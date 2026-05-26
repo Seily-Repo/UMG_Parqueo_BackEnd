@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const UsuarioStore = require('../store/usuario.store');
 const { limpiarCarne, formatearCarne } = require('../utils/helpers');
-const { enviarCorreoRegistro } = require('../utils/email.util');
+const { enviarCorreoRegistro, enviarCorreoRecuperacion } = require('../utils/email.util');
 
 /**
  * POST /api/auth/registro
@@ -11,6 +11,29 @@ exports.registro = async (req, res) => {
   try {
     const { creadoPorAdmin, ...datos } = req.body;
     console.log("🚀 [REGISTRO] React envió estos datos:", datos);
+
+    // [LOG-007] Validación de Campos Obligatorios
+    if (!datos.carne || !datos.nombres || !datos.apellidos || !datos.correo_electronico || !datos.password) {
+      return res.status(400).json({ error: "Los campos carné, nombres, apellidos, correo electrónico y contraseña son obligatorios." });
+    }
+
+    // [LOG-001 & LOG-006 & LOG-008] Normalización y validación del correo electrónico
+    datos.correo_electronico = datos.correo_electronico.toLowerCase().trim();
+    const emailRegex = /^[^\s@]+@miumg\.edu\.gt$/;
+    if (!emailRegex.test(datos.correo_electronico)) {
+      return res.status(400).json({ error: "El correo debe tener un formato válido y terminar en @miumg.edu.gt" });
+    }
+
+    // [LOG-005] Fuerza de Contraseña
+    if (datos.password.length < 8) {
+      return res.status(400).json({ error: "La contraseña debe tener un mínimo de 8 caracteres." });
+    }
+
+    // Verificación preventiva de duplicados (Carné o Correo)
+    const existeUsuario = await UsuarioStore.findForLogin(datos.carne, datos.correo_electronico);
+    if (existeUsuario && existeUsuario.length > 0) {
+      return res.status(400).json({ error: "El carné o correo ya se encuentran registrados." });
+    }
 
     const salt = await bcrypt.genSalt(10);
     const contrasenaEncriptada = await bcrypt.hash(datos.password, salt);
@@ -26,8 +49,9 @@ exports.registro = async (req, res) => {
     res.status(200).json({ mensaje: "Registro exitoso." });
   } catch (err) {
     console.error("❌ [ERROR FATAL EN REGISTRO]:", err);
-    if (err.errorNum === 1 || (err.message && err.message.includes('ORA-00001'))) {
-      return res.status(400).json({ error: "Carné o correo ya registrado." });
+    // [LOG-009] Manejo de Errores de Carné/Correo Duplicado
+    if (err.name === 'SequelizeUniqueConstraintError' || err.errorNum === 1 || (err.message && err.message.includes('ORA-00001'))) {
+      return res.status(400).json({ error: "El carné o correo ya se encuentran registrados." });
     }
     res.status(500).json({ error: "Error de servidor", detalle: err.message });
   }
@@ -38,8 +62,20 @@ exports.registro = async (req, res) => {
  */
 exports.login = async (req, res) => {
   try {
-    const { carne, correo_institucional, correo_electronico, password } = req.body;
+    let { carne, correo_institucional, correo_electronico, password } = req.body;
+
+    // [LOG-001 & LOG-006 & LOG-008] Normalización y validación en Login
+    if (correo_institucional) correo_institucional = correo_institucional.toLowerCase().trim();
+    if (correo_electronico) correo_electronico = correo_electronico.toLowerCase().trim();
+
     const identificadorCorreo = correo_institucional || correo_electronico || null;
+
+    if (identificadorCorreo) {
+      const emailRegex = /^[^\s@]+@miumg\.edu\.gt$/;
+      if (!emailRegex.test(identificadorCorreo)) {
+        return res.status(400).json({ error: "El correo debe terminar en @miumg.edu.gt" });
+      }
+    }
 
     console.log(`🔐 [LOGIN] Intentando con -> Carné: ${limpiarCarne(carne)} | Correo: ${identificadorCorreo}`);
 
@@ -61,6 +97,7 @@ exports.login = async (req, res) => {
     const carneFormateado = formatearCarne(usuario.CARNE);
 
     // Mapeo de rol numérico al string que exige el middleware oficial de cobros-back
+    // Ignorando roles de invitado (LOG-003)
     const ROLES_MAP = { 1: 'ADMINISTRADOR', 2: 'USUARIO' };
     const rolTexto = ROLES_MAP[usuario.ID_ROL] || 'USUARIO';
 
@@ -104,5 +141,48 @@ exports.cambiarPassword = async (req, res) => {
     res.status(200).json({ mensaje: "Contraseña actualizada exitosamente." });
   } catch (err) {
     res.status(500).json({ error: "Error interno del servidor", detalle: err.message });
+  }
+};
+
+/**
+ * POST /api/auth/recuperar-password
+ * [LOG-002] Cascarón de endpoint para recuperar contraseña
+ */
+exports.recuperarPassword = async (req, res) => {
+  try {
+    let { correo_electronico } = req.body;
+
+    if (!correo_electronico) {
+      return res.status(400).json({ error: "El correo electrónico es requerido." });
+    }
+
+    correo_electronico = correo_electronico.toLowerCase().trim();
+
+    // Verificación de formato y dominio
+    const emailRegex = /^[^\s@]+@miumg\.edu\.gt$/;
+    if (!emailRegex.test(correo_electronico)) {
+      return res.status(400).json({ error: "El correo debe tener un formato válido y terminar en @miumg.edu.gt" });
+    }
+
+    const rows = await UsuarioStore.findForLogin(null, correo_electronico);
+
+    if (rows.length > 0) {
+      const usuario = rows[0];
+      const primerNombre = usuario.NOMBRES ? usuario.NOMBRES.split(' ')[0] : 'Usuario';
+      
+      const tokenRecuperacion = jwt.sign(
+        { carne: usuario.CARNE, correo: correo_electronico, proposito: 'recuperacion' },
+        process.env.JWT_SECRET,
+        { expiresIn: '15m' }
+      );
+
+      // Enviar correo de forma asíncrona
+      enviarCorreoRecuperacion(correo_electronico, primerNombre, tokenRecuperacion);
+    }
+
+    res.status(200).json({ mensaje: "Si el correo está registrado, se enviarán instrucciones." });
+
+  } catch (err) {
+    res.status(500).json({ error: "Error de servidor", detalle: err.message });
   }
 };

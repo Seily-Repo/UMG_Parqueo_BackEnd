@@ -6,7 +6,7 @@ const { limpiarCarne, formatearCarne } = require('../utils/helpers');
 
 class UsuarioStore {
   /**
-   * Busca un usuario por carné numérico o correo para login.
+   * Busca un usuario por carné numérico o correo para login
    */
   static async findForLogin(carne, correo) {
     const carneLimpio = limpiarCarne(carne);
@@ -55,6 +55,7 @@ class UsuarioStore {
         CIC_ID_CICLO: datos.id_ciclo ? parseInt(datos.id_ciclo) : null,
         SEC_ID_SECCION: datos.id_seccion ? parseInt(datos.id_seccion) : null,
         JOR_ID_JORNADA: datos.id_jornada ? parseInt(datos.id_jornada) : 1,
+        // [LOG-003] Se ignora la creación de cuentas de invitado. Por defecto el rol es 2 (USUARIO)
         ROL_ID_ROL: (esAdmin && datos.id_rol) ? parseInt(datos.id_rol) : 2,
         LR_ACTIVO: 1,
         LR_REQUIERE_CAMBIO_PASS: requiereCambio,

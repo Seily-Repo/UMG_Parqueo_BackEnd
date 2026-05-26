@@ -57,7 +57,7 @@ const UsuarioMulta = sequelize.define('UsuarioMulta', {
   EMU_USUARIO_MULTA: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   MUL_MULTA: { type: DataTypes.INTEGER, allowNull: false },
   VEH_ID_VEHICULO: { type: DataTypes.INTEGER, allowNull: false },
-  EMU_ESTADO_MULTA: { type: DataTypes.CHAR(1), allowNull: false, defaultValue: 'P' },
+  EMU_ESTADO_MULTA: { type: DataTypes.CHAR(1), allowNull: false, defaultValue: 'A' },
 }, { tableName: 'CB_USUARIO_MULTA', schema: 'INFRA_DEV', timestamps: false, freezeTableName: true });
 
 const Pago = sequelize.define('Pago', {

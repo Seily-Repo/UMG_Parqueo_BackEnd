@@ -47,6 +47,6 @@ exports.registrar = async (req, res) => {
       return res.status(400).json({ error: "Tipo de vehículo no válido (Debe ser AUTOMOVIL, MOTOCICLETA, CAMIONETA u OTRO)." });
     }
 
-    res.status(500).json({ error: "Error interno", detalle: err.message });
+    res.status(500).json({ error: err.message || "Error al registrar el vehículo" });
   }
 };
