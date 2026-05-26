@@ -18,6 +18,28 @@ const normalizeCarne = (carne) => {
   return String(carne).replace(/-/g, "").trim();
 };
 
+const normalizeText = (value) =>
+  String(value ?? "")
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const planCoincideConJornada = (planNombre, jornadaId) => {
+  if (!jornadaId) return true;
+  const nombre = normalizeText(planNombre);
+
+  if (jornadaId === 1) return nombre.includes("MATUTIN");
+  if (jornadaId === 2) return nombre.includes("VESPERTIN");
+  if (jornadaId === 5) return nombre.includes("NOCTURN");
+  if (jornadaId === 3) {
+    return nombre.includes("SABAD") || nombre.includes("FIN DE SEMANA");
+  }
+  if (jornadaId === 4) {
+    return nombre.includes("DOMINGO") || nombre.includes("FIN DE SEMANA");
+  }
+  return true;
+};
+
 const usuarioPuedeVerPago = (req, pago) => {
   if (req.user.rol === "ADMINISTRADOR") return true;
   const carnePago = normalizeCarne(pago.LR_CARNE);
@@ -734,6 +756,15 @@ exports.createPago = async (req, res) => {
           message: "Plan de parqueo no encontrado",
         });
       }
+
+      const jornadaUsuario = Number(usuario.JOR_ID_JORNADA || 0);
+      if (!planCoincideConJornada(plan.PLN_NOMBRE_PLAN, jornadaUsuario)) {
+        return res.status(409).json({
+          message:
+            "El plan seleccionado no coincide con la jornada del estudiante.",
+        });
+      }
+
       PAG_MONTO_TOTAL = Number(plan.PLN_PRECIO);
     }
 

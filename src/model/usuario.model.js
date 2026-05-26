@@ -23,6 +23,10 @@ const Usuario = sequelize.define(
       allowNull: false,
       unique: true,
     },
+    JOR_ID_JORNADA: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
   },
   {
     tableName: "LR_USUARIO",
