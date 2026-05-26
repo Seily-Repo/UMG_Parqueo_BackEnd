@@ -64,6 +64,19 @@ class PagosStore {
     });
   }
 
+  /** Cualquier plan activo del carné (reutilizar al cambiar de moto a carro). */
+  static async findActivePlanByCarne(LR_CARNE) {
+    return await Pago.findOne({
+      where: {
+        LR_CARNE,
+        PAG_ESTADO: { [Op.in]: ESTADOS_ACTIVOS },
+        EMU_USUARIO_MULTA: { [Op.is]: null },
+        PLN_PLAN: { [Op.ne]: null },
+      },
+      order: [["PAG_PAGO", "DESC"]],
+    });
+  }
+
   /** Solo pendientes; prioriza filas que ya tienen Payment Intent en Stripe. */
   static async findPendingByPlanAndCarne(PLN_PLAN, LR_CARNE) {
     const conPi = await Pago.findOne({
@@ -86,6 +99,31 @@ class PagosStore {
         PAG_ESTADO: PAG_PENDIENTE,
         EMU_USUARIO_MULTA: { [Op.is]: null },
       },
+      order: [["PAG_PAGO", "DESC"]],
+    });
+  }
+
+  /** Cualquier plan pendiente del carné (moto+carro → un solo registro al pagar). */
+  static async findPendingPlanByCarne(LR_CARNE) {
+    const baseWhere = {
+      LR_CARNE,
+      PAG_ESTADO: PAG_PENDIENTE,
+      EMU_USUARIO_MULTA: { [Op.is]: null },
+      PLN_PLAN: { [Op.ne]: null },
+    };
+
+    const conPi = await Pago.findOne({
+      where: {
+        ...baseWhere,
+        STRIPE_PAYMENT_INTENT_ID: { [Op.like]: "pi_%" },
+      },
+      order: [["PAG_PAGO", "DESC"]],
+    });
+
+    if (conPi) return conPi;
+
+    return await Pago.findOne({
+      where: baseWhere,
       order: [["PAG_PAGO", "DESC"]],
     });
   }
@@ -184,6 +222,22 @@ class PagosStore {
     }
 
     return await Pago.update({ PAG_ESTADO: PAG_CANCELADO }, { where });
+  }
+
+  /** Cancela otros planes pendientes del mismo carné (distinto PLN_PLAN). */
+  static async cancelOtherPendingPlansForCarne({ keepPagoId, LR_CARNE }) {
+    return await Pago.update(
+      { PAG_ESTADO: PAG_CANCELADO },
+      {
+        where: {
+          PAG_PAGO: { [Op.ne]: keepPagoId },
+          LR_CARNE,
+          PAG_ESTADO: PAG_PENDIENTE,
+          EMU_USUARIO_MULTA: { [Op.is]: null },
+          PLN_PLAN: { [Op.ne]: null },
+        },
+      },
+    );
   }
 
   /** Completa un registro huérfano; si onlyMissing=true no sobrescribe campos ya guardados. */

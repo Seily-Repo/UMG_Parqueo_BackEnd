@@ -343,11 +343,18 @@ const attachPaymentIntentToPago = async (
 };
 
 const cancelPagosPendientesDuplicados = async (pago, reqBody) => {
-  await PagoStore.cancelDuplicatePending({
+  if (reqBody.EMU_USUARIO_MULTA) {
+    await PagoStore.cancelDuplicatePending({
+      keepPagoId: pago.PAG_PAGO,
+      LR_CARNE: reqBody.LR_CARNE,
+      EMU_USUARIO_MULTA: reqBody.EMU_USUARIO_MULTA,
+    });
+    return;
+  }
+
+  await PagoStore.cancelOtherPendingPlansForCarne({
     keepPagoId: pago.PAG_PAGO,
     LR_CARNE: reqBody.LR_CARNE,
-    PLN_PLAN: reqBody.PLN_PLAN ?? null,
-    EMU_USUARIO_MULTA: reqBody.EMU_USUARIO_MULTA ?? null,
   });
 };
 
@@ -778,15 +785,21 @@ exports.createPago = async (req, res) => {
 
     const pendingPago = EMU_USUARIO_MULTA
       ? await PagoStore.findPendingByUsuarioMulta(EMU_USUARIO_MULTA)
-      : await PagoStore.findPendingByPlanAndCarne(PLN_PLAN, LR_CARNE);
+      : await PagoStore.findPendingPlanByCarne(LR_CARNE);
 
     if (pendingPago) {
-      await PagoStore.cancelDuplicatePending({
-        keepPagoId: pendingPago.PAG_PAGO,
-        LR_CARNE,
-        PLN_PLAN: EMU_USUARIO_MULTA ? null : PLN_PLAN,
-        EMU_USUARIO_MULTA: EMU_USUARIO_MULTA ?? null,
-      });
+      if (EMU_USUARIO_MULTA) {
+        await PagoStore.cancelDuplicatePending({
+          keepPagoId: pendingPago.PAG_PAGO,
+          LR_CARNE,
+          EMU_USUARIO_MULTA,
+        });
+      } else {
+        await PagoStore.cancelOtherPendingPlansForCarne({
+          keepPagoId: pendingPago.PAG_PAGO,
+          LR_CARNE,
+        });
+      }
     }
 
     if (!EMU_USUARIO_MULTA && !pendingPago) {
@@ -834,7 +847,7 @@ exports.createPago = async (req, res) => {
       pendingPago ||
       (EMU_USUARIO_MULTA
         ? await PagoStore.findActiveByUsuarioMulta(EMU_USUARIO_MULTA)
-        : await PagoStore.findActiveByPlanAndCarne(PLN_PLAN, LR_CARNE));
+        : await PagoStore.findActivePlanByCarne(LR_CARNE));
 
     if (existingPago) {
       const resolved = await resolveExistingActivePago(existingPago);
@@ -923,6 +936,19 @@ exports.createPago = async (req, res) => {
       }
 
       if (resolved.action === "orphan_pending") {
+        if (!EMU_USUARIO_MULTA) {
+          await PagoStore.update(resolved.pago.PAG_PAGO, {
+            LR_CARNE,
+            PLN_PLAN,
+            FPG_FORMA_PAGO,
+            PAG_MONTO_TOTAL,
+            PAG_ESTADO: PAG_PENDIENTE,
+          });
+          resolved.pago = toPagoJson(
+            await PagoStore.getById(resolved.pago.PAG_PAGO),
+          );
+        }
+
         const metadatos = buildStripeMetadata({
           nombreEstudiante: usuario.LR_NOMBRES,
           apellidosEstudiante: usuario.LR_APELLIDOS,
