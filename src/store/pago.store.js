@@ -190,6 +190,29 @@ class PagoStore {
   }
 
   /**
+   * Cancela pagos de plan en estado P cuando el usuario cambia de vehículos/plan.
+   * Evita acumular varios pendientes (moto + carro); cobros-dev crea el registro al iniciar Stripe.
+   */
+  static async cancelarPagosPlanPendientesObsoletos(carne) {
+    const carneLimpio = limpiarCarne(carne);
+
+    await sequelize.query(
+      `UPDATE INFRA_DEV.CB_PAGO
+       SET PAG_ESTADO = 'C'
+       WHERE LR_CARNE = :carne
+         AND PAG_ESTADO = 'P'
+         AND PLN_PLAN IS NOT NULL
+         AND EMU_USUARIO_MULTA IS NULL
+         AND (
+           STRIPE_PAYMENT_INTENT_ID IS NULL
+           OR TRIM(STRIPE_PAYMENT_INTENT_ID) = ''
+           OR STRIPE_PAYMENT_INTENT_ID NOT LIKE 'pi_%'
+         )`,
+      { replacements: { carne: carneLimpio } },
+    );
+  }
+
+  /**
    * Aprueba un pago cambiando su estado a 'C' (Completado).
    */
   static async aprobar(idPago) {
