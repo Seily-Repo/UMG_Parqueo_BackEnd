@@ -61,16 +61,13 @@ class PagoStore {
         .sort((a, b) => Number(b.MONTO) - Number(a.MONTO))[0];
 
       if (!tienePagoPlan) {
-        if (pendingPlan) {
-          deudas.push(pendingPlan);
-        } else {
-          const vehicleBuckets = [
-            ...new Set(vehiculos.map((v) => mapTipoVehiculoToPlanBucket(v.VEH_TIPO_VEHICULO))),
-          ];
-          const includeMoto = vehicleBuckets.includes('MOTO') ? 1 : 0;
-          const includeCarro = vehicleBuckets.includes('CARRO') ? 1 : 0;
+        const vehicleBuckets = [
+          ...new Set(vehiculos.map((v) => mapTipoVehiculoToPlanBucket(v.VEH_TIPO_VEHICULO))),
+        ];
+        const includeMoto = vehicleBuckets.includes('MOTO') ? 1 : 0;
+        const includeCarro = vehicleBuckets.includes('CARRO') ? 1 : 0;
 
-          const [deudaPlanes] = await sequelize.query(`
+        const [deudaPlanes] = await sequelize.query(`
             SELECT
               candidato.ID_A_PAGAR,
               candidato.DESCRIPCION,
@@ -112,18 +109,22 @@ class PagoStore {
             ) candidato
             ORDER BY candidato.MONTO DESC, candidato.ID_A_PAGAR DESC
             FETCH FIRST 1 ROWS ONLY
-          `, {
-            replacements: {
-              carne: carneLimpio,
-              jornadaId,
-              includeMoto,
-              includeCarro,
-            },
-          });
+        `, {
+          replacements: {
+            carne: carneLimpio,
+            jornadaId,
+            includeMoto,
+            includeCarro,
+          },
+        });
 
-          if (deudaPlanes.length > 0) {
-            deudas.push(deudaPlanes[0]);
-          }
+        const calculadoPorVehiculos = deudaPlanes[0];
+        const planFinal = [pendingPlan, calculadoPorVehiculos]
+          .filter(Boolean)
+          .sort((a, b) => Number(b.MONTO || 0) - Number(a.MONTO || 0))[0];
+
+        if (planFinal) {
+          deudas.push(planFinal);
         }
       }
     }
