@@ -16,4 +16,21 @@ const formatearCarne = (carneNumerico) => {
   return carneNumerico.toString().replace(/(\d{4})(\d{2})(\d+)/, '$1-$2-$3');
 };
 
-module.exports = { limpiarCarne, formatearCarne };
+/**
+ * Normaliza variantes de tipo de vehículo al bucket usado en CB_PLAN_PARQUEO.
+ */
+const mapTipoVehiculoToPlanBucket = (tipoVehiculo) => {
+  const tipo = (tipoVehiculo || '')
+    .toString()
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  if (['MOTOCICLETA', 'MOTO'].includes(tipo)) return 'MOTO';
+  if (['AUTOMOVIL', 'CARRO', 'CAMIONETA', 'OTRO'].includes(tipo)) return 'CARRO';
+
+  return 'CARRO';
+};
+
+module.exports = { limpiarCarne, formatearCarne, mapTipoVehiculoToPlanBucket };

@@ -25,6 +25,7 @@ class UsuarioStore {
       TELEFONO: r.LR_TELEFONO,
       CONTRASENA: r.LR_CONTRASENA,
       ID_ROL: r.ROL_ID_ROL,
+      ID_JORNADA: r.JOR_ID_JORNADA,
       REQUIERE_CAMBIO: r.LR_REQUIERE_CAMBIO_PASS,
     }));
   }
