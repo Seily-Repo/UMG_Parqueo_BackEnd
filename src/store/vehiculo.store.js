@@ -98,11 +98,19 @@ class VehiculoStore {
    * Verifica si el vehículo tiene multas activas pendientes de pago
    */
   static async tieneMultasActivas(idVehiculo) {
-    const { UsuarioMulta } = require('../model/catalogos.model');
-    const conteo = await UsuarioMulta.count({
-      where: { VEH_ID_VEHICULO: idVehiculo, EMU_ESTADO_MULTA: 'A' }
-    });
-    return conteo > 0;
+    const query = `
+      SELECT COUNT(*) AS conteo
+      FROM INFRA_DEV.CB_USUARIO_MULTA um
+      WHERE um.VEH_ID_VEHICULO = :idVehiculo
+        AND um.EMU_ESTADO_MULTA IN ('A', 'P')
+        AND NOT EXISTS (
+          SELECT 1 FROM INFRA_DEV.CB_PAGO p 
+          WHERE p.EMU_USUARIO_MULTA = um.EMU_USUARIO_MULTA 
+            AND p.PAG_ESTADO IN ('C', 'A')
+        )
+    `;
+    const [result] = await sequelize.query(query, { replacements: { idVehiculo } });
+    return result[0].CONTEO > 0;
   }
 
   /**

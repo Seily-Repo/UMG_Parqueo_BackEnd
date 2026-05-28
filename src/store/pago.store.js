@@ -216,10 +216,21 @@ class PagoStore {
    * Aprueba un pago cambiando su estado a 'C' (Completado).
    */
   static async aprobar(idPago) {
+    const pago = await Pago.findByPk(idPago);
+    if (!pago) return;
+
     await Pago.update(
       { PAG_ESTADO: 'C' },
       { where: { PAG_PAGO: idPago } }
     );
+
+    if (pago.EMU_USUARIO_MULTA) {
+      const { UsuarioMulta } = require('../model/catalogos.model');
+      await UsuarioMulta.update(
+        { EMU_ESTADO_MULTA: 'C' },
+        { where: { EMU_USUARIO_MULTA: pago.EMU_USUARIO_MULTA } }
+      );
+    }
   }
 }
 
