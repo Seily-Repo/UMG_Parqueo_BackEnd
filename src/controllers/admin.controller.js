@@ -140,3 +140,34 @@ exports.getReportes = async (req, res) => {
     res.status(500).json({ error: "Error de servidor", detalle: err.message });
   }
 };
+
+/** GET /api/admin/vehiculos-general */
+exports.getVehiculosGeneral = async (req, res) => {
+  try {
+    const [vehiculos] = await sequelize.query(`
+      SELECT 
+        v.VEH_ID_VEHICULO AS ID_VEHICULO,
+        v.VEH_PLACA AS PLACA,
+        v.VEH_TIPO_VEHICULO AS TIPO_VEHICULO,
+        v.VEH_MARCA AS MARCA,
+        v.VEH_MODELO AS MODELO,
+        v.VEH_COLOR AS COLOR,
+        u.LR_NOMBRES || ' ' || u.LR_APELLIDOS AS NOMBRE_PROPIETARIO,
+        u.LR_CARNE AS CARNE_USUARIO
+      FROM INFRA_DEV.LR_VEHICULO v
+      JOIN INFRA_DEV.LR_USUARIO u ON v.LR_CARNE = u.LR_CARNE
+      WHERE v.VEH_ACTIVO = 1
+      ORDER BY v.VEH_ID_VEHICULO DESC
+    `);
+    
+    // Formatear el carné
+    const dataConGuiones = vehiculos.map(row => ({
+      ...row,
+      CARNE_USUARIO: row.CARNE_USUARIO ? formatearCarne(row.CARNE_USUARIO) : null
+    }));
+
+    res.status(200).json(dataConGuiones);
+  } catch (err) {
+    res.status(500).json({ error: "Error de servidor", detalle: err.message });
+  }
+};

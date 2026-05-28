@@ -80,4 +80,24 @@ router.get('/placa/:placa', vehiculoCtrl.getByPlaca);
  */
 router.post('/', vehiculoCtrl.registrar);
 
+/**
+ * @swagger
+ * /api/vehiculos/{id}/desactivar:
+ *   put:
+ *     tags: [Vehículos]
+ *     summary: Desactiva lógicamente un vehículo
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Vehículo desactivado
+ *       400:
+ *         description: El vehículo tiene multas pendientes
+ */
+router.put('/:id/desactivar', vehiculoCtrl.desactivar);
+
 module.exports = router;

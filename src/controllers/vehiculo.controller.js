@@ -47,6 +47,30 @@ exports.registrar = async (req, res) => {
       return res.status(400).json({ error: "Tipo de vehículo no válido (Debe ser AUTOMOVIL, MOTOCICLETA, CAMIONETA u OTRO)." });
     }
 
+    if (err.errorNum === 2) {
+      return res.status(400).json({ error: err.message });
+    }
+
     res.status(500).json({ error: err.message || "Error al registrar el vehículo" });
+  }
+};
+
+/**
+ * PUT /api/vehiculos/:id/desactivar
+ */
+exports.desactivar = async (req, res) => {
+  try {
+    const id = req.params.id;
+    // Verificar si tiene multas pendientes o activas
+    const tieneMultas = await VehiculoStore.tieneMultasActivas(id);
+    if (tieneMultas) {
+      return res.status(400).json({ error: "No se puede eliminar. El vehículo tiene multas pendientes." });
+    }
+    
+    await VehiculoStore.desactivar(id);
+    res.status(200).json({ mensaje: "Vehículo eliminado con éxito" });
+  } catch (err) {
+    console.error("❌ Error al desactivar vehículo:", err);
+    res.status(500).json({ error: "Error de servidor", detalle: err.message });
   }
 };

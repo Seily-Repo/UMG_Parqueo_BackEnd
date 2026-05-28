@@ -93,6 +93,24 @@ class VehiculoStore {
 
     return true;
   }
+
+  /**
+   * Verifica si el vehículo tiene multas activas pendientes de pago
+   */
+  static async tieneMultasActivas(idVehiculo) {
+    const { UsuarioMulta } = require('../model/catalogos.model');
+    const conteo = await UsuarioMulta.count({
+      where: { VEH_ID_VEHICULO: idVehiculo, EMU_ESTADO_MULTA: 'A' }
+    });
+    return conteo > 0;
+  }
+
+  /**
+   * Borrado lógico del vehículo
+   */
+  static async desactivar(idVehiculo) {
+    await Vehiculo.update({ VEH_ACTIVO: 0 }, { where: { VEH_ID_VEHICULO: idVehiculo } });
+  }
 }
 
 module.exports = VehiculoStore;

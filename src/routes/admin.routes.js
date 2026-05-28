@@ -195,4 +195,16 @@ router.post('/multas', verifyToken, checkRole(['ADMINISTRADOR']), adminCtrl.asig
  */
 router.get('/reportes', verifyToken, checkRole(['ADMINISTRADOR']), adminCtrl.getReportes);
 
+/**
+ * @swagger
+ * /api/admin/vehiculos-general:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Lista todos los vehículos activos del sistema con información de su propietario
+ *     responses:
+ *       200:
+ *         description: Lista de vehículos
+ */
+router.get('/vehiculos-general', verifyToken, checkRole(['ADMINISTRADOR']), adminCtrl.getVehiculosGeneral);
+
 module.exports = router;
