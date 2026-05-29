@@ -186,3 +186,34 @@ exports.recuperarPassword = async (req, res) => {
     res.status(500).json({ error: "Error de servidor", detalle: err.message });
   }
 };
+
+/**
+ * POST /api/auth/reset-password
+ */
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, nuevaPassword } = req.body;
+    if (!token || !nuevaPassword) {
+      return res.status(400).json({ error: "Faltan datos obligatorios." });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ error: "El enlace es inválido o ha expirado." });
+    }
+
+    if (decoded.proposito !== 'recuperacion') {
+      return res.status(401).json({ error: "Token inválido para esta operación." });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const contrasenaEncriptada = await bcrypt.hash(nuevaPassword, salt);
+
+    await UsuarioStore.cambiarPassword(decoded.carne, contrasenaEncriptada);
+    res.status(200).json({ mensaje: "Contraseña restablecida exitosamente." });
+  } catch (err) {
+    res.status(500).json({ error: "Error de servidor", detalle: err.message });
+  }
+};

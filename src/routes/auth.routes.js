@@ -185,4 +185,34 @@ router.put('/cambiar-password', authCtrl.cambiarPassword);
 // [LOG-002] Preparación para Recuperación: Nuevo endpoint para recuperar password
 router.post('/recuperar-password', authCtrl.recuperarPassword);
 
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     tags: [Autenticación]
+ *     summary: Restablece la contraseña de un usuario a partir de un token de recuperación
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, nuevaPassword]
+ *             properties:
+ *               token:
+ *                 type: string
+ *               nuevaPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Contraseña restablecida exitosamente
+ *       400:
+ *         description: Faltan datos obligatorios
+ *       401:
+ *         description: El enlace es inválido o ha expirado
+ *       500:
+ *         description: Error del servidor
+ */
+router.post('/reset-password', authCtrl.resetPassword);
+
 module.exports = router;
