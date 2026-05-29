@@ -67,7 +67,7 @@ async function enviarCorreoRegistro(datos, esAdmin) {
  */
 async function enviarCorreoRecuperacion(correo, primerNombre, token) {
   try {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://10.0.40.10:3000';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://10.0.40.10';
     const enlace = `${frontendUrl}/reset-password?token=${token}`;
 
     const mailOptions = {
