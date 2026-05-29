@@ -374,6 +374,46 @@ exports.getReporteAdministrativo = async (req, res) => {
   }
 };
 
+exports.getUltimasDescargas = async (req, res) => {
+  try {
+    const query = `
+      SELECT
+        D.LR_ID AS ID,
+        D.LR_CARNE AS CARNE,
+        U.LR_NOMBRES AS NOMBRES,
+        U.LR_APELLIDOS AS APELLIDOS,
+        D.LR_TIPO AS TIPO,
+        TO_CHAR(D.LR_FECHA_REGISTRO_DESCARGA, 'YYYY-MM-DD HH24:MI:SS') AS FECHA
+      FROM LR_CONTROL_DESCARGA D
+      INNER JOIN LR_USUARIO U
+        ON D.LR_CARNE = U.LR_CARNE
+      ORDER BY D.LR_FECHA_REGISTRO_DESCARGA DESC
+      FETCH FIRST 10 ROWS ONLY
+    `;
+
+    const rows = await sequelize.query(query, {
+      type: QueryTypes.SELECT,
+    });
+
+    const data = rows.map((row) => ({
+      id: row.ID,
+      carne: row.CARNE,
+      nombres: row.NOMBRES,
+      apellidos: row.APELLIDOS,
+      tipo: row.TIPO,
+      fecha: row.FECHA,
+    }));
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error("Error obteniendo ultimas descargas:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 exports.getReporteFinanciero = async (req, res) => {
   try {
     const query = `

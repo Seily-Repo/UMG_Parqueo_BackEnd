@@ -11,6 +11,7 @@ router.get('/pagos-aceptados', authMiddleware.verifyToken, authMiddleware.checkR
 router.get('/reporte-administrativo', authMiddleware.verifyToken, authMiddleware.checkRole(['ADMINISTRADOR']), reportesController.getReporteAdministrativo);
 router.get('/excel', authMiddleware.verifyToken, authMiddleware.checkRole(['ADMINISTRADOR']), reportesController.createExcel);
 router.get('/pdf', authMiddleware.verifyToken, authMiddleware.checkRole(['ADMINISTRADOR']), reportesController.createPDF);
+router.get('/descargas-recientes', authMiddleware.verifyToken, authMiddleware.checkRole(['ADMINISTRADOR']), reportesController.getUltimasDescargas);
 
 router.get('/dashboard', authMiddleware.verifyToken, authMiddleware.checkRole(['ADMINISTRADOR']), reportesController.getReporteGerencial); //gerenciales 1
 router.get('/ingresos-mensuales', authMiddleware.verifyToken, authMiddleware.checkRole(['ADMINISTRADOR']), reportesController.getIngresosMensuales);//gerenciales 2
