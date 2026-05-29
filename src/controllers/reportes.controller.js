@@ -263,6 +263,76 @@ function queryBase(filtro = "") {
     `;
 }
 
+function obtenerCarneUsuario(req) {
+  const carne = Number(req.user?.carne);
+
+  if (!Number.isInteger(carne)) {
+    throw new Error("No se pudo identificar el carne del usuario autenticado.");
+  }
+
+  return carne;
+}
+
+async function registrarDescarga(req, tipo) {
+  await sequelize.query(
+    `
+      INSERT INTO LR_CONTROL_DESCARGA (
+        LR_ID,
+        LR_CARNE,
+        LR_TIPO,
+        LR_FECHA_REGISTRO_DESCARGA
+      )
+      VALUES (
+        (SELECT NVL(MAX(LR_ID), 0) + 1 FROM LR_CONTROL_DESCARGA),
+        :carne,
+        :tipo,
+        SYSTIMESTAMP
+      )
+    `,
+    {
+      replacements: {
+        carne: obtenerCarneUsuario(req),
+        tipo,
+      },
+      type: QueryTypes.INSERT,
+    },
+  );
+}
+
+async function limiteDiarioAlcanzado(tipo, limite) {
+  const [resultado] = await sequelize.query(
+    `
+      SELECT COUNT(*) AS TOTAL
+      FROM LR_CONTROL_DESCARGA
+      WHERE LR_TIPO = :tipo
+        AND TRUNC(CAST(LR_FECHA_REGISTRO_DESCARGA AS DATE)) = TRUNC(SYSDATE)
+    `,
+    {
+      replacements: { tipo },
+      type: QueryTypes.SELECT,
+    },
+  );
+
+  return Number(resultado?.TOTAL || 0) >= limite;
+}
+
+async function validarLimiteDiarioDescargas(res, tipo, limite) {
+  const limiteAlcanzado = await limiteDiarioAlcanzado(tipo, limite);
+
+  if (!limiteAlcanzado) {
+    return false;
+  }
+
+  res.status(429).json({
+    success: false,
+    message: `Se llego al limite diario de descargas ${tipo}. Intenta nuevamente manana.`,
+    tipo,
+    limite,
+  });
+
+  return true;
+}
+
 exports.getReporteAdministrativo = async (req, res) => {
   try {
     const query = queryBase(filtro(req.query));
@@ -426,6 +496,11 @@ exports.getPagosAceptados = async (req, res) => {
 
 exports.createExcel = async (req, res) => {
   try {
+    const limiteAlcanzado = await validarLimiteDiarioDescargas(res, "EXCEL", 20000);
+    if (limiteAlcanzado) return;
+
+    await registrarDescarga(req, "EXCEL");
+
     const query = queryBase(filtro(req.query));
 
     const rows = await sequelize.query(query, {
@@ -509,6 +584,11 @@ exports.createExcel = async (req, res) => {
 // PDF
 exports.createPDF = async (req, res) => {
   try {
+    const limiteAlcanzado = await validarLimiteDiarioDescargas(res, "PDF", 50000);
+    if (limiteAlcanzado) return;
+
+    await registrarDescarga(req, "PDF");
+
     const query = queryBase(filtro(req.query));
 
     const rows = await sequelize.query(query, {
