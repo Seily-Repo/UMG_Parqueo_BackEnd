@@ -4,7 +4,7 @@ const tipoEspacioController = require('../controllers/tipo_espacio.controller');
 const { verifyToken, checkRole } = require('../middleware/auth.middleware');
 
 // 1. Obtener todos los tipos de espacio (General)
-router.get('/', verifyToken, checkRole(['ESTUDIANTE','ADMINISTRADOR']), tipoEspacioController.getAllTipos);
+router.get('/', verifyToken, checkRole(['USUARIO','ADMINISTRADOR']), tipoEspacioController.getAllTipos);
 
 // 2. Crear nuevo tipo (Con validación de basura, duplicados y cálculo de porcentaje)
 router.post('/', verifyToken, checkRole(['ADMINISTRADOR']), tipoEspacioController.crearTipoEspacio);

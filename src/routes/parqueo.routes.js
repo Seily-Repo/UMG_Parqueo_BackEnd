@@ -3,7 +3,7 @@ const router = express.Router();
 const parqueoController = require('../controllers/parqueo.controller');
 const { verifyToken, checkRole } = require('../middleware/auth.middleware');
 
-router.get('/', verifyToken, checkRole(['ESTUDIANTE','ADMINISTRADOR']), parqueoController.getAllParqueos);
+router.get('/', verifyToken, checkRole(['USUARIO','ADMINISTRADOR']), parqueoController.getAllParqueos);
 router.get('/:id', verifyToken, checkRole(['ADMINISTRADOR']), parqueoController.getParqueoById);
 router.post('/', verifyToken, checkRole(['ADMINISTRADOR']), parqueoController.createParqueo);
 router.put('/:id', verifyToken, checkRole(['ADMINISTRADOR']), parqueoController.updateParqueo);
