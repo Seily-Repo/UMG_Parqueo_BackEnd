@@ -188,9 +188,9 @@ exports.recuperarPassword = async (req, res) => {
 };
 
 /**
- * POST /api/auth/reset-password
+ * POST /api/auth/update-password
  */
-exports.resetPassword = async (req, res) => {
+exports.updatePassword = async (req, res) => {
   try {
     const { token, nuevaPassword } = req.body;
     if (!token || !nuevaPassword) {

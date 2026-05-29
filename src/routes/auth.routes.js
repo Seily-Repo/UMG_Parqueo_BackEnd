@@ -187,7 +187,7 @@ router.post('/recuperar-password', authCtrl.recuperarPassword);
 
 /**
  * @swagger
- * /api/auth/reset-password:
+ * /api/auth/update-password:
  *   post:
  *     tags: [Autenticación]
  *     summary: Restablece la contraseña de un usuario a partir de un token de recuperación
@@ -213,6 +213,6 @@ router.post('/recuperar-password', authCtrl.recuperarPassword);
  *       500:
  *         description: Error del servidor
  */
-router.post('/reset-password', authCtrl.resetPassword);
+router.post('/update-password', authCtrl.updatePassword);
 
 module.exports = router;
