@@ -45,6 +45,12 @@ class IslaStore {
         await isla.update(data);
         return isla;
     }
+    static async habilitar(id) {
+        const isla = await Isla.findByPk(id);
+        if (!isla) return null;
+        await isla.update({ IS_ESTADO: 1 });
+        return isla;
+    }
 }
 
 module.exports = IslaStore;

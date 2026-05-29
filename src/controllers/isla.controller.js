@@ -208,3 +208,42 @@ exports.anularIsla = async (req, res) => {
     });
   }
 };
+
+exports.habilitarIsla = async (req, res) => {
+  try {
+    if (req.user.rol !== 'ADMINISTRADOR') {
+      return res.status(403).json({
+        success: false,
+        status: 403,
+        message: "Permisos insuficientes.",
+        details: "Esta acción está restringida únicamente para usuarios con rol de Administrador."
+      });
+    }
+
+    const { id } = req.params;
+    const islaHabilitada = await IslaStore.habilitar(id);
+
+    if (!islaHabilitada) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        message: "Isla no encontrada.",
+        details: null,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      status: 200,
+      message: "Isla habilitada y activa nuevamente.",
+      details: null,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      status: 500,
+      message: "Error al habilitar la isla.",
+      details: error.message,
+    });
+  }
+};

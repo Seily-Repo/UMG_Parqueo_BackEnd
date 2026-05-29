@@ -11,4 +11,6 @@ router.get('/:id/espacios', verifyToken, checkRole(['ADMINISTRADOR', 'USUARIO'])
 
 router.put('/:id/anular', verifyToken, checkRole(['ADMINISTRADOR']), IslaController.anularIsla);
 
+router.put('/:id/habilitar', verifyToken, checkRole(['ADMINISTRADOR']), IslaController.habilitarIsla);
+
 module.exports = router;

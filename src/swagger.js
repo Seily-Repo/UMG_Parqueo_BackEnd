@@ -610,6 +610,21 @@ const options = {
             '404': { description: 'Isla no encontrada' }
           }
         }
+      },
+      '/api/islas/{id}/habilitar': {
+        put: {
+          tags: ['Islas'],
+          summary: 'Habilitar/Restaurar una isla',
+          description: 'Solo Administradores. Cambia el estado de la isla a 1.',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'integer' }, description: 'ID de la Isla a habilitar' }
+          ],
+          responses: {
+            '200': { description: 'Isla habilitada y activa nuevamente' },
+            '403': { description: 'Permisos insuficientes' },
+            '404': { description: 'Isla no encontrada' }
+          }
+        }
       }
     }
   },
