@@ -55,12 +55,27 @@ class VehiculoStore {
       ? datos.tipo_vehiculo.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       : 'AUTOMOVIL';
 
-    // Verificar si la placa ya existe para devolver un error claro
+    // Verificar si la placa ya existe para devolver un error claro o reactivarla
     const placaExistente = await Vehiculo.findOne({ where: { VEH_PLACA: placaLimpia }, raw: true });
     if (placaExistente) {
-      const error = new Error("Esta placa ya se encuentra registrada en el sistema.");
-      error.errorNum = 1; // Usado por el controlador para detectarlo
-      throw error;
+      if (placaExistente.VEH_ACTIVO === 1) {
+        const error = new Error("Esta placa ya se encuentra registrada en el sistema.");
+        error.errorNum = 1; // Usado por el controlador para detectarlo
+        throw error;
+      } else {
+        // Upsert: La placa existe pero está inactiva (borrado lógico). Actualizamos datos y reactivamos.
+        await Vehiculo.update({
+          LR_CARNE: carneLimpio,
+          VEH_TIPO_VEHICULO: tipoLimpio,
+          VEH_MARCA: datos.marca || null,
+          VEH_MODELO: datos.modelo || null,
+          VEH_COLOR: datos.color || null,
+          VEH_ACTIVO: 1
+        }, { where: { VEH_PLACA: placaLimpia } });
+        
+        await PagoStore.cancelarPagosPlanPendientesObsoletos(carneLimpio);
+        return true;
+      }
     }
 
     // Verificar límite de 3 vehículos
