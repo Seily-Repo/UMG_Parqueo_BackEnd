@@ -31,6 +31,38 @@ class UsuarioStore {
   }
 
   /**
+   * Busca un usuario evaluando exclusivamente su carné o correo (Evita ORA-01722)
+   */
+  static async findForAuth(identificador, esCorreo) {
+    let whereClause = '';
+
+    if (esCorreo) {
+      const correoSeguro = (identificador || 'N/A').replace(/'/g, "''");
+      whereClause = `LR_CORREO_INSTITUCIONAL = '${correoSeguro}' AND LR_ACTIVO = 1`;
+    } else {
+      const carneLimpio = limpiarCarne(identificador);
+      whereClause = `LR_CARNE = ${carneLimpio || 0} AND LR_ACTIVO = 1`;
+    }
+
+    const rows = await Usuario.findAll({
+      where: sequelize.literal(whereClause),
+      raw: true,
+    });
+    // Mapear a las llaves que espera auth.controller
+    return rows.map(r => ({
+      CARNE: r.LR_CARNE,
+      NOMBRES: r.LR_NOMBRES,
+      APELLIDOS: r.LR_APELLIDOS,
+      CORREO_INSTITUCIONAL: r.LR_CORREO_INSTITUCIONAL,
+      TELEFONO: r.LR_TELEFONO,
+      CONTRASENA: r.LR_CONTRASENA,
+      ID_ROL: r.ROL_ID_ROL,
+      ID_JORNADA: r.JOR_ID_JORNADA,
+      REQUIERE_CAMBIO: r.LR_REQUIERE_CAMBIO_PASS,
+    }));
+  }
+
+  /**
    * Registra un nuevo usuario con datos de emergencia en una transacción.
    */
   static async crear(datos, contrasenaEncriptada, esAdmin) {

@@ -64,22 +64,25 @@ exports.login = async (req, res) => {
   try {
     let { carne, correo_institucional, correo_electronico, password } = req.body;
 
-    // [LOG-001 & LOG-006 & LOG-008] Normalización y validación en Login
-    if (correo_institucional) correo_institucional = correo_institucional.toLowerCase().trim();
-    if (correo_electronico) correo_electronico = correo_electronico.toLowerCase().trim();
+    let identificadorUniversal = correo_institucional || correo_electronico || carne;
+    if (!identificadorUniversal) {
+      return res.status(400).json({ error: "Debe proveer un carné o correo electrónico." });
+    }
 
-    const identificadorCorreo = correo_institucional || correo_electronico || null;
+    identificadorUniversal = identificadorUniversal.toString().trim();
+    const esCorreo = identificadorUniversal.includes('@');
 
-    if (identificadorCorreo) {
+    if (esCorreo) {
+      identificadorUniversal = identificadorUniversal.toLowerCase();
       const emailRegex = /^[^\s@]+@miumg\.edu\.gt$/;
-      if (!emailRegex.test(identificadorCorreo)) {
+      if (!emailRegex.test(identificadorUniversal)) {
         return res.status(400).json({ error: "El correo debe terminar en @miumg.edu.gt" });
       }
     }
 
-    console.log(`🔐 [LOGIN] Intentando con -> Carné: ${limpiarCarne(carne)} | Correo: ${identificadorCorreo}`);
+    console.log(`🔐 [LOGIN] Intentando con -> Identificador: ${identificadorUniversal} | Es Correo: ${esCorreo}`);
 
-    const rows = await UsuarioStore.findForLogin(carne, identificadorCorreo);
+    const rows = await UsuarioStore.findForAuth(identificadorUniversal, esCorreo);
 
     console.log("🔍 [LOGIN] Resultados encontrados en la DB:", rows);
 
@@ -164,7 +167,7 @@ exports.recuperarPassword = async (req, res) => {
       return res.status(400).json({ error: "El correo debe tener un formato válido y terminar en @miumg.edu.gt" });
     }
 
-    const rows = await UsuarioStore.findForLogin(null, correo_electronico);
+    const rows = await UsuarioStore.findForAuth(correo_electronico, true);
 
     if (rows.length > 0) {
       const usuario = rows[0];
