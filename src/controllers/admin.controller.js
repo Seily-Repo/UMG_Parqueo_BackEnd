@@ -45,7 +45,7 @@ exports.getEstadisticas = async (req, res) => {
   try {
     const [[resCarros]] = await sequelize.query(`SELECT COUNT(*) AS TOTAL FROM INFRA_DEV.LR_VEHICULO WHERE VEH_TIPO_VEHICULO = 'AUTOMOVIL'`);
     const [[resMotos]] = await sequelize.query(`SELECT COUNT(*) AS TOTAL FROM INFRA_DEV.LR_VEHICULO WHERE VEH_TIPO_VEHICULO = 'MOTOCICLETA'`);
-    const [[resIngresos]] = await sequelize.query(`SELECT NVL(SUM(PAG_MONTO_TOTAL), 0) AS TOTAL FROM INFRA_DEV.CB_PAGO WHERE PAG_ESTADO = 'C'`);
+    const [[resIngresos]] = await sequelize.query(`SELECT NVL(SUM(PAG_MONTO_TOTAL), 0) AS TOTAL FROM INFRA_DEV.CB_PAGO WHERE PAG_ESTADO IN ('C', 'A')`);
     
     const [[resOcupados]] = await sequelize.query(`SELECT COUNT(*) AS TOTAL FROM INFRA_DEV.DP_ESPACIO WHERE ES_ESTADO = 0`);
     const [[resTotales]] = await sequelize.query(`SELECT COUNT(*) AS TOTAL FROM INFRA_DEV.DP_ESPACIO`);
