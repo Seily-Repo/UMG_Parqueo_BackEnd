@@ -232,6 +232,20 @@ class PagoStore {
       );
     }
   }
+  static async getPlanActivo(carne) {
+    const carneLimpio = limpiarCarne(carne);
+    const query = `
+      SELECT pl.PLN_NOMBRE_PLAN as NOMBRE
+      FROM INFRA_DEV.CB_PAGO p
+      JOIN INFRA_DEV.CB_PLAN_PARQUEO pl ON p.PLN_PLAN = pl.PLN_PLAN
+      WHERE p.LR_CARNE = :carne
+        AND p.PAG_ESTADO IN ('C', 'A')
+        AND ROWNUM = 1
+    `;
+    const [result] = await sequelize.query(query, { replacements: { carne: carneLimpio }});
+    if (result.length > 0) return { activo: true, nombre: result[0].NOMBRE };
+    return { activo: false, nombre: null };
+  }
 }
 
 module.exports = PagoStore;

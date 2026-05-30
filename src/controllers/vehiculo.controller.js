@@ -1,4 +1,5 @@
 const VehiculoStore = require('../store/vehiculo.store');
+const PagoStore = require('../store/pago.store');
 
 /**
  * GET /api/vehiculos/:carne
@@ -29,12 +30,20 @@ exports.getByCarne = async (req, res) => {
  */
 exports.registrar = async (req, res) => {
   try {
-    const { carne_usuario, tipo_vehiculo, placa, marca, modelo, color } = req.body;
+    const { carne_usuario, tipo_vehiculo, placa, marca, modelo, color, plan_id } = req.body;
+
+    if (!plan_id) {
+      const planInfo = await PagoStore.getPlanActivo(carne_usuario);
+      if (!planInfo.activo) {
+        return res.status(400).json({ error: "Debe seleccionar un plan de parqueo." });
+      }
+    }
 
     await VehiculoStore.crear(req.body);
 
     res.status(200).json({
-      mensaje: "Vehículo registrado exitosamente"
+      mensaje: "Vehículo registrado exitosamente",
+      plan_id: plan_id || null
     });
   } catch (err) {
     console.error("❌ Error al guardar vehículo:", err);

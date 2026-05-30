@@ -28,4 +28,23 @@ const pagoCtrl = require('../controllers/pago.controller');
  */
 router.get('/lista-pendiente/:carne', pagoCtrl.getListaPendientes);
 
+/**
+ * @swagger
+ * /api/pagos/plan-activo/{carne}:
+ *   get:
+ *     tags: [Pagos (Estudiante)]
+ *     summary: Verifica si el estudiante tiene un plan activo
+ *     parameters:
+ *       - in: path
+ *         name: carne
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Carné del estudiante
+ *     responses:
+ *       200:
+ *         description: Objeto indicando si tiene plan activo y el nombre del mismo
+ */
+router.get('/plan-activo/:carne', pagoCtrl.getPlanActivo);
+
 module.exports = router;
